@@ -1,0 +1,1628 @@
+// ============================================================================
+// TRMS Remake — Complete PostgreSQL Prisma Schema
+// Source: Oracle TRMS_CORE, TRMS_DATA & PLATFORM_CORE (GA_CORE)
+// ============================================================================
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+generator pothos {
+  provider = "prisma-pothos-types"
+}
+
+// ============================================================================
+// 1. PLATFORM_CORE / GA_CORE — IDENTITY, RBAC & ORGANIZATION (9 Core Tables)
+// ============================================================================
+
+/// Source Oracle: GA_CORE.USERS (PLATFORM_CORE.USERS)
+model User {
+  id           BigInt    @id @map("USER_ID")
+  username     String    @unique @map("USERNAME") @db.VarChar(100)
+  fullName     String    @map("FULL_NAME") @db.VarChar(200)
+  email        String?   @map("EMAIL") @db.VarChar(200)
+  phone        String?   @map("PHONE") @db.VarChar(50)
+  passwordHash String    @map("PASSWORD_HASH") @db.VarChar(255)
+  status       String    @default("ACTIVE") @map("STATUS") @db.VarChar(30)
+  avatarPath   String?   @map("AVATAR_PATH") @db.VarChar(500)
+  createdAt    DateTime  @default(now()) @map("CREATED_AT")
+  updatedAt    DateTime  @updatedAt @map("UPDATED_AT")
+  deletedAt    DateTime? @map("DELETED_AT")
+
+  // Relations
+  userRoles        UserRole[]
+  orgUnitPositions UserOrgUnitPosition[]
+  assignedPositions UserOrgUnitPosition[] @relation("UserOrgUnitAssignedBy")
+  driverProfile    Driver?               @relation("DriverIdentityUser")
+  notifications    Notification[]
+
+  @@index([status])
+  @@map("users")
+}
+
+/// Source Oracle: GA_CORE.EMPLOYEES (PLATFORM_CORE.EMPLOYEES)
+model Employee {
+  id          BigInt    @id @map("EMPLOYEE_ID")
+  empCode     String    @unique @map("EMP_CODE") @db.VarChar(50)
+  fullName    String    @map("FULL_NAME") @db.VarChar(200)
+  orgUnitId   BigInt?   @map("ORG_UNIT_ID")
+  positionId  BigInt?   @map("POSITION_ID")
+  activeFlag  String    @default("Y") @map("ACTIVE_FLAG") @db.Char(1)
+  createDate  DateTime  @default(now()) @map("CREATE_DATE")
+  editDate    DateTime  @updatedAt @map("EDIT_DATE")
+  leaveDate   DateTime? @map("LEAVE_DATE") @db.Date
+
+  // Relations
+  orgUnit            OrgUnit?                   @relation(fields: [orgUnitId], references: [id])
+  transportProfiles  EmployeeTransportProfile[]
+  shiftRegistrations ShiftRegistration[]
+
+  @@index([orgUnitId])
+  @@index([activeFlag])
+  @@map("employees")
+}
+
+/// Source Oracle: GA_CORE.ORG_UNITS (PLATFORM_CORE.ORG_UNITS)
+model OrgUnit {
+  id          BigInt   @id @map("UNIT_ID")
+  unitCode    String   @unique @map("UNIT_CODE") @db.VarChar(50)
+  name        String   @map("NAME") @db.VarChar(200)
+  parentId    BigInt?  @map("PARENT_ID")
+  unitType    String?  @map("UNIT_TYPE") @db.VarChar(50)
+  description String?  @map("DESCRIPTION") @db.VarChar(500)
+  syncState   String?  @map("SYNC_STATE") @db.VarChar(30)
+  delFlag     Int      @default(0) @map("DEL_FLAG")
+  createdAt   DateTime @default(now()) @map("CREATED_AT")
+  updatedAt   DateTime @updatedAt @map("UPDATED_AT")
+
+  // Relations
+  parent                      OrgUnit?                   @relation("OrgUnitHierarchy", fields: [parentId], references: [id])
+  children                    OrgUnit[]                  @relation("OrgUnitHierarchy")
+  employees                   Employee[]
+  userPositions               UserOrgUnitPosition[]
+  provisionalTransportProfiles EmployeeTransportProfile[] @relation("ProvisionalOrgUnit")
+
+  @@index([parentId])
+  @@index([delFlag])
+  @@map("org_units")
+}
+
+/// Source Oracle: GA_CORE.USER_ORG_UNITS_POSITIONS (PLATFORM_CORE.USER_ORG_UNITS_POSITIONS)
+model UserOrgUnitPosition {
+  id         BigInt   @id @map("ID")
+  userId     BigInt   @map("USER_ID")
+  unitId     BigInt   @map("UNIT_ID")
+  positionId BigInt?  @map("POSITION_ID")
+  isPrimary  String   @default("N") @map("IS_PRIMARY") @db.Char(1)
+  assignedAt DateTime @default(now()) @map("ASSIGNED_AT")
+  assignedBy BigInt?  @map("ASSIGNED_BY")
+
+  // Relations
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orgUnit        OrgUnit  @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  assignedByUser User?    @relation("UserOrgUnitAssignedBy", fields: [assignedBy], references: [id])
+
+  @@unique([userId, unitId, positionId])
+  @@index([userId])
+  @@index([unitId])
+  @@map("user_org_units_positions")
+}
+
+/// Source Oracle: GA_CORE.SYSTEMS (PLATFORM_CORE.SYSTEMS)
+model System {
+  id          BigInt   @id @map("SYSTEM_ID")
+  code        String   @unique @map("CODE") @db.VarChar(50)
+  name        String   @map("NAME") @db.VarChar(200)
+  description String?  @map("DESCRIPTION") @db.VarChar(500)
+  createdAt   DateTime @default(now()) @map("CREATED_AT")
+  updatedAt   DateTime @updatedAt @map("UPDATED_AT")
+
+  // Relations
+  roles    Role[]
+  features Feature[]
+  settings Setting[]
+
+  @@map("systems")
+}
+
+/// Source Oracle: GA_CORE.ROLES (PLATFORM_CORE.ROLES)
+model Role {
+  id            BigInt   @id @map("ROLE_ID")
+  code          String   @unique @map("CODE") @db.VarChar(100)
+  name          String   @map("NAME") @db.VarChar(200)
+  description   String?  @map("DESCRIPTION") @db.VarChar(500)
+  systemId      BigInt?  @map("SYSTEM_ID")
+  isSystemAdmin String   @default("N") @map("IS_SYSTEM_ADMIN") @db.Char(1)
+
+  // Relations
+  system       System?       @relation(fields: [systemId], references: [id])
+  userRoles    UserRole[]
+  roleFeatures RoleFeature[]
+
+  @@index([systemId])
+  @@map("roles")
+}
+
+/// Source Oracle: GA_CORE.USER_ROLES (PLATFORM_CORE.USER_ROLES)
+model UserRole {
+  id     BigInt @id @map("ID")
+  userId BigInt @map("USER_ID")
+  roleId BigInt @map("ROLE_ID")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+/// Source Oracle: GA_CORE.FEATURES (PLATFORM_CORE.FEATURES)
+model Feature {
+  id          BigInt   @id @map("FEATURE_ID")
+  systemId    BigInt   @map("SYSTEM_ID")
+  code        String   @unique @map("CODE") @db.VarChar(100)
+  name        String   @map("NAME") @db.VarChar(200)
+  description String?  @map("DESCRIPTION") @db.VarChar(500)
+  createdAt   DateTime @default(now()) @map("CREATED_AT")
+  updatedAt   DateTime @updatedAt @map("UPDATED_AT")
+
+  // Relations
+  system       System        @relation(fields: [systemId], references: [id], onDelete: Cascade)
+  roleFeatures RoleFeature[]
+
+  @@index([systemId])
+  @@map("features")
+}
+
+/// Source Oracle: GA_CORE.ROLE_FEATURES (PLATFORM_CORE.ROLE_FEATURES)
+model RoleFeature {
+  id        BigInt   @id @map("ID")
+  roleId    BigInt   @map("ROLE_ID")
+  featureId BigInt   @map("FEATURE_ID")
+  createdAt DateTime @default(now()) @map("CREATED_AT")
+
+  // Relations
+  role    Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  feature Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, featureId])
+  @@index([roleId])
+  @@index([featureId])
+  @@map("role_features")
+}
+
+// ============================================================================
+// 2. TRMS_CORE — MASTER DATA (VENDORS, POINTS, VEHICLES, DRIVERS, ROUTES, SHIFTS)
+// ============================================================================
+
+/// Source Oracle: TRMS_CORE.TRMS_VENDORS
+model Vendor {
+  id           BigInt   @id @map("ID")
+  vendorCode   String   @unique @map("VENDOR_CODE") @db.VarChar(50)
+  vendorName   String   @map("VENDOR_NAME") @db.VarChar(200)
+  vendorType   String   @default("EXTERNAL") @map("VENDOR_TYPE") @db.VarChar(50)
+  contactName  String?  @map("CONTACT_NAME") @db.VarChar(200)
+  contactPhone String?  @map("CONTACT_PHONE") @db.VarChar(50)
+  activeFlag   String   @default("Y") @map("ACTIVE_FLAG") @db.Char(1)
+  delFlag      String   @default("N") @map("DEL_FLAG") @db.Char(1)
+  createDate   DateTime @default(now()) @map("CREATE_DATE")
+  editDate     DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  vehicles        Vehicle[]
+  drivers         Driver[]
+  routes          Route[]
+  trips           Trip[]
+  tripAssignments TripAssignment[]
+
+  @@index([activeFlag, delFlag])
+  @@map("trms_vendors")
+}
+
+/// Source Oracle: TRMS_CORE.TRMS_POINTS
+model Point {
+  id           BigInt   @id @map("ID")
+  pointCode    String   @unique @map("POINT_CODE") @db.VarChar(50)
+  pointName    String   @map("POINT_NAME") @db.VarChar(255)
+  pointType    String   @default("PICKUP") @map("POINT_TYPE") @db.VarChar(50)
+  districtName String?  @map("DISTRICT_NAME") @db.VarChar(150)
+  address      String?  @map("ADDRESS") @db.VarChar(500)
+  isFactory    String   @default("N") @map("IS_FACTORY") @db.Char(1)
+  activeFlag   String   @default("Y") @map("ACTIVE_FLAG") @db.Char(1)
+  delFlag      String   @default("N") @map("DEL_FLAG") @db.Char(1)
+  createDate   DateTime @default(now()) @map("CREATE_DATE")
+  editDate     DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  segmentPoints           SegmentPoint[]
+  pickupProfiles          EmployeeTransportProfile[] @relation("ProfilePickupPoint")
+  dropoffProfiles         EmployeeTransportProfile[] @relation("ProfileDropoffPoint")
+  requestDeparturePickups TransportRequest[]         @relation("RequestDeparturePickupPoint")
+  requestDepartureDropoffs TransportRequest[]        @relation("RequestDepartureDropoffPoint")
+  requestReturnPickups    TransportRequest[]         @relation("RequestReturnPickupPoint")
+  requestReturnDropoffs   TransportRequest[]         @relation("RequestReturnDropoffPoint")
+  planAssignmentPickups   PlanAssignment[]           @relation("PlanAssignmentPickupPoint")
+  planAssignmentDropoffs  PlanAssignment[]           @relation("PlanAssignmentDropoffPoint")
+  tripDeparturePickups    Trip[]                     @relation("TripDeparturePickupPoint")
+  tripDepartureDropoffs   Trip[]                     @relation("TripDepartureDropoffPoint")
+  tripReturnPickups       Trip[]                     @relation("TripReturnPickupPoint")
+  tripReturnDropoffs      Trip[]                     @relation("TripReturnDropoffPoint")
+  passengerPickups        Passenger[]                @relation("PassengerPickupPoint")
+  passengerDropoffs       Passenger[]                @relation("PassengerDropoffPoint")
+  importRowPickups        ImportBatchRow[]           @relation("ImportRowPickupPoint")
+  importRowDropoffs       ImportBatchRow[]           @relation("ImportRowDropoffPoint")
+
+  @@index([activeFlag, delFlag])
+  @@index([isFactory])
+  @@map("trms_points")
+}
+
+/// Source Oracle: TRMS_CORE.TRMS_VEHICLES
+model Vehicle {
+  id                    BigInt   @id @map("ID")
+  vehiclePlate          String   @unique @map("VEHICLE_PLATE") @db.VarChar(50)
+  vendorId              BigInt?  @map("VENDOR_ID")
+  vehicleType           String   @map("VEHICLE_TYPE") @db.VarChar(50)
+  seatCapacity          Int      @map("SEAT_CAPACITY")
+  ownershipType         String   @default("VENDOR") @map("OWNERSHIP_TYPE") @db.VarChar(50)
+  commutePackage        String?  @map("COMMUTE_PACKAGE") @db.VarChar(50)
+  commuteDailyTripCount Int?     @map("COMMUTE_DAILY_TRIP_COUNT")
+  commuteMaxDistanceKm  Int?     @map("COMMUTE_MAX_DISTANCE_KM")
+  activeFlag            String   @default("Y") @map("ACTIVE_FLAG") @db.Char(1)
+  delFlag               String   @default("N") @map("DEL_FLAG") @db.Char(1)
+  createDate            DateTime @default(now()) @map("CREATE_DATE")
+  editDate              DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  vendor                Vendor?              @relation(fields: [vendorId], references: [id])
+  routeSegments         RouteSegment[]
+  routeVehicles         RouteVehicle[]
+  planAssignments       PlanAssignment[]
+  trips                 Trip[]               @relation("TripVehicle")
+  offrouteDispatchTrips Trip[]               @relation("TripOffrouteDispatchVehicle")
+  tripAssignments       TripAssignment[]
+  dispatchConflicts     DispatchConflict[]
+  vehicleStatus         VehicleStatus?
+  costRecords           CostRecord[]
+  monthlyCostDetails    MonthlyCostDetail[]
+
+  @@index([vendorId])
+  @@index([vehicleType])
+  @@index([activeFlag, delFlag])
+  @@map("trms_vehicles")
+}
+
+/// Source Oracle: TRMS_CORE.TRMS_DRIVERS
+model Driver {
+  id             BigInt   @id @map("ID")
+  driverName     String   @map("DRIVER_NAME") @db.VarChar(200)
+  vendorId       BigInt?  @map("VENDOR_ID")
+  phoneNumber    String   @map("PHONE_NUMBER") @db.VarChar(50)
+  shortAddress   String?  @map("SHORT_ADDRESS") @db.VarChar(255)
+  fullAddress    String?  @map("FULL_ADDRESS") @db.VarChar(500)
+  identityUserId BigInt?  @unique @map("IDENTITY_USER_ID")
+  activeFlag     String   @default("Y") @map("ACTIVE_FLAG") @db.Char(1)
+  delFlag        String   @default("N") @map("DEL_FLAG") @db.Char(1)
+  createDate     DateTime @default(now()) @map("CREATE_DATE")
+  editDate       DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  vendor              Vendor?              @relation(fields: [vendorId], references: [id])
+  identityUser        User?                @relation("DriverIdentityUser", fields: [identityUserId], references: [id])
+  routeSegments       RouteSegment[]
+  routeVehicles       RouteVehicle[]
+  planAssignments     PlanAssignment[]
+  trips               Trip[]
+  tripAssignments     TripAssignment[]
+  driverConfirmations DriverConfirmation[]
+  dispatchConflicts   DispatchConflict[]
+  monthlyCostDetails  MonthlyCostDetail[]
+
+  @@index([vendorId])
+  @@index([activeFlag, delFlag])
+  @@map("trms_drivers")
+}
+
+/// Source Oracle: TRMS_CORE.TRMS_LEG_DEFINITIONS
+model LegDefinition {
+  id            BigInt   @id @map("ID")
+  legCode       String   @map("LEG_CODE") @db.VarChar(50)
+  legName       String   @map("LEG_NAME") @db.VarChar(200)
+  passengerType String   @default("WORKER") @map("PASSENGER_TYPE") @db.VarChar(50)
+  displayOrder  Int      @default(1) @map("DISPLAY_ORDER")
+  direction     String   @map("DIRECTION") @db.VarChar(30)
+  isDeadhead    String   @default("N") @map("IS_DEADHEAD") @db.Char(1)
+  activeFlag    String   @default("Y") @map("ACTIVE_FLAG") @db.Char(1)
+  delFlag       String   @default("N") @map("DEL_FLAG") @db.Char(1)
+  createDate    DateTime @default(now()) @map("CREATE_DATE")
+  editDate      DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  routeSegments   RouteSegment[]
+  planDemandItems PlanDemandItem[]
+  planAssignments PlanAssignment[]
+
+  @@unique([legCode, passengerType])
+  @@index([activeFlag, delFlag])
+  @@map("trms_leg_definitions")
+}
+
+/// Source Oracle: TRMS_CORE.TRMS_ROUTES
+model Route {
+  id              BigInt   @id @map("ID")
+  routeCode       String   @unique @map("ROUTE_CODE") @db.VarChar(50)
+  routeName       String   @map("ROUTE_NAME") @db.VarChar(255)
+  defaultVendorId BigInt?  @map("DEFAULT_VENDOR_ID")
+  routeClass      String   @default("FIXED") @map("ROUTE_CLASS") @db.VarChar(50)
+  passengerType   String   @default("WORKER") @map("PASSENGER_TYPE") @db.VarChar(50)
+  runDayMask      Int      @default(62) @map("RUN_DAY_MASK")
+  activeFlag      String   @default("Y") @map("ACTIVE_FLAG") @db.Char(1)
+  delFlag         String   @default("N") @map("DEL_FLAG") @db.Char(1)
+  createDate      DateTime @default(now()) @map("CREATE_DATE")
+  editDate        DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  defaultVendor      Vendor?                    @relation(fields: [defaultVendorId], references: [id])
+  segments           RouteSegment[]
+  routeVehicles      RouteVehicle[]
+  transportProfiles  EmployeeTransportProfile[]
+  transportRequests  TransportRequest[]
+  planDemandItems    PlanDemandItem[]
+  planAssignments    PlanAssignment[]
+  trips              Trip[]
+  dispatchConflicts  DispatchConflict[]
+  vehicleStatuses    VehicleStatus[]
+  costRecords        CostRecord[]
+  monthlyCostDetails MonthlyCostDetail[]
+  importBatchRows    ImportBatchRow[]
+
+  @@index([routeClass, passengerType])
+  @@index([activeFlag, delFlag])
+  @@map("trms_routes")
+}
+
+/// Source Oracle: TRMS_CORE.TRMS_ROUTE_SEGMENTS
+model RouteSegment {
+  id              BigInt   @id @map("ID")
+  routeId         BigInt   @map("ROUTE_ID")
+  segmentNo       Int      @map("SEGMENT_NO")
+  direction       String   @map("DIRECTION") @db.VarChar(30)
+  departureTime   String   @map("DEPARTURE_TIME") @db.VarChar(20)
+  arrivalTime     String   @map("ARRIVAL_TIME") @db.VarChar(20)
+  vehicleId       BigInt?  @map("VEHICLE_ID")
+  driverId        BigInt?  @map("DRIVER_ID")
+  parkingLocation String?  @map("PARKING_LOCATION") @db.VarChar(255)
+  legDefinitionId BigInt?  @map("LEG_DEFINITION_ID")
+  legCode         String?  @map("LEG_CODE") @db.VarChar(50)
+  isDeadhead      String   @default("N") @map("IS_DEADHEAD") @db.Char(1)
+  activeFlag      String   @default("Y") @map("ACTIVE_FLAG") @db.Char(1)
+  delFlag         String   @default("N") @map("DEL_FLAG") @db.Char(1)
+  createDate      DateTime @default(now()) @map("CREATE_DATE")
+  editDate        DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  route           Route            @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  vehicle         Vehicle?         @relation(fields: [vehicleId], references: [id])
+  driver          Driver?          @relation(fields: [driverId], references: [id])
+  legDefinition   LegDefinition?   @relation(fields: [legDefinitionId], references: [id])
+  segmentPoints   SegmentPoint[]
+  segmentShifts   SegmentShift[]
+  planDemandItems PlanDemandItem[]
+  planAssignments PlanAssignment[]
+  trips           Trip[]
+  vehicleStatuses VehicleStatus[]
+
+  @@index([routeId])
+  @@index([vehicleId])
+  @@index([driverId])
+  @@index([legDefinitionId])
+  @@map("trms_route_segments")
+}
+
+/// Source Oracle: TRMS_CORE.TRMS_SEGMENT_POINTS
+model SegmentPoint {
+  id         BigInt   @id @map("ID")
+  segmentId  BigInt   @map("SEGMENT_ID")
+  pointId    BigInt   @map("POINT_ID")
+  stopOrder  Int      @map("STOP_ORDER")
+  pointRole  String   @default("STOP") @map("POINT_ROLE") @db.VarChar(30)
+  activeFlag String   @default("Y") @map("ACTIVE_FLAG") @db.Char(1)
+  delFlag    String   @default("N") @map("DEL_FLAG") @db.Char(1)
+  createDate DateTime @default(now()) @map("CREATE_DATE")
+  editDate   DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  segment RouteSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  point   Point        @relation(fields: [pointId], references: [id])
+
+  @@index([segmentId])
+  @@index([pointId])
+  @@map("trms_segment_points")
+}
+
+/// Source Oracle: TRMS_CORE.TRMS_SEGMENT_SHIFTS
+model SegmentShift {
+  id         BigInt   @id @map("ID")
+  segmentId  BigInt   @map("SEGMENT_ID")
+  shiftId    BigInt   @map("SHIFT_ID")
+  activeFlag String   @default("Y") @map("ACTIVE_FLAG") @db.Char(1)
+  delFlag    String   @default("N") @map("DEL_FLAG") @db.Char(1)
+  createDate DateTime @default(now()) @map("CREATE_DATE")
+  editDate   DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  segment RouteSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  shift   Shift        @relation(fields: [shiftId], references: [id])
+
+  @@index([segmentId])
+  @@index([shiftId])
+  @@map("trms_segment_shifts")
+}
+
+/// Source Oracle: TRMS_CORE.TRMS_ROUTE_VEHICLES
+model RouteVehicle {
+  id              BigInt   @id @map("ID")
+  routeId         BigInt   @map("ROUTE_ID")
+  vehicleId       BigInt   @map("VEHICLE_ID")
+  defaultDriverId BigInt?  @map("DEFAULT_DRIVER_ID")
+  activeFlag      String   @default("Y") @map("ACTIVE_FLAG") @db.Char(1)
+  createDate      DateTime @default(now()) @map("CREATE_DATE")
+  editDate        DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  route         Route   @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  vehicle       Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  defaultDriver Driver? @relation(fields: [defaultDriverId], references: [id])
+
+  @@unique([routeId, vehicleId])
+  @@index([routeId])
+  @@index([vehicleId])
+  @@map("trms_route_vehicles")
+}
+
+/// Source Oracle: GA_CORE.SHIFTS (Cross-schema Master Shift & TRMS Transport Flag)
+model Shift {
+  id            BigInt   @id @map("SHIFT_ID")
+  shiftCode     String   @unique @map("SHIFT_CODE") @db.VarChar(50)
+  shiftName     String   @map("SHIFT_NAME") @db.VarChar(200)
+  startTime     String   @map("START_TIME") @db.VarChar(20)
+  endTime       String   @map("END_TIME") @db.VarChar(20)
+  workHours     Decimal? @map("WORK_HOURS") @db.Decimal(5, 2)
+  activeFlag    String   @default("Y") @map("ACTIVE_FLAG") @db.Char(1)
+  delFlag       Int      @default(0) @map("DEL_FLAG")
+  masterFlag    String   @default("Y") @map("MASTER_FLAG") @db.Char(1)
+  transportFlag String   @default("N") @map("TRANSPORT_FLAG") @db.Char(1)
+  createDate    DateTime @default(now()) @map("CREATE_DATE")
+  editDate      DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  segmentShifts               SegmentShift[]
+  shiftRegistrations          ShiftRegistration[]
+  provisionalTransportProfiles EmployeeTransportProfile[] @relation("ProvisionalShift")
+  planDemandItems             PlanDemandItem[]
+  trips                       Trip[]
+
+  @@index([activeFlag, delFlag])
+  @@index([transportFlag])
+  @@map("shifts")
+}
+
+/// Source Oracle: TRMS_CORE.TRMS_SHIFT_DEFINITIONS (Legacy TRMS Shift Definitions synced with GA_CORE.SHIFTS)
+model ShiftDefinition {
+  id         BigInt   @id @map("ID")
+  shiftCode  String   @unique @map("SHIFT_CODE") @db.VarChar(50)
+  shiftName  String   @map("SHIFT_NAME") @db.VarChar(200)
+  startTime  String   @map("START_TIME") @db.VarChar(20)
+  endTime    String   @map("END_TIME") @db.VarChar(20)
+  activeFlag String   @default("Y") @map("ACTIVE_FLAG") @db.Char(1)
+  delFlag    String   @default("N") @map("DEL_FLAG") @db.Char(1)
+  createDate DateTime @default(now()) @map("CREATE_DATE")
+  editDate   DateTime @updatedAt @map("EDIT_DATE")
+
+  @@map("trms_shift_definitions")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_IMPORT_BATCH_ROWS (Confirmed Daily Shift Registrations for Employees)
+model ShiftRegistration {
+  id             BigInt   @id @map("ID")
+  batchId        BigInt?  @map("BATCH_ID")
+  lineNo         Int?     @map("LINE_NO")
+  rowStatus      String   @default("VALID") @map("ROW_STATUS") @db.VarChar(30)
+  employeeCode   String   @map("EMPLOYEE_ID") @db.VarChar(50)
+  employeeRefId  BigInt?  @map("EMPLOYEE_REF_ID")
+  assignmentDate DateTime @map("ASSIGNMENT_DATE") @db.Date
+  shiftCode      String   @map("SHIFT_CODE") @db.VarChar(50)
+  shiftId        BigInt?  @map("SHIFT_ID")
+  createDate     DateTime @default(now()) @map("CREATE_DATE")
+  editDate       DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  batch    ImportBatch? @relation(fields: [batchId], references: [id])
+  employee Employee?    @relation(fields: [employeeRefId], references: [id])
+  shift    Shift?       @relation(fields: [shiftId], references: [id])
+
+  @@index([assignmentDate, shiftCode])
+  @@index([employeeCode, assignmentDate])
+  @@index([batchId])
+  @@map("trms_shift_registrations")
+}
+
+/// Source Oracle: TRMS_CORE.TRMS_EMPLOYEE_TRANSPORT_PROFILES
+model EmployeeTransportProfile {
+  id               BigInt    @id @map("ID")
+  employeeCode     String    @map("EMPLOYEE_ID") @db.VarChar(50)
+  employeeRefId    BigInt?   @map("EMPLOYEE_REF_ID")
+  routeId          BigInt    @map("ROUTE_ID")
+  pickupPointId    BigInt?   @map("PICKUP_POINT_ID")
+  dropoffPointId   BigInt?   @map("DROPOFF_POINT_ID")
+  effectiveFrom    DateTime  @map("EFFECTIVE_FROM") @db.Date
+  effectiveTo      DateTime? @map("EFFECTIVE_TO") @db.Date
+  leaveDate        DateTime? @map("LEAVE_DATE") @db.Date
+  approvalStatus   String    @default("APPROVED") @map("APPROVAL_STATUS") @db.VarChar(30)
+  rejectReason     String?   @map("REJECT_REASON") @db.VarChar(500)
+  endReasonCode    String?   @map("END_REASON_CODE") @db.VarChar(50)
+  isProvisional    String    @default("N") @map("IS_PROVISIONAL") @db.Char(1)
+  provTempCode     String?   @map("PROV_TEMP_CODE") @db.VarChar(50)
+  provFullName     String?   @map("PROV_FULL_NAME") @db.VarChar(200)
+  provOrgUnitId    BigInt?   @map("PROV_ORG_UNIT_ID")
+  provShiftId      BigInt?   @map("PROV_SHIFT_ID")
+  provWorkDayMask  Int?      @map("PROV_WORK_DAY_MASK")
+  activeFlag       String    @default("Y") @map("ACTIVE_FLAG") @db.Char(1)
+  delFlag          String    @default("N") @map("DEL_FLAG") @db.Char(1)
+  createDate       DateTime  @default(now()) @map("CREATE_DATE")
+  editDate         DateTime  @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  employee      Employee? @relation(fields: [employeeRefId], references: [id])
+  route         Route     @relation(fields: [routeId], references: [id])
+  pickupPoint   Point?    @relation("ProfilePickupPoint", fields: [pickupPointId], references: [id])
+  dropoffPoint  Point?    @relation("ProfileDropoffPoint", fields: [dropoffPointId], references: [id])
+  provOrgUnit   OrgUnit?  @relation("ProvisionalOrgUnit", fields: [provOrgUnitId], references: [id])
+  provShift     Shift?    @relation("ProvisionalShift", fields: [provShiftId], references: [id])
+
+  @@index([employeeCode])
+  @@index([routeId])
+  @@index([effectiveFrom, effectiveTo])
+  @@index([activeFlag, delFlag])
+  @@map("trms_employee_transport_profiles")
+}
+
+// ============================================================================
+// 3. TRMS_CORE — COST CONFIGURATIONS & PRICING RULES
+// ============================================================================
+
+/// Source Oracle: TRMS_CORE.TRMS_COST_CONFIGS
+model CostConfig {
+  id            BigInt    @id @map("ID")
+  versionCode   String    @map("VERSION_CODE") @db.VarChar(50)
+  configType    String    @map("CONFIG_TYPE") @db.VarChar(50)
+  passengerType String?   @map("PASSENGER_TYPE") @db.VarChar(50)
+  pricingScope  String    @map("PRICING_SCOPE") @db.VarChar(50)
+  vehicleType   String    @map("VEHICLE_TYPE") @db.VarChar(50)
+  currencyCode  String    @default("VND") @map("CURRENCY_CODE") @db.VarChar(10)
+  effectiveFrom DateTime  @map("EFFECTIVE_FROM") @db.Date
+  effectiveTo   DateTime? @map("EFFECTIVE_TO") @db.Date
+  activeFlag    String    @default("Y") @map("ACTIVE_FLAG") @db.Char(1)
+  delFlag       String    @default("N") @map("DEL_FLAG") @db.Char(1)
+  createDate    DateTime  @default(now()) @map("CREATE_DATE")
+  createBy      String?   @map("CREATE_BY") @db.VarChar(100)
+  editDate      DateTime  @updatedAt @map("EDIT_DATE")
+  editBy        String?   @map("EDIT_BY") @db.VarChar(100)
+
+  // Relations
+  rules           CostConfigRule[]
+  planAssignments PlanAssignment[]
+  trips           Trip[]
+
+  @@index([configType, pricingScope, vehicleType])
+  @@index([effectiveFrom, effectiveTo])
+  @@map("trms_cost_configs")
+}
+
+/// Source Oracle: TRMS_CORE.TRMS_COST_CONFIG_RULES
+model CostConfigRule {
+  id                       BigInt   @id @map("ID")
+  costConfigId             BigInt   @map("COST_CONFIG_ID")
+  ruleCode                 String   @map("RULE_CODE") @db.VarChar(100)
+  rateType                 String   @map("RATE_TYPE") @db.VarChar(50)
+  dayType                  String   @default("ALL") @map("DAY_TYPE") @db.VarChar(30)
+  minDistanceKm            Decimal? @map("MIN_DISTANCE_KM") @db.Decimal(10, 2)
+  maxDistanceKm            Decimal? @map("MAX_DISTANCE_KM") @db.Decimal(10, 2)
+  minDistanceInclusiveFlag String   @default("Y") @map("MIN_DISTANCE_INCLUSIVE_FLAG") @db.Char(1)
+  maxDistanceInclusiveFlag String   @default("Y") @map("MAX_DISTANCE_INCLUSIVE_FLAG") @db.Char(1)
+  dailyTripCount           Int?     @map("DAILY_TRIP_COUNT")
+  includedDistanceKm       Decimal? @map("INCLUDED_DISTANCE_KM") @db.Decimal(10, 2)
+  unitPrice                Decimal  @map("UNIT_PRICE") @db.Decimal(18, 2)
+  priceUnit                String   @map("PRICE_UNIT") @db.VarChar(50)
+  description              String?  @map("DESCRIPTION") @db.VarChar(500)
+  stackableFlag            String   @default("N") @map("STACKABLE_FLAG") @db.Char(1)
+  priority                 Int      @default(100) @map("PRIORITY")
+  activeFlag               String   @default("Y") @map("ACTIVE_FLAG") @db.Char(1)
+  delFlag                  String   @default("N") @map("DEL_FLAG") @db.Char(1)
+  createDate               DateTime @default(now()) @map("CREATE_DATE")
+  createBy                 String?  @map("CREATE_BY") @db.VarChar(100)
+  editDate                 DateTime @updatedAt @map("EDIT_DATE")
+  editBy                   String?  @map("EDIT_BY") @db.VarChar(100)
+
+  // Relations
+  costConfig  CostConfig   @relation(fields: [costConfigId], references: [id], onDelete: Cascade)
+  costRecords CostRecord[]
+
+  @@index([costConfigId])
+  @@index([rateType, dayType])
+  @@map("trms_cost_config_rules")
+}
+
+// ============================================================================
+// 4. TRMS_DATA — TRANSPORT REQUESTS & APPROVAL WORKFLOW
+// ============================================================================
+
+/// Source Oracle: TRMS_DATA.TRMS_TRANSPORT_REQUESTS
+model TransportRequest {
+  id                         BigInt    @id @map("ID")
+  requestCode                String    @unique @map("REQUEST_CODE") @db.VarChar(50)
+  businessDate               DateTime  @map("BUSINESS_DATE") @db.Date
+  requestType                String    @map("REQUEST_TYPE") @db.VarChar(50)
+  requestSource              String    @default("PORTAL") @map("REQUEST_SOURCE") @db.VarChar(50)
+  requesterId                String?   @map("REQUESTER_ID") @db.VarChar(100)
+  requesterName              String?   @map("REQUESTER_NAME") @db.VarChar(200)
+  departmentId               String?   @map("DEPARTMENT_ID") @db.VarChar(100)
+  departmentName             String?   @map("DEPARTMENT_NAME") @db.VarChar(200)
+  routeId                    BigInt?   @map("ROUTE_ID")
+  departurePickupPointId     BigInt?   @map("DEPARTURE_PICKUP_POINT_ID")
+  departureDropoffPointId    BigInt?   @map("DEPARTURE_DROPOFF_POINT_ID")
+  returnPickupPointId        BigInt?   @map("RETURN_PICKUP_POINT_ID")
+  returnDropoffPointId       BigInt?   @map("RETURN_DROPOFF_POINT_ID")
+  departurePickupPointText   String?   @map("DEPARTURE_PICKUP_POINT_TEXT") @db.VarChar(500)
+  departureDropoffPointText  String?   @map("DEPARTURE_DROPOFF_POINT_TEXT") @db.VarChar(500)
+  returnPickupPointText      String?   @map("RETURN_PICKUP_POINT_TEXT") @db.VarChar(500)
+  returnDropoffPointText     String?   @map("RETURN_DROPOFF_POINT_TEXT") @db.VarChar(500)
+  departureTime              DateTime? @map("DEPARTURE_TIME")
+  returnTime                 DateTime? @map("RETURN_TIME")
+  expectedArrivalTime        DateTime? @map("EXPECTED_ARRIVAL_TIME")
+  returnExpectedArrivalTime  DateTime? @map("RETURN_EXPECTED_ARRIVAL_TIME")
+  tripMode                   String    @default("ONE_WAY") @map("TRIP_MODE") @db.VarChar(30)
+  notes                      String?   @map("NOTES") @db.Text
+  contactName                String?   @map("CONTACT_NAME") @db.VarChar(200)
+  contactPhone               String?   @map("CONTACT_PHONE") @db.VarChar(50)
+  requestedVehicleType       String?   @map("REQUESTED_VEHICLE_TYPE") @db.VarChar(50)
+  passengerCount             Int       @default(1) @map("PASSENGER_COUNT")
+  status                     String    @default("DRAFT") @map("STATUS") @db.VarChar(50)
+  outboundStatus             String?   @map("OUTBOUND_STATUS") @db.VarChar(50)
+  returnStatus               String?   @map("RETURN_STATUS") @db.VarChar(50)
+  returnLegStatus            String?   @map("RETURN_LEG_STATUS") @db.VarChar(50)
+  returnedFromStatus         String?   @map("RETURNED_FROM_STATUS") @db.VarChar(50)
+  approvalBypassFlag         String    @default("N") @map("APPROVAL_BYPASS_FLAG") @db.Char(1)
+  currentTripId              BigInt?   @map("CURRENT_TRIP_ID")
+  overrideReason             String?   @map("OVERRIDE_REASON") @db.VarChar(500)
+  departmentApproverIds      String?   @map("DEPARTMENT_APPROVER_IDS") @db.VarChar(1000)
+  gaActions                  String?   @map("GA_ACTIONS") @db.Text
+  senderInfo                 String?   @map("SENDER_INFO") @db.VarChar(500)
+  receiverInfo               String?   @map("RECEIVER_INFO") @db.VarChar(500)
+  purpose                    String?   @map("PURPOSE") @db.VarChar(500)
+  departurePointNote         String?   @map("DEPARTURE_POINT_NOTE") @db.VarChar(500)
+  returnPointNote            String?   @map("RETURN_POINT_NOTE") @db.VarChar(500)
+  otShiftCode                String?   @map("OT_SHIFT_CODE") @db.VarChar(50)
+  legDirection               String?   @map("LEG_DIRECTION") @db.VarChar(30)
+  otShiftDate                DateTime? @map("OT_SHIFT_DATE") @db.Date
+  otPairId                   BigInt?   @map("OT_PAIR_ID")
+  reminderStatus             String?   @map("REMINDER_STATUS") @db.VarChar(30)
+  reminderDepartureAt        DateTime? @map("REMINDER_DEPARTURE_AT")
+  pickupScope                String    @default("REQUEST") @map("PICKUP_SCOPE") @db.VarChar(30)
+  delFlag                    String    @default("N") @map("DEL_FLAG") @db.Char(1)
+  createDate                 DateTime  @default(now()) @map("CREATE_DATE")
+  editDate                   DateTime  @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  route                   Route?                 @relation(fields: [routeId], references: [id])
+  departurePickupPoint    Point?                 @relation("RequestDeparturePickupPoint", fields: [departurePickupPointId], references: [id])
+  departureDropoffPoint   Point?                 @relation("RequestDepartureDropoffPoint", fields: [departureDropoffPointId], references: [id])
+  returnPickupPoint       Point?                 @relation("RequestReturnPickupPoint", fields: [returnPickupPointId], references: [id])
+  returnDropoffPoint      Point?                 @relation("RequestReturnDropoffPoint", fields: [returnDropoffPointId], references: [id])
+  currentTrip             Trip?                  @relation("CurrentRequestTrip", fields: [currentTripId], references: [id])
+  otPairRequest           TransportRequest?      @relation("OtPairRequestRelation", fields: [otPairId], references: [id])
+  pairedOtRequests        TransportRequest[]     @relation("OtPairRequestRelation")
+  requestPassengers       RequestPassenger[]
+  statusHistory           RequestStatusHistory[]
+  approvalRecords         ApprovalRecord[]
+  tripRequestLinks        TripRequestLink[]
+  tripPassengers          Passenger[]
+  dispatchConflicts       DispatchConflict[]
+
+  @@index([businessDate, status])
+  @@index([requestType, status])
+  @@index([requesterId])
+  @@index([routeId])
+  @@map("trms_transport_requests")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_REQUEST_PASSENGERS
+model RequestPassenger {
+  id                        BigInt   @id @map("ID")
+  requestId                 BigInt   @map("REQUEST_ID")
+  passengerId               String?  @map("PASSENGER_ID") @db.VarChar(100)
+  passengerName             String   @map("PASSENGER_NAME") @db.VarChar(200)
+  passengerType             String   @default("EMPLOYEE") @map("PASSENGER_TYPE") @db.VarChar(50)
+  departurePickupTime       String?  @map("DEPARTURE_PICKUP_TIME") @db.VarChar(30)
+  departurePickupPointText  String?  @map("DEPARTURE_PICKUP_POINT_TEXT") @db.VarChar(500)
+  departureArrivalTime      String?  @map("DEPARTURE_ARRIVAL_TIME") @db.VarChar(30)
+  departureDropoffPointText String?  @map("DEPARTURE_DROPOFF_POINT_TEXT") @db.VarChar(500)
+  returnPickupTime          String?  @map("RETURN_PICKUP_TIME") @db.VarChar(30)
+  returnPickupPointText     String?  @map("RETURN_PICKUP_POINT_TEXT") @db.VarChar(500)
+  returnDropoffPointText    String?  @map("RETURN_DROPOFF_POINT_TEXT") @db.VarChar(500)
+  passengerNote             String?  @map("PASSENGER_NOTE") @db.VarChar(500)
+  createDate                DateTime @default(now()) @map("CREATE_DATE")
+  editDate                  DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  request TransportRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@map("trms_request_passengers")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_REQUEST_STATUS_HISTORY
+model RequestStatusHistory {
+  id           BigInt   @id @map("ID")
+  requestId    BigInt   @map("REQUEST_ID")
+  fromStatus   String?  @map("FROM_STATUS") @db.VarChar(50)
+  toStatus     String   @map("TO_STATUS") @db.VarChar(50)
+  actionBy     String?  @map("ACTION_BY") @db.VarChar(100)
+  actionAt     DateTime @default(now()) @map("ACTION_AT")
+  actionReason String?  @map("ACTION_REASON") @db.VarChar(500)
+  createDate   DateTime @default(now()) @map("CREATE_DATE")
+  editDate     DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  request TransportRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@map("trms_request_status_history")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_APPROVAL_RECORDS
+model ApprovalRecord {
+  id             BigInt    @id @map("ID")
+  requestId      BigInt    @map("REQUEST_ID")
+  approvalStep   String    @map("APPROVAL_STEP") @db.VarChar(50)
+  approverId     String    @map("APPROVER_ID") @db.VarChar(100)
+  approverName   String?   @map("APPROVER_NAME") @db.VarChar(200)
+  decisionStatus String    @default("PENDING") @map("DECISION_STATUS") @db.VarChar(30)
+  decisionReason String?   @map("DECISION_REASON") @db.VarChar(500)
+  decidedAt      DateTime? @map("DECIDED_AT")
+  createDate     DateTime  @default(now()) @map("CREATE_DATE")
+  editDate       DateTime  @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  request TransportRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@index([approverId, decisionStatus])
+  @@map("trms_approval_records")
+}
+
+// ============================================================================
+// 5. TRMS_DATA — DAILY PLANNING, VERSIONING & IMPORT BATCHES
+// ============================================================================
+
+/// Source Oracle: TRMS_DATA.TRMS_DAILY_PLANS
+model DailyPlan {
+  id                     BigInt    @id @map("ID")
+  businessDate           DateTime  @unique @map("BUSINESS_DATE") @db.Date
+  planStatus             String    @default("DRAFT") @map("PLAN_STATUS") @db.VarChar(50)
+  currentPlanVersionId   BigInt?   @map("CURRENT_PLAN_VERSION_ID")
+  lastConfirmedBatchId   BigInt?   @map("LAST_CONFIRMED_BATCH_ID")
+  lockedFlag             String    @default("N") @map("LOCKED_FLAG") @db.Char(1)
+  lockedBy               String?   @map("LOCKED_BY") @db.VarChar(100)
+  lockedAt               DateTime? @map("LOCKED_AT")
+  payload                String?   @map("PAYLOAD") @db.Text
+  materializedAt         DateTime? @map("MATERIALIZED_AT")
+  materializedBy         String?   @map("MATERIALIZED_BY") @db.VarChar(100)
+  offrouteFinalizedAt    DateTime? @map("OFFROUTE_FINALIZED_AT")
+  offrouteFinalizedBy    String?   @map("OFFROUTE_FINALIZED_BY") @db.VarChar(100)
+  offrouteRevision       Int       @default(0) @map("OFFROUTE_REVISION")
+  createDate             DateTime  @default(now()) @map("CREATE_DATE")
+  editDate               DateTime  @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  versions           PlanVersion[]      @relation("DailyPlanVersions")
+  currentPlanVersion PlanVersion?       @relation("CurrentDailyPlanVersion", fields: [currentPlanVersionId], references: [id])
+  lastConfirmedBatch ImportBatch?       @relation("LastConfirmedImportBatch", fields: [lastConfirmedBatchId], references: [id])
+  impactMarkers      PlanImpactMarker[]
+
+  @@index([businessDate])
+  @@map("trms_daily_plans")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_PLAN_VERSIONS
+model PlanVersion {
+  id                    BigInt    @id @map("ID")
+  planId                BigInt    @map("PLAN_ID")
+  versionNo             Int       @map("VERSION_NO")
+  sourceBatchId         BigInt?   @map("SOURCE_BATCH_ID")
+  status                String    @default("DRAFT") @map("STATUS") @db.VarChar(50)
+  currentFlag           String    @default("Y") @map("CURRENT_FLAG") @db.Char(1)
+  snapshotVersion       Int       @default(1) @map("SNAPSHOT_VERSION")
+  publishedBy           String?   @map("PUBLISHED_BY") @db.VarChar(100)
+  publishedAt           DateTime? @map("PUBLISHED_AT")
+  supersededByVersionId BigInt?   @map("SUPERSEDED_BY_VERSION_ID")
+  createDate            DateTime  @default(now()) @map("CREATE_DATE")
+  editDate              DateTime  @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  dailyPlan           DailyPlan          @relation("DailyPlanVersions", fields: [planId], references: [id], onDelete: Cascade)
+  currentForPlans     DailyPlan[]        @relation("CurrentDailyPlanVersion")
+  sourceBatch         ImportBatch?       @relation(fields: [sourceBatchId], references: [id])
+  supersededByVersion PlanVersion?       @relation("PlanVersionSupersede", fields: [supersededByVersionId], references: [id])
+  supersededVersions  PlanVersion[]      @relation("PlanVersionSupersede")
+  demandItems         PlanDemandItem[]
+  assignments         PlanAssignment[]
+  impactMarkers       PlanImpactMarker[]
+  trips               Trip[]
+
+  @@unique([planId, versionNo])
+  @@index([planId, currentFlag])
+  @@map("trms_plan_versions")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_PLAN_DEMAND_ITEMS
+model PlanDemandItem {
+  id              BigInt   @id @map("ID")
+  planVersionId   BigInt   @map("PLAN_VERSION_ID")
+  demandType      String   @map("DEMAND_TYPE") @db.VarChar(50)
+  routeId         BigInt?  @map("ROUTE_ID")
+  shiftId         BigInt?  @map("SHIFT_ID")
+  segmentId       BigInt?  @map("SEGMENT_ID")
+  legDefinitionId BigInt?  @map("LEG_DEFINITION_ID")
+  legCode         String?  @map("LEG_CODE") @db.VarChar(50)
+  direction       String?  @map("DIRECTION") @db.VarChar(30)
+  passengerType   String?  @map("PASSENGER_TYPE") @db.VarChar(50)
+  routeCode       String?  @map("ROUTE_CODE") @db.VarChar(50)
+  routeName       String?  @map("ROUTE_NAME") @db.VarChar(255)
+  legName         String?  @map("LEG_NAME") @db.VarChar(200)
+  requiredSeats   Int      @default(0) @map("REQUIRED_SEATS")
+  requestCount    Int      @default(0) @map("REQUEST_COUNT")
+  activeFlag      String   @default("Y") @map("ACTIVE_FLAG") @db.Char(1)
+  createDate      DateTime @default(now()) @map("CREATE_DATE")
+  editDate        DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  planVersion   PlanVersion    @relation(fields: [planVersionId], references: [id], onDelete: Cascade)
+  route         Route?         @relation(fields: [routeId], references: [id])
+  shift         Shift?         @relation(fields: [shiftId], references: [id])
+  segment       RouteSegment?  @relation(fields: [segmentId], references: [id])
+  legDefinition LegDefinition? @relation(fields: [legDefinitionId], references: [id])
+
+  @@index([planVersionId])
+  @@index([routeId])
+  @@map("trms_plan_demand_items")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_PLAN_ASSIGNMENTS
+model PlanAssignment {
+  id                      BigInt    @id @map("ID")
+  planVersionId           BigInt    @map("PLAN_VERSION_ID")
+  sourceKind              String    @default("TEMPLATE") @map("SOURCE_KIND") @db.VarChar(50)
+  segmentId               BigInt?   @map("SEGMENT_ID")
+  routeId                 BigInt    @map("ROUTE_ID")
+  legDefinitionId         BigInt?   @map("LEG_DEFINITION_ID")
+  legCode                 String?   @map("LEG_CODE") @db.VarChar(50)
+  passengerType           String?   @map("PASSENGER_TYPE") @db.VarChar(50)
+  vehicleId               BigInt?   @map("VEHICLE_ID")
+  driverId                BigInt?   @map("DRIVER_ID")
+  vehiclePlateSnapshot    String?   @map("VEHICLE_PLATE_SNAPSHOT") @db.VarChar(50)
+  driverNameSnapshot      String?   @map("DRIVER_NAME_SNAPSHOT") @db.VarChar(200)
+  seatCapacitySnapshot    Int       @default(0) @map("SEAT_CAPACITY_SNAPSHOT")
+  plannedDepartureAt      DateTime? @map("PLANNED_DEPARTURE_AT")
+  plannedArrivalAt        DateTime? @map("PLANNED_ARRIVAL_AT")
+  departurePickupPointId  BigInt?   @map("DEPARTURE_PICKUP_POINT_ID")
+  departureDropoffPointId BigInt?   @map("DEPARTURE_DROPOFF_POINT_ID")
+  pricingScope            String?   @map("PRICING_SCOPE") @db.VarChar(50)
+  pricingConfigId         BigInt?   @map("PRICING_CONFIG_ID")
+  noteText                String?   @map("NOTE_TEXT") @db.VarChar(500)
+  assignmentStatus        String    @default("PLANNED") @map("ASSIGNMENT_STATUS") @db.VarChar(50)
+  materializedTripId      BigInt?   @map("MATERIALIZED_TRIP_ID")
+  createdBy               String?   @map("CREATED_BY") @db.VarChar(100)
+  updatedBy               String?   @map("UPDATED_BY") @db.VarChar(100)
+  createDate              DateTime  @default(now()) @map("CREATE_DATE")
+  editDate                DateTime  @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  planVersion           PlanVersion    @relation(fields: [planVersionId], references: [id], onDelete: Cascade)
+  segment               RouteSegment?  @relation(fields: [segmentId], references: [id])
+  route                 Route          @relation(fields: [routeId], references: [id])
+  legDefinition         LegDefinition? @relation(fields: [legDefinitionId], references: [id])
+  vehicle               Vehicle?       @relation(fields: [vehicleId], references: [id])
+  driver                Driver?        @relation(fields: [driverId], references: [id])
+  departurePickupPoint  Point?         @relation("PlanAssignmentPickupPoint", fields: [departurePickupPointId], references: [id])
+  departureDropoffPoint Point?         @relation("PlanAssignmentDropoffPoint", fields: [departureDropoffPointId], references: [id])
+  pricingConfig         CostConfig?    @relation(fields: [pricingConfigId], references: [id])
+  materializedTrip      Trip?          @relation("MaterializedPlanAssignmentTrip", fields: [materializedTripId], references: [id])
+  trips                 Trip[]         @relation("PlanAssignmentTrips")
+
+  @@index([planVersionId])
+  @@index([routeId])
+  @@index([vehicleId])
+  @@map("trms_plan_assignments")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_PLAN_IMPACT_MARKERS
+model PlanImpactMarker {
+  id            BigInt    @id @map("ID")
+  planId        BigInt    @map("PLAN_ID")
+  planVersionId BigInt?   @map("PLAN_VERSION_ID")
+  impactSource  String    @map("IMPACT_SOURCE") @db.VarChar(50)
+  sourceRefId   String?   @map("SOURCE_REF_ID") @db.VarChar(100)
+  impactType    String    @map("IMPACT_TYPE") @db.VarChar(50)
+  severity      String    @default("MEDIUM") @map("SEVERITY") @db.VarChar(30)
+  resolvedFlag  String    @default("N") @map("RESOLVED_FLAG") @db.Char(1)
+  detectedAt    DateTime  @default(now()) @map("DETECTED_AT")
+  resolvedAt    DateTime? @map("RESOLVED_AT")
+  createDate    DateTime  @default(now()) @map("CREATE_DATE")
+  editDate      DateTime  @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  dailyPlan   DailyPlan    @relation(fields: [planId], references: [id], onDelete: Cascade)
+  planVersion PlanVersion? @relation(fields: [planVersionId], references: [id])
+
+  @@index([planId, resolvedFlag])
+  @@map("trms_plan_impact_markers")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_IMPORT_BATCHES
+model ImportBatch {
+  id                BigInt    @id @map("ID")
+  batchCode         String    @unique @map("BATCH_CODE") @db.VarChar(50)
+  importType        String    @map("IMPORT_TYPE") @db.VarChar(50)
+  businessDate      DateTime  @map("BUSINESS_DATE") @db.Date
+  fileName          String    @map("FILE_NAME") @db.VarChar(255)
+  fileUri           String?   @map("FILE_URI") @db.VarChar(500)
+  importStatus      String    @default("UPLOADED") @map("IMPORT_STATUS") @db.VarChar(50)
+  partialImportFlag String    @default("N") @map("PARTIAL_IMPORT_FLAG") @db.Char(1)
+  totalRows         Int       @default(0) @map("TOTAL_ROWS")
+  validRows         Int       @default(0) @map("VALID_ROWS")
+  invalidRows       Int       @default(0) @map("INVALID_ROWS")
+  confirmedBy       String?   @map("CONFIRMED_BY") @db.VarChar(100)
+  confirmedAt       DateTime? @map("CONFIRMED_AT")
+  createDate        DateTime  @default(now()) @map("CREATE_DATE")
+  editDate          DateTime  @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  rows               ImportBatchRow[]
+  errors             ImportBatchError[]
+  shiftRegistrations ShiftRegistration[]
+  dailyPlans         DailyPlan[]        @relation("LastConfirmedImportBatch")
+  planVersions       PlanVersion[]
+
+  @@index([businessDate, importType])
+  @@map("trms_import_batches")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_IMPORT_BATCH_ROWS
+model ImportBatchRow {
+  id                    BigInt    @id @map("ID")
+  batchId               BigInt    @map("BATCH_ID")
+  lineNo                Int       @map("LINE_NO")
+  rowStatus             String    @default("VALID") @map("ROW_STATUS") @db.VarChar(30)
+  employeeId            String?   @map("EMPLOYEE_ID") @db.VarChar(50)
+  assignmentDate        DateTime? @map("ASSIGNMENT_DATE") @db.Date
+  shiftCode             String?   @map("SHIFT_CODE") @db.VarChar(50)
+  routeId               BigInt?   @map("ROUTE_ID")
+  pickupPointId         BigInt?   @map("PICKUP_POINT_ID")
+  dropoffPointId        BigInt?   @map("DROPOFF_POINT_ID")
+  rawPayloadJson        String?   @map("RAW_PAYLOAD_JSON") @db.Text
+  normalizedPayloadJson String?   @map("NORMALIZED_PAYLOAD_JSON") @db.Text
+  errorCount            Int       @default(0) @map("ERROR_COUNT")
+  createDate            DateTime  @default(now()) @map("CREATE_DATE")
+  editDate              DateTime  @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  batch        ImportBatch        @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  route        Route?             @relation(fields: [routeId], references: [id])
+  pickupPoint  Point?             @relation("ImportRowPickupPoint", fields: [pickupPointId], references: [id])
+  dropoffPoint Point?             @relation("ImportRowDropoffPoint", fields: [dropoffPointId], references: [id])
+  errors       ImportBatchError[]
+
+  @@index([batchId, lineNo])
+  @@map("trms_import_batch_rows")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_IMPORT_BATCH_ERRORS
+model ImportBatchError {
+  id           BigInt   @id @map("ID")
+  batchId      BigInt   @map("BATCH_ID")
+  batchRowId   BigInt?  @map("BATCH_ROW_ID")
+  lineNo       Int?     @map("LINE_NO")
+  fieldName    String?  @map("FIELD_NAME") @db.VarChar(100)
+  errorCode    String   @map("ERROR_CODE") @db.VarChar(50)
+  errorMessage String   @map("ERROR_MESSAGE") @db.VarChar(500)
+  severity     String   @default("ERROR") @map("SEVERITY") @db.VarChar(30)
+  createDate   DateTime @default(now()) @map("CREATE_DATE")
+  editDate     DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  batch    ImportBatch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batchRow ImportBatchRow? @relation(fields: [batchRowId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
+  @@index([batchRowId])
+  @@map("trms_import_batch_errors")
+}
+
+// ============================================================================
+// 6. TRMS_DATA — TRIPS, DISPATCH, EXECUTION & CONFLICTS
+// ============================================================================
+
+/// Source Oracle: TRMS_DATA.TRMS_TRIPS
+model Trip {
+  id                        BigInt    @id @map("ID")
+  tripCode                  String    @unique @map("TRIP_CODE") @db.VarChar(50)
+  businessDate              DateTime  @map("BUSINESS_DATE") @db.Date
+  planVersionId             BigInt?   @map("PLAN_VERSION_ID")
+  planAssignmentId          BigInt?   @map("PLAN_ASSIGNMENT_ID")
+  tripType                  String    @map("TRIP_TYPE") @db.VarChar(50)
+  dispatchType              String    @default("FIXED") @map("DISPATCH_TYPE") @db.VarChar(50)
+  dispatchSource            String    @default("PLAN") @map("DISPATCH_SOURCE") @db.VarChar(50)
+  status                    String    @default("PLANNED") @map("STATUS") @db.VarChar(50)
+  vendorId                  BigInt?   @map("VENDOR_ID")
+  routeId                   BigInt?   @map("ROUTE_ID")
+  segmentId                 BigInt?   @map("SEGMENT_ID")
+  shiftId                   BigInt?   @map("SHIFT_ID")
+  vehicleId                 BigInt?   @map("VEHICLE_ID")
+  driverId                  BigInt?   @map("DRIVER_ID")
+  plannedDepartureAt        DateTime? @map("PLANNED_DEPARTURE_AT")
+  plannedArrivalAt          DateTime? @map("PLANNED_ARRIVAL_AT")
+  passengerCount            Int       @default(0) @map("PASSENGER_COUNT")
+  passengerType             String?   @map("PASSENGER_TYPE") @db.VarChar(50)
+  tripMode                  String?   @map("TRIP_MODE") @db.VarChar(30)
+  tripLeg                   String?   @map("TRIP_LEG") @db.VarChar(30)
+  pairedTripId              BigInt?   @map("PAIRED_TRIP_ID")
+  deadheadKind              String?   @map("DEADHEAD_KIND") @db.VarChar(50)
+  deadheadSourceTripId      BigInt?   @map("DEADHEAD_SOURCE_TRIP_ID")
+  departurePickupPointId    BigInt?   @map("DEPARTURE_PICKUP_POINT_ID")
+  departureDropoffPointId   BigInt?   @map("DEPARTURE_DROPOFF_POINT_ID")
+  returnPickupPointId       BigInt?   @map("RETURN_PICKUP_POINT_ID")
+  returnDropoffPointId      BigInt?   @map("RETURN_DROPOFF_POINT_ID")
+  departurePickupPointText  String?   @map("DEPARTURE_PICKUP_POINT_TEXT") @db.VarChar(500)
+  departureDropoffPointText String?   @map("DEPARTURE_DROPOFF_POINT_TEXT") @db.VarChar(500)
+  returnPickupPointText     String?   @map("RETURN_PICKUP_POINT_TEXT") @db.VarChar(500)
+  returnDropoffPointText    String?   @map("RETURN_DROPOFF_POINT_TEXT") @db.VarChar(500)
+  legCode                   String?   @map("LEG_CODE") @db.VarChar(50)
+  vehiclePlateSnapshot      String?   @map("VEHICLE_PLATE_SNAPSHOT") @db.VarChar(50)
+  driverNameSnapshot        String?   @map("DRIVER_NAME_SNAPSHOT") @db.VarChar(200)
+  driverPhoneSnapshot       String?   @map("DRIVER_PHONE_SNAPSHOT") @db.VarChar(50)
+  seatCapacitySnapshot      Int?      @map("SEAT_CAPACITY_SNAPSHOT")
+  pricingScope              String?   @map("PRICING_SCOPE") @db.VarChar(50)
+  pricingConfigId           BigInt?   @map("PRICING_CONFIG_ID")
+  offrouteDispatchVehicleId BigInt?   @map("OFFROUTE_DISPATCH_VEHICLE_ID")
+  overrideReason            String?   @map("OVERRIDE_REASON") @db.VarChar(500)
+  notes                     String?   @map("NOTES") @db.Text
+  delFlag                   String    @default("N") @map("DEL_FLAG") @db.Char(1)
+  createDate                DateTime  @default(now()) @map("CREATE_DATE")
+  editDate                  DateTime  @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  planVersion             PlanVersion?         @relation(fields: [planVersionId], references: [id])
+  planAssignment          PlanAssignment?      @relation("PlanAssignmentTrips", fields: [planAssignmentId], references: [id])
+  materializedAssignments PlanAssignment[]     @relation("MaterializedPlanAssignmentTrip")
+  vendor                  Vendor?              @relation(fields: [vendorId], references: [id])
+  route                   Route?               @relation(fields: [routeId], references: [id])
+  segment                 RouteSegment?        @relation(fields: [segmentId], references: [id])
+  shift                   Shift?               @relation(fields: [shiftId], references: [id])
+  vehicle                 Vehicle?             @relation("TripVehicle", fields: [vehicleId], references: [id])
+  driver                  Driver?              @relation(fields: [driverId], references: [id])
+  offrouteDispatchVehicle Vehicle?             @relation("TripOffrouteDispatchVehicle", fields: [offrouteDispatchVehicleId], references: [id])
+  pricingConfig           CostConfig?          @relation(fields: [pricingConfigId], references: [id])
+  pairedTrip              Trip?                @relation("PairedTrips", fields: [pairedTripId], references: [id])
+  pairedWithTrips         Trip[]               @relation("PairedTrips")
+  deadheadSourceTrip      Trip?                @relation("DeadheadSourceTrips", fields: [deadheadSourceTripId], references: [id])
+  deadheadDerivedTrips    Trip[]               @relation("DeadheadSourceTrips")
+  departurePickupPoint    Point?               @relation("TripDeparturePickupPoint", fields: [departurePickupPointId], references: [id])
+  departureDropoffPoint   Point?               @relation("TripDepartureDropoffPoint", fields: [departureDropoffPointId], references: [id])
+  returnPickupPoint       Point?               @relation("TripReturnPickupPoint", fields: [returnPickupPointId], references: [id])
+  returnDropoffPoint      Point?               @relation("TripReturnDropoffPoint", fields: [returnDropoffPointId], references: [id])
+  currentForRequests      TransportRequest[]   @relation("CurrentRequestTrip")
+  passengers              Passenger[]
+  tripRequestLinks        TripRequestLink[]
+  tripAssignments         TripAssignment[]
+  driverConfirmations     DriverConfirmation[]
+  executionFact           TripExecutionFact?
+  dispatchConflicts       DispatchConflict[]
+  activeVehicleStatuses   VehicleStatus[]
+  costRecords             CostRecord[]
+
+  @@index([businessDate, status])
+  @@index([routeId, businessDate])
+  @@index([vehicleId, businessDate])
+  @@index([driverId, businessDate])
+  @@map("trms_trips")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_PASSENGERS
+model Passenger {
+  id             BigInt   @id @map("ID")
+  tripId         BigInt   @map("TRIP_ID")
+  requestId      BigInt?  @map("REQUEST_ID")
+  employeeId     String?  @map("EMPLOYEE_ID") @db.VarChar(50)
+  passengerName  String   @map("PASSENGER_NAME") @db.VarChar(200)
+  passengerType  String   @default("EMPLOYEE") @map("PASSENGER_TYPE") @db.VarChar(50)
+  pickupPointId  BigInt?  @map("PICKUP_POINT_ID")
+  dropoffPointId BigInt?  @map("DROPOFF_POINT_ID")
+  boardingStatus String   @default("BOOKED") @map("BOARDING_STATUS") @db.VarChar(30)
+  createDate     DateTime @default(now()) @map("CREATE_DATE")
+  editDate       DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  trip         Trip              @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  request      TransportRequest? @relation(fields: [requestId], references: [id])
+  pickupPoint  Point?            @relation("PassengerPickupPoint", fields: [pickupPointId], references: [id])
+  dropoffPoint Point?            @relation("PassengerDropoffPoint", fields: [dropoffPointId], references: [id])
+
+  @@index([tripId])
+  @@index([requestId])
+  @@map("trms_passengers")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_TRIP_REQUEST_LINKS
+model TripRequestLink {
+  id           BigInt   @id @map("ID")
+  tripId       BigInt   @map("TRIP_ID")
+  requestId    BigInt   @map("REQUEST_ID")
+  linkRole     String   @default("PRIMARY") @map("LINK_ROLE") @db.VarChar(30)
+  requestLeg   String?  @map("REQUEST_LEG") @db.VarChar(30)
+  splitGroupNo Int?     @map("SPLIT_GROUP_NO")
+  delFlag      String   @default("N") @map("DEL_FLAG") @db.Char(1)
+  createDate   DateTime @default(now()) @map("CREATE_DATE")
+  editDate     DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  trip    Trip             @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  request TransportRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@index([requestId])
+  @@map("trms_trip_request_links")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_TRIP_ASSIGNMENTS
+model TripAssignment {
+  id             BigInt   @id @map("ID")
+  tripId         BigInt   @map("TRIP_ID")
+  assignmentNo   Int      @default(1) @map("ASSIGNMENT_NO")
+  vendorId       BigInt?  @map("VENDOR_ID")
+  vehicleId      BigInt?  @map("VEHICLE_ID")
+  driverId       BigInt?  @map("DRIVER_ID")
+  assignmentType String   @default("INITIAL") @map("ASSIGNMENT_TYPE") @db.VarChar(50)
+  assignedBy     String?  @map("ASSIGNED_BY") @db.VarChar(100)
+  assignedAt     DateTime @default(now()) @map("ASSIGNED_AT")
+  changeReason   String?  @map("CHANGE_REASON") @db.VarChar(500)
+  currentFlag    String   @default("Y") @map("CURRENT_FLAG") @db.Char(1)
+  createDate     DateTime @default(now()) @map("CREATE_DATE")
+  editDate       DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  trip    Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  vendor  Vendor?  @relation(fields: [vendorId], references: [id])
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id])
+  driver  Driver?  @relation(fields: [driverId], references: [id])
+
+  @@index([tripId, currentFlag])
+  @@map("trms_trip_assignments")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_DRIVER_CONFIRMATIONS
+model DriverConfirmation {
+  id                 BigInt    @id @map("ID")
+  tripId             BigInt    @map("TRIP_ID")
+  driverId           BigInt    @map("DRIVER_ID")
+  channelType        String    @default("APP") @map("CHANNEL_TYPE") @db.VarChar(30)
+  deliveryStatus     String    @default("SENT") @map("DELIVERY_STATUS") @db.VarChar(30)
+  confirmationStatus String    @default("PENDING") @map("CONFIRMATION_STATUS") @db.VarChar(30)
+  sentAt             DateTime? @map("SENT_AT")
+  confirmedAt        DateTime? @map("CONFIRMED_AT")
+  rejectReason       String?   @map("REJECT_REASON") @db.VarChar(500)
+  createDate         DateTime  @default(now()) @map("CREATE_DATE")
+  editDate           DateTime  @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  driver Driver @relation(fields: [driverId], references: [id])
+
+  @@index([tripId])
+  @@index([driverId])
+  @@map("trms_driver_confirmations")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_TRIP_EXECUTION_FACTS
+model TripExecutionFact {
+  id                   BigInt    @id @map("ID")
+  tripId               BigInt    @unique @map("TRIP_ID")
+  actualDepartureAt    DateTime? @map("ACTUAL_DEPARTURE_AT")
+  actualArrivalAt      DateTime? @map("ACTUAL_ARRIVAL_AT")
+  actualKm             Decimal?  @map("ACTUAL_KM") @db.Decimal(10, 2)
+  startOdometerKm      Decimal?  @map("START_ODOMETER_KM") @db.Decimal(10, 2)
+  endOdometerKm        Decimal?  @map("END_ODOMETER_KM") @db.Decimal(10, 2)
+  otHours              Decimal?  @map("OT_HOURS") @db.Decimal(8, 2)
+  actualPassengerCount Int?      @map("ACTUAL_PASSENGER_COUNT")
+  actualKmSource       String?   @map("ACTUAL_KM_SOURCE") @db.VarChar(50)
+  completedBy          String?   @map("COMPLETED_BY") @db.VarChar(100)
+  completedAt          DateTime? @map("COMPLETED_AT")
+  executionNote        String?   @map("EXECUTION_NOTE") @db.VarChar(500)
+  createDate           DateTime  @default(now()) @map("CREATE_DATE")
+  editDate             DateTime  @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@map("trms_trip_execution_facts")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_DISPATCH_CONFLICTS
+model DispatchConflict {
+  id                   BigInt    @id @map("ID")
+  tripId               BigInt?   @map("TRIP_ID")
+  requestId            BigInt?   @map("REQUEST_ID")
+  vehicleId            BigInt?   @map("VEHICLE_ID")
+  driverId             BigInt?   @map("DRIVER_ID")
+  routeId              BigInt?   @map("ROUTE_ID")
+  conflictType         String    @map("CONFLICT_TYPE") @db.VarChar(50)
+  severity             String    @default("WARNING") @map("SEVERITY") @db.VarChar(30)
+  status               String    @default("OPEN") @map("STATUS") @db.VarChar(30)
+  detectedAt           DateTime  @default(now()) @map("DETECTED_AT")
+  resolvedAt           DateTime? @map("RESOLVED_AT")
+  resolvedBy           String?   @map("RESOLVED_BY") @db.VarChar(100)
+  overrideRequiredFlag String    @default("N") @map("OVERRIDE_REQUIRED_FLAG") @db.Char(1)
+  createDate           DateTime  @default(now()) @map("CREATE_DATE")
+  editDate             DateTime  @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  trip         Trip?                 @relation(fields: [tripId], references: [id])
+  request      TransportRequest?     @relation(fields: [requestId], references: [id])
+  vehicle      Vehicle?              @relation(fields: [vehicleId], references: [id])
+  driver       Driver?               @relation(fields: [driverId], references: [id])
+  route        Route?                @relation(fields: [routeId], references: [id])
+  overrideLogs ConflictOverrideLog[]
+
+  @@index([status, severity])
+  @@index([tripId])
+  @@index([vehicleId])
+  @@map("trms_dispatch_conflicts")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_CONFLICT_OVERRIDE_LOGS
+model ConflictOverrideLog {
+  id             BigInt   @id @map("ID")
+  conflictId     BigInt   @map("CONFLICT_ID")
+  overrideReason String   @map("OVERRIDE_REASON") @db.VarChar(500)
+  overriddenBy   String   @map("OVERRIDDEN_BY") @db.VarChar(100)
+  overriddenAt   DateTime @default(now()) @map("OVERRIDDEN_AT")
+  overrideSource String   @default("DISPATCH_CONSOLE") @map("OVERRIDE_SOURCE") @db.VarChar(50)
+  createDate     DateTime @default(now()) @map("CREATE_DATE")
+  editDate       DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  conflict DispatchConflict @relation(fields: [conflictId], references: [id], onDelete: Cascade)
+
+  @@index([conflictId])
+  @@map("trms_conflict_override_logs")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_VEHICLE_STATUS
+model VehicleStatus {
+  id                 BigInt    @id @map("ID")
+  vehicleId          BigInt    @unique @map("VEHICLE_ID")
+  status             String    @default("AVAILABLE") @map("STATUS") @db.VarChar(50)
+  segmentId          BigInt?   @map("SEGMENT_ID")
+  routeId            BigInt?   @map("ROUTE_ID")
+  currentTripId      BigInt?   @map("CURRENT_TRIP_ID")
+  plannedDepartureAt DateTime? @map("PLANNED_DEPARTURE_AT")
+  plannedArrivalAt   DateTime? @map("PLANNED_ARRIVAL_AT")
+  lastSyncedAt       DateTime  @default(now()) @map("LAST_SYNCED_AT")
+  createDate         DateTime  @default(now()) @map("CREATE_DATE")
+  editDate           DateTime  @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  vehicle     Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  segment     RouteSegment? @relation(fields: [segmentId], references: [id])
+  route       Route?        @relation(fields: [routeId], references: [id])
+  currentTrip Trip?         @relation(fields: [currentTripId], references: [id])
+
+  @@index([status])
+  @@map("trms_vehicle_status")
+}
+
+// ============================================================================
+// 7. TRMS_DATA — COST RECORDS, MONTHLY SETTLEMENT & RECONCILIATION
+// ============================================================================
+
+/// Source Oracle: TRMS_DATA.TRMS_COST_RECORDS
+model CostRecord {
+  id               BigInt   @id @map("ID")
+  idempotencyKey   String   @unique @map("IDEMPOTENCY_KEY") @db.VarChar(150)
+  costRuleId       BigInt?  @map("COST_RULE_ID")
+  costSource       String   @map("COST_SOURCE") @db.VarChar(50)
+  costType         String   @map("COST_TYPE") @db.VarChar(50)
+  costScope        String   @map("COST_SCOPE") @db.VarChar(50)
+  tripId           BigInt?  @map("TRIP_ID")
+  vehicleId        BigInt?  @map("VEHICLE_ID")
+  routeId          BigInt?  @map("ROUTE_ID")
+  serviceDate      DateTime @map("SERVICE_DATE") @db.Date
+  costMonth        String   @map("COST_MONTH") @db.VarChar(10)
+  quantity         Decimal  @default(1) @map("QUANTITY") @db.Decimal(12, 4)
+  appliedUnitPrice Decimal  @default(0) @map("APPLIED_UNIT_PRICE") @db.Decimal(18, 2)
+  appliedAmount    Decimal  @default(0) @map("APPLIED_AMOUNT") @db.Decimal(18, 2)
+  vatRate          Decimal  @default(0.08) @map("VAT_RATE") @db.Decimal(5, 4)
+  vatAmount        Decimal  @default(0) @map("VAT_AMOUNT") @db.Decimal(18, 2)
+  amountAfterVat   Decimal  @default(0) @map("AMOUNT_AFTER_VAT") @db.Decimal(18, 2)
+  description      String?  @map("DESCRIPTION") @db.VarChar(500)
+  pricedAt         DateTime @default(now()) @map("PRICED_AT")
+  costStatus       String   @default("CALCULATED") @map("COST_STATUS") @db.VarChar(30)
+  createDate       DateTime @default(now()) @map("CREATE_DATE")
+  createBy         String?  @map("CREATE_BY") @db.VarChar(100)
+  editDate         DateTime @updatedAt @map("EDIT_DATE")
+  editBy           String?  @map("EDIT_BY") @db.VarChar(100)
+
+  // Relations
+  costRule    CostConfigRule?          @relation(fields: [costRuleId], references: [id])
+  trip        Trip?                    @relation(fields: [tripId], references: [id])
+  vehicle     Vehicle?                 @relation(fields: [vehicleId], references: [id])
+  route       Route?                   @relation(fields: [routeId], references: [id])
+  paymentLinks MonthlyPaymentCostLink[]
+
+  @@index([costMonth, costStatus])
+  @@index([serviceDate])
+  @@index([tripId])
+  @@index([vehicleId])
+  @@map("trms_cost_records")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_MONTHLY_PAYMENTS
+model MonthlyPayment {
+  id                 BigInt    @id @map("ID")
+  paymentCode        String    @unique @map("PAYMENT_CODE") @db.VarChar(50)
+  paymentYear        Int       @map("PAYMENT_YEAR")
+  paymentMonth       Int       @map("PAYMENT_MONTH")
+  fromDate           DateTime  @map("FROM_DATE") @db.Date
+  toDate             DateTime  @map("TO_DATE") @db.Date
+  status             String    @default("DRAFT") @map("STATUS") @db.VarChar(30)
+  subtotalAmount     Decimal   @default(0) @map("SUBTOTAL_AMOUNT") @db.Decimal(18, 2)
+  adjustmentAmount   Decimal   @default(0) @map("ADJUSTMENT_AMOUNT") @db.Decimal(18, 2)
+  vatRate            Decimal   @default(0.08) @map("VAT_RATE") @db.Decimal(5, 4)
+  vatAmount          Decimal   @default(0) @map("VAT_AMOUNT") @db.Decimal(18, 2)
+  totalPaymentAmount Decimal   @default(0) @map("TOTAL_PAYMENT_AMOUNT") @db.Decimal(18, 2)
+  calculatedAt       DateTime? @map("CALCULATED_AT")
+  confirmedAt        DateTime? @map("CONFIRMED_AT")
+  confirmedBy        String?   @map("CONFIRMED_BY") @db.VarChar(100)
+  approvedAt         DateTime? @map("APPROVED_AT")
+  approvedBy         String?   @map("APPROVED_BY") @db.VarChar(100)
+  activeFlag         String    @default("Y") @map("ACTIVE_FLAG") @db.Char(1)
+  delFlag            String    @default("N") @map("DEL_FLAG") @db.Char(1)
+  createDate         DateTime  @default(now()) @map("CREATE_DATE")
+  createBy           String?   @map("CREATE_BY") @db.VarChar(100)
+  editDate           DateTime  @updatedAt @map("EDIT_DATE")
+  editBy             String?   @map("EDIT_BY") @db.VarChar(100)
+
+  // Relations
+  details MonthlyCostDetail[]
+
+  @@unique([paymentYear, paymentMonth])
+  @@index([status])
+  @@map("trms_monthly_payments")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_MONTHLY_COST_DETAILS
+model MonthlyCostDetail {
+  id                   BigInt   @id @map("ID")
+  monthlyPaymentId     BigInt   @map("MONTHLY_PAYMENT_ID")
+  lineNo               Int      @map("LINE_NO")
+  lineType             String   @map("LINE_TYPE") @db.VarChar(50)
+  passengerType        String?  @map("PASSENGER_TYPE") @db.VarChar(50)
+  driverId             BigInt?  @map("DRIVER_ID")
+  driverNameSnapshot   String?  @map("DRIVER_NAME_SNAPSHOT") @db.VarChar(200)
+  vehicleId            BigInt?  @map("VEHICLE_ID")
+  vehiclePlateSnapshot String?  @map("VEHICLE_PLATE_SNAPSHOT") @db.VarChar(50)
+  routeId              BigInt?  @map("ROUTE_ID")
+  routeNameSnapshot    String?  @map("ROUTE_NAME_SNAPSHOT") @db.VarChar(255)
+  tripDescription      String?  @map("TRIP_DESCRIPTION") @db.VarChar(500)
+  dailyTripCount       Int?     @map("DAILY_TRIP_COUNT")
+  basicChargeAmount    Decimal  @default(0) @map("BASIC_CHARGE_AMOUNT") @db.Decimal(18, 2)
+  overtimeHours        Decimal  @default(0) @map("OVERTIME_HOURS") @db.Decimal(10, 4)
+  overtimeUnitPrice    Decimal  @default(0) @map("OVERTIME_UNIT_PRICE") @db.Decimal(18, 2)
+  overtimeAmount       Decimal  @default(0) @map("OVERTIME_AMOUNT") @db.Decimal(18, 2)
+  totalDistanceKm      Decimal  @default(0) @map("TOTAL_DISTANCE_KM") @db.Decimal(12, 2)
+  includedDistanceKm   Decimal  @default(0) @map("INCLUDED_DISTANCE_KM") @db.Decimal(12, 2)
+  excessKm             Decimal  @default(0) @map("EXCESS_KM") @db.Decimal(12, 2)
+  excessKmUnitPrice    Decimal  @default(0) @map("EXCESS_KM_UNIT_PRICE") @db.Decimal(18, 2)
+  excessKmAmount       Decimal  @default(0) @map("EXCESS_KM_AMOUNT") @db.Decimal(18, 2)
+  specialDayCount      Int      @default(0) @map("SPECIAL_DAY_COUNT")
+  specialDayUnitPrice  Decimal  @default(0) @map("SPECIAL_DAY_UNIT_PRICE") @db.Decimal(18, 2)
+  specialDayAmount     Decimal  @default(0) @map("SPECIAL_DAY_AMOUNT") @db.Decimal(18, 2)
+  overnightCount       Int      @default(0) @map("OVERNIGHT_COUNT")
+  overnightUnitPrice   Decimal  @default(0) @map("OVERNIGHT_UNIT_PRICE") @db.Decimal(18, 2)
+  overnightAmount      Decimal  @default(0) @map("OVERNIGHT_AMOUNT") @db.Decimal(18, 2)
+  phoneVehicleCount    Int      @default(0) @map("PHONE_VEHICLE_COUNT")
+  phoneUnitPrice       Decimal  @default(0) @map("PHONE_UNIT_PRICE") @db.Decimal(18, 2)
+  phoneAmount          Decimal  @default(0) @map("PHONE_AMOUNT") @db.Decimal(18, 2)
+  tollFeeAmount        Decimal  @default(0) @map("TOLL_FEE_AMOUNT") @db.Decimal(18, 2)
+  lineSubtotalAmount   Decimal  @default(0) @map("LINE_SUBTOTAL_AMOUNT") @db.Decimal(18, 2)
+  adjustmentAmount     Decimal  @default(0) @map("ADJUSTMENT_AMOUNT") @db.Decimal(18, 2)
+  vatRate              Decimal  @default(0.08) @map("VAT_RATE") @db.Decimal(5, 4)
+  vatAmount            Decimal  @default(0) @map("VAT_AMOUNT") @db.Decimal(18, 2)
+  totalPaymentAmount   Decimal  @default(0) @map("TOTAL_PAYMENT_AMOUNT") @db.Decimal(18, 2)
+  displayOrder         Int      @default(0) @map("DISPLAY_ORDER")
+  createDate           DateTime @default(now()) @map("CREATE_DATE")
+  createBy             String?  @map("CREATE_BY") @db.VarChar(100)
+  editDate             DateTime @updatedAt @map("EDIT_DATE")
+  editBy               String?  @map("EDIT_BY") @db.VarChar(100)
+
+  // Relations
+  monthlyPayment MonthlyPayment           @relation(fields: [monthlyPaymentId], references: [id], onDelete: Cascade)
+  driver         Driver?                  @relation(fields: [driverId], references: [id])
+  vehicle        Vehicle?                 @relation(fields: [vehicleId], references: [id])
+  route          Route?                   @relation(fields: [routeId], references: [id])
+  costLinks      MonthlyPaymentCostLink[]
+
+  @@index([monthlyPaymentId])
+  @@index([vehicleId])
+  @@map("trms_monthly_cost_details")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_MONTHLY_PAYMENT_COST_LINKS
+model MonthlyPaymentCostLink {
+  id                  BigInt   @id @map("ID")
+  monthlyCostDetailId BigInt   @map("MONTHLY_COST_DETAIL_ID")
+  costRecordId        BigInt   @map("COST_RECORD_ID")
+  allocatedAmount     Decimal  @default(0) @map("ALLOCATED_AMOUNT") @db.Decimal(18, 2)
+  createDate          DateTime @default(now()) @map("CREATE_DATE")
+
+  // Relations
+  monthlyCostDetail MonthlyCostDetail @relation(fields: [monthlyCostDetailId], references: [id], onDelete: Cascade)
+  costRecord        CostRecord        @relation(fields: [costRecordId], references: [id], onDelete: Cascade)
+
+  @@unique([monthlyCostDetailId, costRecordId])
+  @@index([costRecordId])
+  @@map("trms_monthly_payment_cost_links")
+}
+
+// ============================================================================
+// 8. TRMS_DATA — AUDIT LOGS, EVIDENCE, SNAPSHOTS, SETTINGS, HOLIDAYS & NOTIFICATIONS
+// ============================================================================
+
+/// Source Oracle: TRMS_DATA.TRMS_AUDIT_LOGS
+model AuditLog {
+  id           BigInt    @id @map("ID")
+  entityType   String    @map("ENTITY_TYPE") @db.VarChar(50)
+  entityId     String    @map("ENTITY_ID") @db.VarChar(100)
+  actionType   String    @map("ACTION_TYPE") @db.VarChar(50)
+  businessDate DateTime? @map("BUSINESS_DATE") @db.Date
+  changedBy    String?   @map("CHANGED_BY") @db.VarChar(100)
+  changedAt    DateTime  @default(now()) @map("CHANGED_AT")
+  changeSource String?   @map("CHANGE_SOURCE") @db.VarChar(50)
+  reasonText   String?   @map("REASON_TEXT") @db.VarChar(500)
+  createDate   DateTime  @default(now()) @map("CREATE_DATE")
+  editDate     DateTime  @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  detail AuditLogDetail?
+
+  @@index([entityType, entityId])
+  @@index([businessDate])
+  @@index([changedAt])
+  @@map("trms_audit_logs")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_AUDIT_LOG_DETAILS
+model AuditLogDetail {
+  id            BigInt   @id @map("ID")
+  auditLogId    BigInt   @unique @map("AUDIT_LOG_ID")
+  beforePayload String?  @map("BEFORE_PAYLOAD") @db.Text
+  afterPayload  String?  @map("AFTER_PAYLOAD") @db.Text
+  changedFields String?  @map("CHANGED_FIELDS") @db.Text
+  createDate    DateTime @default(now()) @map("CREATE_DATE")
+  editDate      DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  auditLog AuditLog @relation(fields: [auditLogId], references: [id], onDelete: Cascade)
+
+  @@map("trms_audit_log_details")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_EVIDENCE_ATTACHMENTS
+model EvidenceAttachment {
+  id         BigInt   @id @map("ID")
+  ownerType  String   @map("OWNER_TYPE") @db.VarChar(50)
+  ownerId    BigInt   @map("OWNER_ID")
+  fileName   String   @map("FILE_NAME") @db.VarChar(255)
+  fileUri    String   @map("FILE_URI") @db.VarChar(500)
+  mimeType   String?  @map("MIME_TYPE") @db.VarChar(100)
+  uploadedBy String?  @map("UPLOADED_BY") @db.VarChar(100)
+  uploadedAt DateTime @default(now()) @map("UPLOADED_AT")
+  createDate DateTime @default(now()) @map("CREATE_DATE")
+  editDate   DateTime @updatedAt @map("EDIT_DATE")
+
+  @@index([ownerType, ownerId])
+  @@map("trms_evidence_attachments")
+}
+
+/// Source Oracle: TRMS_DATA.TRMS_DISPATCH_DASHBOARD_SNAPSHOT
+model DispatchDashboardSnapshot {
+  id                   BigInt   @id @map("ID")
+  businessDate         DateTime @unique @map("BUSINESS_DATE") @db.Date
+  totalRequests        Int      @default(0) @map("TOTAL_REQUESTS")
+  waitingDispatchCount Int      @default(0) @map("WAITING_DISPATCH_COUNT")
+  dispatchedTripCount  Int      @default(0) @map("DISPATCHED_TRIP_COUNT")
+  inProgressTripCount  Int      @default(0) @map("IN_PROGRESS_TRIP_COUNT")
+  completedTripCount   Int      @default(0) @map("COMPLETED_TRIP_COUNT")
+  openConflictCount    Int      @default(0) @map("OPEN_CONFLICT_COUNT")
+  snapshotAt           DateTime @default(now()) @map("SNAPSHOT_AT")
+  createDate           DateTime @default(now()) @map("CREATE_DATE")
+  editDate             DateTime @updatedAt @map("EDIT_DATE")
+
+  @@map("trms_dispatch_dashboard_snapshot")
+}
+
+/// Source Oracle: GA_CORE.GLOBAL_VARIABLE (General Config, Table Column Settings, TRMS Cutoff/Pricing Settings)
+model Setting {
+  id         BigInt   @id @map("ID")
+  varKey     String   @unique @map("VAR_KEY") @db.VarChar(150)
+  varValue   String   @map("VAR_VALUE") @db.Text
+  systemId   BigInt?  @map("SYSTEM_ID")
+  createDate DateTime @default(now()) @map("CREATE_DATE")
+  editDate   DateTime @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  system System? @relation(fields: [systemId], references: [id])
+
+  @@index([systemId])
+  @@map("settings")
+}
+
+/// Source Oracle: GA_CORE.GLOBAL_VARIABLE[HOLIDAY] (Normalized Holiday Calendar for Cost & Dispatch Engine)
+model HolidayCalendar {
+  id           BigInt   @id @map("ID")
+  holidayDate  DateTime @unique @map("HOLIDAY_DATE") @db.Date
+  holidayName  String   @map("HOLIDAY_NAME") @db.VarChar(200)
+  isWorkingDay String   @default("N") @map("IS_WORKING_DAY") @db.Char(1)
+  dayType      String   @default("HOLIDAY") @map("DAY_TYPE") @db.VarChar(30)
+  activeFlag   String   @default("Y") @map("ACTIVE_FLAG") @db.Char(1)
+  delFlag      Int      @default(0) @map("DEL_FLAG")
+  createDate   DateTime @default(now()) @map("CREATE_DATE")
+  editDate     DateTime @updatedAt @map("EDIT_DATE")
+
+  @@index([holidayDate, activeFlag])
+  @@map("holiday_calendar")
+}
+
+/// Source Remake: Notification & Outbox History (Replaces notification-service cross-calls)
+model Notification {
+  id               BigInt    @id @map("ID")
+  recipientUserId  BigInt?   @map("RECIPIENT_USER_ID")
+  recipientEmail   String?   @map("RECIPIENT_EMAIL") @db.VarChar(200)
+  channel          String    @default("IN_APP") @map("CHANNEL") @db.VarChar(30)
+  notificationType String    @map("NOTIFICATION_TYPE") @db.VarChar(50)
+  title            String    @map("TITLE") @db.VarChar(255)
+  body             String    @map("BODY") @db.Text
+  entityType       String?   @map("ENTITY_TYPE") @db.VarChar(50)
+  entityId         String?   @map("ENTITY_ID") @db.VarChar(100)
+  status           String    @default("UNREAD") @map("STATUS") @db.VarChar(30)
+  readAt           DateTime? @map("READ_AT")
+  sentAt           DateTime? @map("SENT_AT")
+  errorMessage     String?   @map("ERROR_MESSAGE") @db.VarChar(500)
+  createDate       DateTime  @default(now()) @map("CREATE_DATE")
+  editDate         DateTime  @updatedAt @map("EDIT_DATE")
+
+  // Relations
+  recipientUser User? @relation(fields: [recipientUserId], references: [id])
+
+  @@index([recipientUserId, status])
+  @@index([entityType, entityId])
+  @@map("notifications")
+}

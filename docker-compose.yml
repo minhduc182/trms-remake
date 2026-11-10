@@ -1,0 +1,45 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: trms-remake-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: trms
+      POSTGRES_PASSWORD: trms_password
+      POSTGRES_DB: trms_remake
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "5433:5432"
+    volumes:
+      - trms_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trms -d trms_remake"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: trms-remake-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: trms
+      MINIO_ROOT_PASSWORD: trms_password
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - trms_miniodata:/data
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: trms-remake-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+volumes:
+  trms_pgdata:
+  trms_miniodata:

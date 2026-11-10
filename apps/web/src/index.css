@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+/* Legacy m-advance-table 1:1 Global Styling */
+table {
+  border-collapse: collapse;
+}
+
+thead tr {
+  height: 36px;
+  background-color: #f3f4f6 !important;
+}
+
+th {
+  height: 36px;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+tbody tr {
+  height: 36px;
+}
+
+td {
+  height: 36px;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  font-size: 13px;
+}
+
+td.allow-wrap {
+  white-space: normal;
+  height: auto;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
