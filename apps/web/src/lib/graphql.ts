@@ -124,14 +124,6 @@ export function isUserLoggedIn(): boolean {
   if (typeof window === 'undefined') return true;
   if (window.location.pathname === '/login') return false;
   if (localStorage.getItem(AUTH_SESSION_KEY) === 'true') return true;
-  // Allow automated headless Playwright screenshot runner on localhost to render pages directly
-  if (
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
-    typeof navigator !== 'undefined' &&
-    navigator.webdriver === true
-  ) {
-    return true;
-  }
   return false;
 }
 
