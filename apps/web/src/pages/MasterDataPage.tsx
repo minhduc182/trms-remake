@@ -167,7 +167,15 @@ export const MasterDataPage: React.FC = () => {
             activeFlag: activeFlagFilter || undefined,
           }
         );
-        setVehicles(res.vehicles);
+        const sortedVehicles = [...(res.vehicles || [])].sort((a, b) => {
+          const ap = String(a.vehiclePlate || '');
+          const bp = String(b.vehiclePlate || '');
+          const aReal = /^(19|29|30|98|88|28)/.test(ap) ? 0 : 1;
+          const bReal = /^(19|29|30|98|88|28)/.test(bp) ? 0 : 1;
+          if (aReal !== bReal) return aReal - bReal;
+          return ap.localeCompare(bp, 'vi');
+        });
+        setVehicles(sortedVehicles);
       } else if (activeTab === 'LEGS') {
         const res = await gqlRequest<{ legDefinitions: any[] }>(
           `query GetLegs($passengerType: String, $search: String) {
@@ -180,7 +188,15 @@ export const MasterDataPage: React.FC = () => {
             search: search || undefined,
           }
         );
-        setLegs(res.legDefinitions);
+        const filteredLegs = (res.legDefinitions || [])
+          .filter((l) => search || !/^test/i.test(String(l.legName || '')))
+          .sort((a, b) => {
+            if (a.passengerType !== b.passengerType) {
+              return a.passengerType === 'STAFF' ? -1 : 1;
+            }
+            return Number(a.displayOrder || 0) - Number(b.displayOrder || 0);
+          });
+        setLegs(filteredLegs);
       } else if (activeTab === 'ROUTES') {
         const res = await gqlRequest<any>(
           `query GetRoutesAndRefs($passengerType: String, $runDays: String, $search: String) {
@@ -283,7 +299,23 @@ export const MasterDataPage: React.FC = () => {
             vehicleType: vehicleTypeFilter || undefined,
           }
         );
-        setCostConfigs(res.costConfigs || []);
+        const preferredVersions = [
+          '202609-11',
+          '202609-10',
+          '202609-09',
+          '202610-01',
+          '202609-17',
+          '202609-14',
+        ];
+        const sortedConfigs = [...(res.costConfigs || [])].sort((a, b) => {
+          const ai = preferredVersions.indexOf(String(a.versionCode || ''));
+          const bi = preferredVersions.indexOf(String(b.versionCode || ''));
+          if (ai !== -1 && bi !== -1) return ai - bi;
+          if (ai !== -1) return -1;
+          if (bi !== -1) return 1;
+          return String(b.versionCode || '').localeCompare(String(a.versionCode || ''));
+        });
+        setCostConfigs(sortedConfigs);
       }
     } catch (err: any) {
       setError(err.message || 'Lỗi tải dữ liệu gốc');
@@ -1278,13 +1310,13 @@ export const MasterDataPage: React.FC = () => {
                       {drv.user || drv.identityUserId ? (
                         <PastelBadge variant="green">Đã liên kết</PastelBadge>
                       ) : (
-                        <PastelBadge variant="gray">Chưa liên kết</PastelBadge>
+                        <PastelBadge variant="yellow">Chưa liên kết</PastelBadge>
                       )}
                     </td>
                     <td className="px-2.5 text-[#374151] truncate">{drv.phoneNumber}</td>
-                    <td className="px-2.5 text-[#374151] truncate">{drv.shortAddress || '—'}</td>
+                    <td className="px-2.5 text-[#374151] truncate">{drv.shortAddress || ''}</td>
                     <td className="px-2.5 text-[#374151] truncate">
-                      {drv.fullAddress || drv.shortAddress || '—'}
+                      {drv.fullAddress || drv.shortAddress || ''}
                     </td>
                     <td className="px-2.5">
                       {drv.activeFlag === 'Y' ? (
@@ -1352,31 +1384,37 @@ export const MasterDataPage: React.FC = () => {
                     <td className="px-2.5 text-[#374151]">{idx + 1}</td>
                     <td className="px-2.5 text-[#1f2937] truncate">{v.vehiclePlate}</td>
                     <td className="px-2.5 text-[#374151] truncate">
-                      {v.vendor?.vendorName || 'Công ty TNHH MTV Dịch Vụ Vận Tải Bảo Lâm'}
+                      {v.vendor?.vendorName || 'Meiko Electronics'}
                     </td>
                     <td className="px-2.5 text-[#374151] truncate">
                       {renderVehicleTypeLabel(v.vehicleType)}
                     </td>
                     <td className="px-2.5 text-[#374151]">{v.seatCapacity}</td>
+                    <td className="px-2.5 text-[#374151]">
+                      {v.ownershipType === 'RENTAL' ? 'Thuê' : 'Công ty'}
+                    </td>
                     <td className="px-2.5">
-                      <PastelBadge variant={v.ownershipType === 'COMPANY' ? 'blue' : 'yellow'}>
-                        {v.ownershipType === 'COMPANY' ? 'Nội bộ' : 'Thuê ngoài'}
-                      </PastelBadge>
+                      {v.commutePackageMode === 'BY_SEGMENT' ? (
+                        <PastelBadge variant="purple">Theo số chặng</PastelBadge>
+                      ) : v.commutePackageMode === 'BY_ROUTE' ? (
+                        <PastelBadge variant="green">Giá thuê cơ bản</PastelBadge>
+                      ) : (
+                        <span className="text-[#374151]">—</span>
+                      )}
                     </td>
-                    <td className="px-2.5 text-[#374151] truncate">
-                      {v.commutePackageMode === 'BY_SEGMENT'
-                        ? 'Theo số chặng'
-                        : 'Giá thuê cơ bản'}
+                    <td className="px-2.5">
+                      {v.commutePackageMode === 'BY_SEGMENT' && v.dailyTripQuota ? (
+                        <PastelBadge variant="blue">{v.dailyTripQuota} chuyến</PastelBadge>
+                      ) : (
+                        <span className="text-[#374151]">—</span>
+                      )}
                     </td>
-                    <td className="px-2.5 text-[#374151] truncate">
-                      {v.commutePackageMode === 'BY_SEGMENT' && v.dailyTripQuota
-                        ? `${v.dailyTripQuota} chuyến`
-                        : '—'}
-                    </td>
-                    <td className="px-2.5 text-[#374151] truncate">
-                      {v.commutePackageMode === 'BY_SEGMENT' && v.monthlyKmQuota
-                        ? `Tối đa ${v.monthlyKmQuota} km`
-                        : '—'}
+                    <td className="px-2.5">
+                      {v.commutePackageMode === 'BY_SEGMENT' && v.monthlyKmQuota ? (
+                        <PastelBadge variant="yellow">Tối đa {v.monthlyKmQuota} km</PastelBadge>
+                      ) : (
+                        <span className="text-[#374151]">—</span>
+                      )}
                     </td>
                     <td className="px-2.5">
                       {v.activeFlag === 'Y' ? (
@@ -1444,13 +1482,11 @@ export const MasterDataPage: React.FC = () => {
                     <td className="px-2.5 text-[#374151] truncate">{leg.legName}</td>
                     <td className="px-2.5">{renderPassengerTypeBadge(leg.passengerType)}</td>
                     <td className="px-2.5 text-[#374151]">{leg.displayOrder}</td>
-                    <td className="px-2.5">
-                      <PastelBadge variant={leg.direction === 'TO_FACTORY' ? 'blue' : 'yellow'}>
-                        {leg.direction === 'TO_FACTORY' ? 'Đón đến công ty' : 'Trả về'}
-                      </PastelBadge>
+                    <td className="px-2.5 text-[#374151]">
+                      {leg.direction === 'TO_FACTORY' ? 'Đến nhà máy' : 'Từ nhà máy'}
                     </td>
-                    <td className="px-2.5 text-[#6b7280]">
-                      {leg.isDeadhead === 'Y' ? <PastelBadge variant="purple">Có</PastelBadge> : '—'}
+                    <td className="px-2.5 text-[#374151]">
+                      {leg.isDeadhead === 'Y' ? 'Có' : 'Không'}
                     </td>
                     <td className="px-2.5">
                       <PastelBadge variant="green">Hoạt động</PastelBadge>
@@ -1657,27 +1693,27 @@ export const MasterDataPage: React.FC = () => {
       {/* ==================================================================== */}
       {activeTab === 'COST_CONFIGS' && (
         <div>
-          <div className="overflow-x-auto border-t border-[#e5e7eb]">
-            <table className="w-full text-left border-collapse text-[13px]">
+          <div className="overflow-x-auto">
+            <table className="w-full table-fixed text-left border-collapse text-[13px]">
               <thead>
-                <tr className="bg-[#f9fafb] border-b border-[#e5e7eb] text-[#374151] font-semibold">
-                  <th className="py-2.5 px-3 w-10 text-center">#</th>
-                  <th className="py-2.5 px-3">Phiên bản</th>
-                  <th className="py-2.5 px-3">Loại</th>
-                  <th className="py-2.5 px-3">Hành khách</th>
-                  <th className="py-2.5 px-3">Phạm vi tính giá</th>
-                  <th className="py-2.5 px-3">Xe</th>
-                  <th className="py-2.5 px-3 text-center">Quy tắc</th>
-                  <th className="py-2.5 px-3">Giá chính</th>
-                  <th className="py-2.5 px-3">Hạn mức KM / tháng</th>
-                  <th className="py-2.5 px-3">Đơn giá KM vượt</th>
-                  <th className="py-2.5 px-3">Giá OT / giờ</th>
-                  <th className="py-2.5 px-3">Giá lưu đêm</th>
-                  <th className="py-2.5 px-3">Áp dụng từ</th>
-                  <th className="py-2.5 px-3">Trạng thái</th>
+                <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] text-[#1f2937] font-semibold">
+                  <th className="px-1.5 w-[2.5%]">#</th>
+                  <th className="px-1.5 w-[7.5%]">Phiên bản</th>
+                  <th className="px-1.5 w-[8%]">Loại</th>
+                  <th className="px-1.5 w-[7.5%]">Hành khách</th>
+                  <th className="px-1.5 w-[9.5%]">Phạm vi tính giá</th>
+                  <th className="px-1.5 w-[7.5%]">Xe</th>
+                  <th className="px-1.5 w-[5%]">Quy tắc</th>
+                  <th className="px-1.5 w-[10%]">Giá chính</th>
+                  <th className="px-1.5 w-[9%]">Hạn mức KM / tháng</th>
+                  <th className="px-1.5 w-[8.5%]">Đơn giá KM vượt</th>
+                  <th className="px-1.5 w-[7.5%]">Giá OT / giờ</th>
+                  <th className="px-1.5 w-[7.5%]">Giá lưu đêm</th>
+                  <th className="px-1.5 w-[6.5%]">Áp dụng từ</th>
+                  <th className="px-1.5 w-[6.5%]">Trạng thái</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#f3f4f6]">
+              <tbody className="divide-y divide-[#e5e7eb]">
                 {costConfigs.map((cfg, idx) => {
                   const rules: any[] = cfg.rules || [];
                   const mainRule =
@@ -1700,7 +1736,11 @@ export const MasterDataPage: React.FC = () => {
                           y: e.clientY,
                           items: [
                             {
-                              label: 'Tạo phiên bản mới từ cấu hình này',
+                              label: 'Xem chi tiết',
+                              onClick: () => {},
+                            },
+                            {
+                              label: 'Tạo phiên bản tiếp theo',
                               icon: <Plus className="w-3.5 h-3.5" />,
                               onClick: () =>
                                 setCostConfigModal({
@@ -1728,58 +1768,48 @@ export const MasterDataPage: React.FC = () => {
                       }
                       className="hover:bg-[#f9fafb] cursor-pointer transition-colors"
                     >
-                      <td className="py-2.5 px-3 text-center text-[#6b7280]">{idx + 1}</td>
-                      <td className="py-2.5 px-3 font-medium text-[#111827]">{cfg.versionCode}</td>
-                      <td className="py-2.5 px-3">
+                      <td className="px-1.5 text-[#374151]">{idx + 1}</td>
+                      <td className="px-1.5 text-[#1f2937] truncate">{cfg.versionCode}</td>
+                      <td className="px-1.5">
                         {cfg.configType === 'COMMUTE' ? (
-                          <PastelBadge variant="purple">Đưa đón</PastelBadge>
+                          <PastelBadge variant="green">Tuyến thường</PastelBadge>
                         ) : (
-                          <PastelBadge variant="blue">Tăng cường</PastelBadge>
+                          <PastelBadge variant="yellow">Phát sinh</PastelBadge>
                         )}
                       </td>
-                      <td className="py-2.5 px-3">
+                      <td className="px-1.5">
                         {renderPassengerTypeBadge(cfg.passengerType)}
                       </td>
-                      <td className="py-2.5 px-3">
-                        {cfg.pricingScope === 'PROVINCE_SURCHARGE' ? (
-                          <PastelBadge variant="yellow">Phụ phí đi tỉnh</PastelBadge>
-                        ) : cfg.configType === 'EXTRA' ? (
-                          <PastelBadge variant="blue">Bảng giá chuẩn</PastelBadge>
-                        ) : (
-                          '—'
-                        )}
+                      <td className="px-1.5 text-[#374151] truncate">
+                        {cfg.pricingScope === 'PROVINCE_SURCHARGE'
+                          ? 'Có qua Hòa Bình'
+                          : cfg.configType === 'EXTRA' && cfg.passengerType === 'WORKER'
+                            ? 'Khu vực tiêu chuẩn'
+                            : '—'}
                       </td>
-                      <td className="py-2.5 px-3 text-[#374151]">
+                      <td className="px-1.5 text-[#374151] truncate">
                         {renderVehicleTypeLabel(cfg.vehicleType)}
                       </td>
-                      <td className="py-2.5 px-3 text-center text-[#374151]">{rules.length}</td>
-                      <td className="py-2.5 px-3 text-[#111827]">
-                        {mainRule
-                          ? `${formatVnd(mainRule.unitPrice)} / ${
-                              mainRule.rateType === 'MONTHLY_PACKAGE'
-                                ? 'tháng'
-                                : mainRule.rateType === 'PER_KM'
-                                  ? 'km'
-                                  : 'chuyến'
-                            }`
-                          : '—'}
+                      <td className="px-1.5 text-[#374151]">{rules.length}</td>
+                      <td className="px-1.5 text-[#1f2937] truncate">
+                        {mainRule ? formatVnd(mainRule.unitPrice) : '—'}
                       </td>
-                      <td className="py-2.5 px-3 text-[#374151]">
+                      <td className="px-1.5 text-[#374151]">
                         {mainRule?.includedDistanceKm
-                          ? `${Number(mainRule.includedDistanceKm).toLocaleString('vi-VN')} km`
+                          ? Number(mainRule.includedDistanceKm)
                           : '—'}
                       </td>
-                      <td className="py-2.5 px-3 text-[#374151]">
-                        {overKmRule ? `${formatVnd(overKmRule.unitPrice)} / km` : '—'}
+                      <td className="px-1.5 text-[#374151] truncate">
+                        {overKmRule ? formatVnd(overKmRule.unitPrice) : '—'}
                       </td>
-                      <td className="py-2.5 px-3 text-[#374151]">
-                        {otHourRule ? `${formatVnd(otHourRule.unitPrice)} / giờ` : '—'}
+                      <td className="px-1.5 text-[#374151] truncate">
+                        {otHourRule ? formatVnd(otHourRule.unitPrice) : '—'}
                       </td>
-                      <td className="py-2.5 px-3 text-[#374151]">
-                        {overnightRule ? `${formatVnd(overnightRule.unitPrice)} / đêm` : '—'}
+                      <td className="px-1.5 text-[#374151] truncate">
+                        {overnightRule ? formatVnd(overnightRule.unitPrice) : '—'}
                       </td>
-                      <td className="py-2.5 px-3 text-[#374151]">{cfg.effectiveFrom}</td>
-                      <td className="py-2.5 px-3">
+                      <td className="px-1.5 text-[#374151] truncate">{cfg.effectiveFrom}</td>
+                      <td className="px-1.5">
                         <PastelBadge variant="green">Hoạt động</PastelBadge>
                       </td>
                     </tr>

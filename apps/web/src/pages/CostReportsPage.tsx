@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   CheckCircle2,
   RefreshCw,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { gqlRequest } from '../lib/graphql';
 import {
@@ -222,21 +223,23 @@ export const CostReportsPage: React.FC<{
   // ============================================================================
   if (activeTab === 'ETP_REPORT') {
     const monthlyFluctuations = [
-      { period: '12/2025', added: 5, resigned: 3, cancelled: 6, ended: 9, net: -4 },
-      { period: '11/2025', added: 3, resigned: 4, cancelled: 11, ended: 15, net: -12 },
-      { period: '10/2025', added: 4, resigned: 4, cancelled: 10, ended: 14, net: -10 },
-      { period: '09/2025', added: 2, resigned: 8, cancelled: 15, ended: 23, net: -21 },
-      { period: '08/2025', added: 9, resigned: 9, cancelled: 14, ended: 23, net: -14 },
-      { period: '07/2025', added: 3, resigned: 7, cancelled: 16, ended: 23, net: -20 },
-      { period: '06/2025', added: 2, resigned: 9, cancelled: 13, ended: 22, net: -20 },
-      { period: '05/2025', added: 6, resigned: 11, cancelled: 13, ended: 24, net: -18 },
-      { period: '04/2025', added: 6, resigned: 5, cancelled: 11, ended: 16, net: -10 },
-      { period: '03/2025', added: 64, resigned: 7, cancelled: 8, ended: 15, net: 49 },
-      { period: '02/2025', added: 56, resigned: 7, cancelled: 10, ended: 17, net: 39 },
-      { period: '01/2025', added: 68, resigned: 8, cancelled: 17, ended: 25, net: 43 },
+      { period: 'Tháng 01', added: '1.055', resigned: 15, cancelled: 90, ended: 105, net: '+950' },
+      { period: 'Tháng 02', added: '299', resigned: 0, cancelled: 104, ended: 104, net: '+195' },
+      { period: 'Tháng 03', added: '1.270', resigned: 157, cancelled: 115, ended: 272, net: '+998' },
+      { period: 'Tháng 04', added: '588', resigned: 171, cancelled: 71, ended: 242, net: '+346' },
+      { period: 'Tháng 05', added: '553', resigned: 184, cancelled: 139, ended: 323, net: '+230' },
+      { period: 'Tháng 06', added: '727', resigned: 154, cancelled: 152, ended: 306, net: '+421' },
+      { period: 'Tháng 07', added: '648', resigned: 241, cancelled: 189, ended: 430, net: '+218' },
+      { period: 'Tháng 08', added: '683', resigned: 205, cancelled: 213, ended: 418, net: '+265' },
+      { period: 'Tháng 09', added: '532', resigned: 221, cancelled: 179, ended: 400, net: '+132' },
+      { period: 'Tháng 10', added: '360', resigned: 45, cancelled: 159, ended: 204, net: '+156' },
+      { period: 'Tháng 11', added: '275', resigned: 0, cancelled: 152, ended: 152, net: '+123' },
+      { period: 'Tháng 12', added: '164', resigned: 0, cancelled: 112, ended: 112, net: '+52' },
     ];
 
-    const routeRows = etpReport?.byRoute || [];
+    const routeRows = (etpReport?.byRoute || []).filter(
+      (r: any) => !String(r.routeCode || '').startsWith('RT_AT_')
+    );
 
     return (
       <div>
@@ -248,7 +251,7 @@ export const CostReportsPage: React.FC<{
         )}
 
         {/* Top Filter Row (Exact match to 082-employee-transport.png) */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
           <div className="flex flex-wrap items-center gap-3">
             <FloatingSelect
               label="Năm"
@@ -273,18 +276,19 @@ export const CostReportsPage: React.FC<{
           <button
             type="button"
             onClick={() => showToast('Đã xuất Excel Báo cáo hồ sơ sử dụng xe')}
-            className="h-[36px] px-4 rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[13px] font-medium cursor-pointer"
+            className="h-[34px] px-3.5 rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[13px] font-medium inline-flex items-center gap-1.5 cursor-pointer"
           >
-            Xuất Excel
+            <FileSpreadsheet className="w-4 h-4" />
+            <span>Xuất Excel</span>
           </button>
         </div>
 
         {/* 2-Column Split Tables (Exact match to 082-employee-transport.png) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* Left Table: Biến động theo tháng */}
-          <div className="lg:col-span-7 flex flex-col justify-between">
+          <div className="lg:col-span-7 flex flex-col justify-between border border-[#e5e7eb] rounded-[6px] p-3">
             <div>
-              <div className="flex items-center gap-2 py-2.5">
+              <div className="flex items-center gap-2 pb-2">
                 <h2 className="text-[16px] font-bold text-[#1f2937]">Biến động theo tháng</h2>
                 <button
                   type="button"
@@ -296,34 +300,28 @@ export const CostReportsPage: React.FC<{
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full table-fixed text-left border-collapse text-[13px]">
                   <thead>
-                    <tr className="bg-[#f9fafb] border-b border-[#e5e7eb] text-[13px] font-bold text-[#1f2937]">
-                      <th className="py-2.5 px-3 w-10">#</th>
-                      <th className="py-2.5 px-3">Kỳ</th>
-                      <th className="py-2.5 px-3">Đăng ký mới</th>
-                      <th className="py-2.5 px-3">Nghỉ việc</th>
-                      <th className="py-2.5 px-3">Hủy xe</th>
-                      <th className="py-2.5 px-3">Tổng kết thúc</th>
-                      <th className="py-2.5 px-3">Biến động ròng</th>
+                    <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] font-semibold text-[#1f2937]">
+                      <th className="px-2 w-[7%]">#</th>
+                      <th className="px-2 w-[15%]">Kỳ</th>
+                      <th className="px-2 w-[16%]">Đăng ký mới</th>
+                      <th className="px-2 w-[14%]">Nghỉ việc</th>
+                      <th className="px-2 w-[14%]">Hủy xe</th>
+                      <th className="px-2 w-[17%]">Tổng kết thúc</th>
+                      <th className="px-2 w-[17%]">Biến động ròng</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">
+                  <tbody className="divide-y divide-[#e5e7eb] text-[#1f2937]">
                     {monthlyFluctuations.map((m, idx) => (
                       <tr key={m.period} className="hover:bg-[#f9fafb]">
-                        <td className="py-2.5 px-3 text-[#374151]">{idx + 1}</td>
-                        <td className="py-2.5 px-3 text-[#1f2937]">{m.period}</td>
-                        <td className="py-2.5 px-3 text-[#1f2937]">{m.added}</td>
-                        <td className="py-2.5 px-3 text-[#1f2937]">{m.resigned}</td>
-                        <td className="py-2.5 px-3 text-[#1f2937]">{m.cancelled}</td>
-                        <td className="py-2.5 px-3 text-[#1f2937]">{m.ended}</td>
-                        <td className="py-2.5 px-3">
-                          {m.net >= 0 ? (
-                            <PastelBadge label={`+${m.net}`} tone="green" />
-                          ) : (
-                            <PastelBadge label={`${m.net}`} tone="red" />
-                          )}
-                        </td>
+                        <td className="px-2 text-[#374151]">{idx + 1}</td>
+                        <td className="px-2 text-[#1f2937]">{m.period}</td>
+                        <td className="px-2 text-[#1f2937]">{m.added}</td>
+                        <td className="px-2 text-[#1f2937]">{m.resigned}</td>
+                        <td className="px-2 text-[#1f2937]">{m.cancelled}</td>
+                        <td className="px-2 text-[#1f2937]">{m.ended}</td>
+                        <td className="px-2 text-[#1f2937]">{m.net}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -335,9 +333,9 @@ export const CostReportsPage: React.FC<{
           </div>
 
           {/* Right Table: Đăng ký theo tuyến */}
-          <div className="lg:col-span-5 flex flex-col justify-between">
+          <div className="lg:col-span-5 flex flex-col justify-between border border-[#e5e7eb] rounded-[6px] p-3">
             <div>
-              <div className="flex items-center gap-2 py-2.5">
+              <div className="flex items-center gap-2 pb-2">
                 <h2 className="text-[16px] font-bold text-[#1f2937]">Đăng ký theo tuyến</h2>
                 <button
                   type="button"
@@ -349,22 +347,22 @@ export const CostReportsPage: React.FC<{
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full table-fixed text-left border-collapse text-[13px]">
                   <thead>
-                    <tr className="bg-[#f9fafb] border-b border-[#e5e7eb] text-[13px] font-bold text-[#1f2937]">
-                      <th className="py-2.5 px-3 w-10">#</th>
-                      <th className="py-2.5 px-3">Tên tuyến</th>
-                      <th className="py-2.5 px-3 text-right">Đăng ký</th>
+                    <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] font-semibold text-[#1f2937]">
+                      <th className="px-2 w-[9%]">#</th>
+                      <th className="px-2 w-[75%]">Tên tuyến</th>
+                      <th className="px-2 w-[16%]">Đăng ký</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">
-                    {routeRows.slice(0, 20).map((rt: any, idx: number) => (
+                  <tbody className="divide-y divide-[#e5e7eb] text-[#1f2937]">
+                    {routeRows.slice(0, 16).map((rt: any, idx: number) => (
                       <tr key={rt.routeId || idx} className="hover:bg-[#f9fafb]">
-                        <td className="py-2.5 px-3 text-[#374151]">{idx + 1}</td>
-                        <td className="py-2.5 px-3 text-[#1f2937] truncate max-w-[260px]">
+                        <td className="px-2 text-[#374151]">{idx + 1}</td>
+                        <td className="px-2 text-[#1f2937] truncate">
                           {rt.routeName}
                         </td>
-                        <td className="py-2.5 px-3 text-right text-[#1f2937]">
+                        <td className="px-2 text-[#1f2937]">
                           {rt.activeCount ?? 0}
                         </td>
                       </tr>
@@ -376,8 +374,8 @@ export const CostReportsPage: React.FC<{
 
             <LegacyPagination
               totalCount={routeRows.length}
-              shownCount={Math.min(20, routeRows.length)}
-              pageSize={20}
+              shownCount={routeRows.length}
+              pageSize={100}
             />
           </div>
         </div>
@@ -674,50 +672,50 @@ export const CostReportsPage: React.FC<{
           </div>
 
           <div className="overflow-x-auto border border-[#e5e7eb]">
-            <table className="w-full text-left border-collapse text-[13px]">
+            <table className="w-full table-fixed text-left border-collapse text-[13px]">
               <thead>
                 <tr className="bg-[#f9fafb] text-[#1f2937] font-bold border-b border-[#e5e7eb]">
-                  <th rowSpan={2} className="py-2.5 px-3 border-r border-[#e5e7eb] w-12">
+                  <th rowSpan={2} className="px-2 border-r border-[#e5e7eb] w-[4%]">
                     STT
                   </th>
-                  <th rowSpan={2} className="py-2.5 px-3 border-r border-[#e5e7eb]">
+                  <th rowSpan={2} className="px-2 border-r border-[#e5e7eb] w-[14%]">
                     Tài xế
                   </th>
-                  <th rowSpan={2} className="py-2.5 px-3 border-r border-[#e5e7eb]">
+                  <th rowSpan={2} className="px-2 border-r border-[#e5e7eb] w-[9%]">
                     Biển số
                   </th>
-                  <th rowSpan={2} className="py-2.5 px-3 border-r border-[#e5e7eb]">
+                  <th rowSpan={2} className="px-2 border-r border-[#e5e7eb] w-[9%]">
                     Loại xe
                   </th>
-                  <th rowSpan={2} className="py-2.5 px-3 border-r border-[#e5e7eb]">
+                  <th rowSpan={2} className="px-2 border-r border-[#e5e7eb] w-[30%]">
                     Tuyến
                   </th>
                   <th
                     rowSpan={2}
-                    className="py-2.5 px-3 text-right border-r border-[#e5e7eb]"
+                    className="px-2 text-right border-r border-[#e5e7eb] w-[5%]"
                   >
                     KM
                   </th>
                   <th
                     colSpan={3}
-                    className="py-2 px-3 text-center border-b border-r border-[#e5e7eb]"
+                    className="px-2 text-center border-b border-r border-[#e5e7eb] w-[15%]"
                   >
                     Tăng ca
                   </th>
                   <th
                     rowSpan={2}
-                    className="py-2.5 px-3 text-center border-r border-[#e5e7eb]"
+                    className="px-2 text-center border-r border-[#e5e7eb] w-[7%]"
                   >
                     Vượt 150 km
                   </th>
-                  <th rowSpan={2} className="py-2.5 px-3 text-right">
+                  <th rowSpan={2} className="px-2 text-right w-[7%]">
                     Tiền cước
                   </th>
                 </tr>
                 <tr className="bg-[#f9fafb] text-[#1f2937] font-bold border-b border-[#e5e7eb]">
-                  <th className="py-1.5 px-3 text-center border-r border-[#e5e7eb]">Từ</th>
-                  <th className="py-1.5 px-3 text-center border-r border-[#e5e7eb]">Đến</th>
-                  <th className="py-1.5 px-3 text-center border-r border-[#e5e7eb]">Giờ</th>
+                  <th className="px-1.5 text-center border-r border-[#e5e7eb]">Từ</th>
+                  <th className="px-1.5 text-center border-r border-[#e5e7eb]">Đến</th>
+                  <th className="px-1.5 text-center border-r border-[#e5e7eb]">Giờ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb] text-[#1f2937]">
@@ -848,47 +846,47 @@ export const CostReportsPage: React.FC<{
           </div>
 
           <div className="overflow-x-auto border border-[#e5e7eb]">
-            <table className="w-full text-left border-collapse text-[13px]">
+            <table className="w-full table-fixed text-left border-collapse text-[13px]">
               <thead>
                 <tr className="bg-[#f9fafb] text-[#1f2937] font-bold border-b border-[#e5e7eb]">
-                  <th rowSpan={2} className="py-2.5 px-3 border-r border-[#e5e7eb] w-12">
+                  <th rowSpan={2} className="px-2 border-r border-[#e5e7eb] w-[4%]">
                     STT
                   </th>
-                  <th rowSpan={2} className="py-2.5 px-3 border-r border-[#e5e7eb]">
+                  <th rowSpan={2} className="px-2 border-r border-[#e5e7eb] w-[14%]">
                     Tài xế
                   </th>
-                  <th rowSpan={2} className="py-2.5 px-3 border-r border-[#e5e7eb]">
+                  <th rowSpan={2} className="px-2 border-r border-[#e5e7eb] w-[9%]">
                     Xe
                   </th>
-                  <th rowSpan={2} className="py-2.5 px-3 border-r border-[#e5e7eb]">
+                  <th rowSpan={2} className="px-2 border-r border-[#e5e7eb] w-[27%]">
                     Tuyến
                   </th>
                   <th
                     rowSpan={2}
-                    className="py-2.5 px-3 text-center border-r border-[#e5e7eb]"
+                    className="px-2 text-center border-r border-[#e5e7eb] w-[6%]"
                   >
                     Chuyến
                   </th>
                   <th
                     rowSpan={2}
-                    className="py-2.5 px-3 text-right border-r border-[#e5e7eb]"
+                    className="px-2 text-right border-r border-[#e5e7eb] w-[11.5%]"
                   >
                     Tiền thuê cơ bản
                   </th>
                   <th
                     colSpan={3}
-                    className="py-2 px-3 text-center border-b border-r border-[#e5e7eb]"
+                    className="px-2 text-center border-b border-r border-[#e5e7eb] w-[18.5%]"
                   >
                     Làm Ngoài giờ
                   </th>
-                  <th rowSpan={2} className="py-2.5 px-3 text-right">
+                  <th rowSpan={2} className="px-2 text-right w-[10%]">
                     Tổng sau VAT
                   </th>
                 </tr>
                 <tr className="bg-[#f9fafb] text-[#1f2937] font-bold border-b border-[#e5e7eb]">
-                  <th className="py-1.5 px-3 text-right border-r border-[#e5e7eb]">Giờ</th>
-                  <th className="py-1.5 px-3 text-right border-r border-[#e5e7eb]">Đơn giá</th>
-                  <th className="py-1.5 px-3 text-right border-r border-[#e5e7eb]">Số tiền</th>
+                  <th className="px-1.5 text-right border-r border-[#e5e7eb]">Giờ</th>
+                  <th className="px-1.5 text-right border-r border-[#e5e7eb]">Đơn giá</th>
+                  <th className="px-1.5 text-right border-r border-[#e5e7eb]">Số tiền</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb] text-[#1f2937]">
