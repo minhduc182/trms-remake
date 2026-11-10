@@ -588,16 +588,16 @@ export const RequestsPage: React.FC = () => {
                   />
                 </th>
               )}
-              <th className="px-2 w-[2.5%]">#</th>
-              <th className="px-2 w-[8%]">Loại yêu cầu</th>
-              <th className="px-2 w-[10.5%]">Trạng thái</th>
-              <th className="px-2 w-[9%]">Người yêu cầu</th>
-              <th className="px-2 w-[13%]">Bộ phận người yêu cầu</th>
-              <th className="px-2 w-[8%]">Số lượng đăng ký</th>
-              <th className="px-2 w-[13%]">Giờ khởi hành / Đón</th>
-              <th className="px-2 w-[13%]">Điểm đón / Lấy hàng</th>
-              <th className="px-2 w-[12.5%]">Điểm trả / Giao hàng</th>
-              <th className="px-2 w-[10.5%]">Giờ về / Giao hàng</th>
+              <th className="px-1.5 w-[3.5%]">#</th>
+              <th className="px-1.5 w-[7.5%]">Loại yêu cầu</th>
+              <th className="px-1.5 w-[10.5%]">Trạng thái</th>
+              <th className="px-1.5 w-[8.5%]">Người yêu cầu</th>
+              <th className="px-1.5 w-[14.5%]">Bộ phận người yêu cầu</th>
+              <th className="px-1.5 w-[9.5%]">Số lượng đăng ký</th>
+              <th className="px-1.5 w-[11.5%]">Giờ khởi hành / Đón</th>
+              <th className="px-1.5 w-[11.5%]">Điểm đón / Lấy hàng</th>
+              <th className="px-1.5 w-[11.5%]">Điểm trả / Giao hàng</th>
+              <th className="px-1.5 w-[11.5%]">Giờ về / Giao hàng</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">
@@ -625,7 +625,7 @@ export const RequestsPage: React.FC = () => {
               >
                 {activeTab === 'APPROVAL_QUEUE' && (
                   <td
-                    className="px-2"
+                    className="px-1.5"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <input
@@ -641,28 +641,28 @@ export const RequestsPage: React.FC = () => {
                     />
                   </td>
                 )}
-                <td className="px-2.5 text-[#374151]">{idx + 1}</td>
-                <td className="px-2.5">{renderRequestTypeBadge(req.requestType)}</td>
-                <td className="px-2.5">{renderRequestStatusBadge(req.status)}</td>
-                <td className="px-2.5 text-[#1f2937] truncate">
+                <td className="px-1.5 text-[#374151]">{idx + 1}</td>
+                <td className="px-1.5">{renderRequestTypeBadge(req.requestType)}</td>
+                <td className="px-1.5">{renderRequestStatusBadge(req.status)}</td>
+                <td className="px-1.5 text-[#1f2937] truncate">
                   {req.requesterName || req.passengers?.[0]?.passengerName || '-'}
                 </td>
-                <td className="px-2.5 text-[#374151] truncate">
+                <td className="px-1.5 text-[#374151] truncate">
                   {req.departmentName || 'Khối Kỹ thuật EMS'}
                 </td>
-                <td className="px-2.5 text-[#374151]">
+                <td className="px-1.5 text-[#374151]">
                   {req.requestType === 'GOODS' ? 0 : (req.passengerCount ?? 0)}
                 </td>
-                <td className="px-2.5 text-[#1f2937] truncate">
+                <td className="px-1.5 text-[#1f2937] truncate">
                   {formatLegacyReqDateTime(req.businessDate, req.departureTime)}
                 </td>
-                <td className="px-2.5 text-[#1f2937] truncate">
+                <td className="px-1.5 text-[#1f2937] truncate">
                   {req.departurePickupPointText || '-'}
                 </td>
-                <td className="px-2.5 text-[#1f2937] truncate">
+                <td className="px-1.5 text-[#1f2937] truncate">
                   {req.departureDropoffPointText || '-'}
                 </td>
-                <td className="px-2.5 text-[#1f2937] truncate">
+                <td className="px-1.5 text-[#1f2937] truncate">
                   {req.returnTime
                     ? formatLegacyReqDateTime(req.businessDate, req.returnTime)
                     : '-'}

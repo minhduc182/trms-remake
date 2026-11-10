@@ -35,9 +35,15 @@ function renderAuditActionBadge(actionType: string) {
     case 'COMPLETED':
       return <PastelBadge label="Hoàn thành chuyến" tone="green" />;
     case 'CREATE':
+    case 'CREATE_COMMUTE_PLAN':
       return <PastelBadge label="Tạo mới" tone="green" />;
     case 'UPDATE':
+    case 'UPDATE_TRANSPORT_FLAG':
+    case 'RECALCULATE_DAILY':
+    case 'RECALCULATE_MONTHLY':
       return <PastelBadge label="Cập nhật" tone="amber" />;
+    case 'DELETE':
+      return <PastelBadge label="Xóa" tone="red" />;
     case 'CONFIRM':
       return <PastelBadge label="Tài xế xác nhận" tone="green" />;
     case 'APPROVE':
