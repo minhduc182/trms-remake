@@ -15,6 +15,8 @@ import {
   RowContextMenu,
   renderTripTypeBadge,
   renderRequestStatusBadge,
+  usePagination,
+  exportTableToCsv,
 } from '../components/legacy-ui';
 
 function formatDriverTimeWindow(
@@ -51,6 +53,7 @@ export const DriverPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'ALL' | 'CONFIRM' | 'START' | 'COMPLETE'>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [businessDate, setBusinessDate] = useState<string>('');
+  const [search, setSearch] = useState<string>('');
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -143,6 +146,28 @@ export const DriverPage: React.FC = () => {
     }
   };
 
+  const kw = search.trim().toLowerCase();
+  const filteredTrips = trips
+    .filter((t) => !businessDate || t.businessDate === businessDate)
+    .filter((t) => {
+      if (!statusFilter) return true;
+      if (statusFilter === 'DISPATCHED')
+        return t.status === 'DISPATCHED' || t.status === 'WAITING_DRIVER_CONFIRM';
+      return t.status === statusFilter;
+    })
+    .filter(
+      (t) =>
+        !kw ||
+        String(t.tripCode || '').toLowerCase().includes(kw) ||
+        String(t.driverNameSnapshot || '').toLowerCase().includes(kw) ||
+        String(t.vehiclePlateSnapshot || '').toLowerCase().includes(kw) ||
+        String(t.route?.routeName || '').toLowerCase().includes(kw) ||
+        String(t.departurePickupPointText || '').toLowerCase().includes(kw) ||
+        String(t.departureDropoffPointText || '').toLowerCase().includes(kw)
+    );
+
+  const driverPaging = usePagination(filteredTrips, 20);
+
   return (
     <div>
       {toast && (
@@ -189,12 +214,16 @@ export const DriverPage: React.FC = () => {
         title="Xác nhận chuyến tài xế"
         loading={loading}
         onRefresh={loadDriverTrips}
-        showSearch={false}
+        search={search}
+        onSearchChange={setSearch}
         showCustomize
         primaryButton={{
           label: 'Xuất excel trang hiện tại',
           icon: <FileSpreadsheet className="w-4 h-4" />,
-          onClick: () => showToast('Đã xuất Excel Xác nhận chuyến tài xế'),
+          onClick: () => {
+            exportTableToCsv('xac-nhan-chuyen-tai-xe');
+            showToast('Đã xuất Excel Xác nhận chuyến tài xế');
+          },
         }}
       />
 
@@ -215,17 +244,18 @@ export const DriverPage: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">
-            {trips.map((trip, idx) => {
+            {driverPaging.pagedItems.map((trip, idx) => {
               const isDeadhead =
                 (trip.notes || '').toLowerCase().includes('rỗng') ||
                 trip.passengerCount === 0;
+              const rowIndex = (driverPaging.page - 1) * driverPaging.pageSize + idx + 1;
               return (
                 <tr
                   key={trip.id}
                   onClick={(e) =>
                     setContextRow({
                       trip,
-                      index: idx + 1,
+                      index: rowIndex,
                       x: e.clientX,
                       y: e.clientY,
                     })
@@ -234,14 +264,14 @@ export const DriverPage: React.FC = () => {
                     e.preventDefault();
                     setContextRow({
                       trip,
-                      index: idx + 1,
+                      index: rowIndex,
                       x: e.clientX,
                       y: e.clientY,
                     });
                   }}
                   className="hover:bg-[#f9fafb] cursor-pointer transition-colors"
                 >
-                  <td className="px-2.5 text-[#374151]">{idx + 1}</td>
+                  <td className="px-2.5 text-[#374151]">{rowIndex}</td>
                   <td className="px-2.5">
                     {renderTripTypeBadge(trip.dispatchType, isDeadhead)}
                   </td>
@@ -273,7 +303,7 @@ export const DriverPage: React.FC = () => {
                 </tr>
               );
             })}
-            {trips.length === 0 && (
+            {filteredTrips.length === 0 && (
               <tr>
                 <td colSpan={9} className="py-8 text-center text-[13px] text-[#9ca3af]">
                   Không có chuyến đi nào
@@ -284,7 +314,14 @@ export const DriverPage: React.FC = () => {
         </table>
       </div>
 
-      <LegacyPagination totalCount={trips.length} pageSize={20} />
+      <LegacyPagination
+        totalCount={filteredTrips.length}
+        shownCount={driverPaging.pagedItems.length}
+        page={driverPaging.page}
+        pageSize={driverPaging.pageSize}
+        onPageChange={driverPaging.setPage}
+        onPageSizeChange={driverPaging.setPageSize}
+      />
 
       {contextRow && (
         <RowContextMenu
@@ -295,7 +332,9 @@ export const DriverPage: React.FC = () => {
             {
               label: 'Xác nhận nhận chuyến',
               icon: <CheckCircle2 className="w-4 h-4 text-[#00897b]" />,
-              disabled: contextRow.trip.status !== 'DISPATCHED',
+              disabled: !['DISPATCHED', 'WAITING_DRIVER_CONFIRM'].includes(
+                contextRow.trip.status
+              ),
               onClick: () => handleConfirm(contextRow.trip),
             },
             {

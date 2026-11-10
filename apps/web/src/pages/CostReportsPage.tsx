@@ -11,6 +11,7 @@ import {
   FloatingSelect,
   LegacyPagination,
   PastelBadge,
+  exportTableToCsv,
 } from '../components/legacy-ui';
 
 function formatVndDot(val?: string | number | null): string {
@@ -268,7 +269,10 @@ export const CostReportsPage: React.FC<{
 
           <button
             type="button"
-            onClick={() => showToast('Đã xuất Excel Báo cáo hồ sơ sử dụng xe')}
+            onClick={() => {
+              exportTableToCsv('bao-cao-ho-so-su-dung-xe');
+              showToast('Đã xuất Excel Báo cáo hồ sơ sử dụng xe');
+            }}
             className="h-[34px] px-3.5 rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[13px] font-medium inline-flex items-center gap-1.5 cursor-pointer"
           >
             <FileSpreadsheet className="w-4 h-4" />
@@ -380,7 +384,13 @@ export const CostReportsPage: React.FC<{
   // BÁO CÁO CHI PHÍ (3 TABS: HÓA ĐƠN XE | CHI PHÍ NGÀY | THANH TOÁN THÁNG)
   // ============================================================================
   const currentMonthly = monthlyPayments[0];
-  const monthlyDetails = currentMonthly?.details || [];
+  const monthlyDetails = (currentMonthly?.details || []).filter((d: any) => {
+    if (!passengerTypeFilter) return true;
+    const rn = String(d.routeNameSnapshot || '');
+    if (passengerTypeFilter === 'WORKER') return rn.includes('CN');
+    if (passengerTypeFilter === 'STAFF') return !rn.includes('CN');
+    return true;
+  });
 
   return (
     <div>

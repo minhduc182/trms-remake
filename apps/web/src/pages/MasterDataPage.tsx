@@ -840,6 +840,127 @@ export const MasterDataPage: React.FC = () => {
     return runDays || 'Thứ Hai đến Thứ Bảy';
   };
 
+  const kw = search.trim().toLowerCase();
+
+  const distinctDistricts = Array.from(
+    new Set(
+      points
+        .map((p) => String(p.districtName || '').trim())
+        .filter((d) => d.length > 0)
+    )
+  ).sort((a, b) => a.localeCompare(b, 'vi'));
+
+  const filteredPoints = points
+    .filter((pt) => !pointTypeSingleFilter || pt.pointType === pointTypeSingleFilter)
+    .filter((pt) => !districtFilter || pt.districtName === districtFilter)
+    .filter((pt) => !activeFlagFilter || pt.activeFlag === activeFlagFilter)
+    .filter(
+      (pt) =>
+        !kw ||
+        String(pt.pointCode || '').toLowerCase().includes(kw) ||
+        String(pt.pointName || '').toLowerCase().includes(kw) ||
+        String(pt.districtName || '').toLowerCase().includes(kw) ||
+        String(pt.address || '').toLowerCase().includes(kw)
+    );
+
+  const filteredDrivers = drivers
+    .filter((drv) => {
+      if (driverAccountFilter === 'LINKED') return Boolean(drv.user || drv.identityUserId);
+      if (driverAccountFilter === 'UNLINKED') return !drv.user && !drv.identityUserId;
+      return true;
+    })
+    .filter((drv) => !activeFlagFilter || drv.activeFlag === activeFlagFilter)
+    .filter(
+      (drv) =>
+        !kw ||
+        String(drv.driverName || '').toLowerCase().includes(kw) ||
+        String(drv.phoneNumber || '').toLowerCase().includes(kw) ||
+        String(drv.shortAddress || '').toLowerCase().includes(kw) ||
+        String(drv.fullAddress || '').toLowerCase().includes(kw) ||
+        String(drv.user?.username || '').toLowerCase().includes(kw)
+    );
+
+  const filteredVehicles = vehicles
+    .filter((v) => !vehicleTypeFilter || v.vehicleType === vehicleTypeFilter)
+    .filter((v) => {
+      if (!packageModeFilter) return true;
+      if (packageModeFilter === 'BY_SEGMENT') return v.commutePackageMode === 'BY_SEGMENT';
+      if (packageModeFilter === 'BY_ROUTE')
+        return (
+          v.commutePackageMode === 'BY_ROUTE' ||
+          ['19H08980', '29B16247', '29B16365', '29B30791'].includes(String(v.vehiclePlate || ''))
+        );
+      return true;
+    })
+    .filter((v) => !activeFlagFilter || v.activeFlag === activeFlagFilter)
+    .filter(
+      (v) =>
+        !kw ||
+        String(v.vehiclePlate || '').toLowerCase().includes(kw) ||
+        String(v.vendor?.vendorName || '').toLowerCase().includes(kw) ||
+        String(v.vehicleType || '').toLowerCase().includes(kw)
+    );
+
+  const filteredLegsList = legs
+    .filter((l) => !passengerTypeFilter || l.passengerType === passengerTypeFilter)
+    .filter(
+      (l) =>
+        !kw ||
+        String(l.legCode || '').toLowerCase().includes(kw) ||
+        String(l.legName || '').toLowerCase().includes(kw)
+    );
+
+  const filteredRoutes = routes
+    .filter((rt) => !passengerTypeFilter || rt.passengerType === passengerTypeFilter)
+    .filter((rt) => {
+      if (!runDaysFilter) return true;
+      if (runDaysFilter === 'MON_FRI') return rt.runDays === 'MON_FRI' || rt.runDays === '31';
+      if (runDaysFilter === 'MON_SAT') return rt.runDays === 'MON_SAT' || rt.runDays === '63';
+      if (runDaysFilter === 'SAT_ONLY') return rt.runDays === 'SAT_ONLY' || rt.runDays === '32';
+      if (runDaysFilter === 'MON_SUN') return rt.runDays === 'MON_SUN' || rt.runDays === '127';
+      return rt.runDays === runDaysFilter;
+    })
+    .filter((rt) => !activeFlagFilter || rt.activeFlag === activeFlagFilter)
+    .filter(
+      (rt) =>
+        !kw ||
+        String(rt.routeCode || '').toLowerCase().includes(kw) ||
+        String(rt.routeName || '').toLowerCase().includes(kw)
+    );
+
+  const filteredEtpProfiles = etpProfiles
+    .filter((etp) => !passengerTypeFilter || etp.route?.passengerType === passengerTypeFilter)
+    .filter((etp) => !etpStatusFilter || etp.approvalStatus === etpStatusFilter)
+    .filter((etp) => !activeFlagFilter || etp.activeFlag === activeFlagFilter)
+    .filter((etp) => !etpRouteFilter || String(etp.route?.id || '') === String(etpRouteFilter))
+    .filter(
+      (etp) =>
+        !kw ||
+        String(etp.employee?.empCode || etp.provTempCode || '').toLowerCase().includes(kw) ||
+        String(etp.employee?.fullName || etp.provFullName || '').toLowerCase().includes(kw) ||
+        String(etp.employee?.orgUnit?.name || '').toLowerCase().includes(kw) ||
+        String(etp.route?.routeName || '').toLowerCase().includes(kw)
+    );
+
+  const filteredCostConfigs = costConfigs
+    .filter((cfg) => !costTypeFilter || cfg.configType === costTypeFilter)
+    .filter((cfg) => !passengerTypeFilter || cfg.passengerType === passengerTypeFilter)
+    .filter((cfg) => !vehicleTypeFilter || cfg.vehicleType === vehicleTypeFilter)
+    .filter(
+      (cfg) =>
+        !kw ||
+        String(cfg.versionCode || '').toLowerCase().includes(kw) ||
+        String(cfg.vehicleType || '').toLowerCase().includes(kw)
+    );
+
+  const pointsPaging = usePagination(filteredPoints, 20);
+  const driversPaging = usePagination(filteredDrivers, 20);
+  const vehiclesPaging = usePagination(filteredVehicles, 20);
+  const legsPaging = usePagination(filteredLegsList, 20);
+  const routesPaging = usePagination(filteredRoutes, 20);
+  const etpPaging = usePagination(filteredEtpProfiles, 20);
+  const costPaging = usePagination(filteredCostConfigs, 20);
+
   return (
     <div className="bg-white">
       {toast && (
@@ -860,6 +981,93 @@ export const MasterDataPage: React.FC = () => {
       />
 
       {/* Contextual Floating Filters per Tab */}
+      {activeTab === 'POINTS' && (
+        <div className="flex flex-wrap items-center gap-3 pt-4 pb-1">
+          <FloatingSelect
+            label="Loại điểm"
+            value={pointTypeSingleFilter}
+            onChange={setPointTypeSingleFilter}
+            options={[
+              { value: 'PICKUP', label: 'Điểm đón' },
+              { value: 'DROPOFF', label: 'Điểm trả' },
+              { value: 'BOTH', label: 'Cả hai (Đón & Trả)' },
+            ]}
+          />
+          <FloatingSelect
+            label="Quận/huyện"
+            value={districtFilter}
+            onChange={setDistrictFilter}
+            options={distinctDistricts.map((d) => ({ value: d, label: d }))}
+          />
+          <FloatingSelect
+            label="Trạng thái"
+            value={activeFlagFilter}
+            onChange={setActiveFlagFilter}
+            options={[
+              { value: 'Y', label: 'Hoạt động' },
+              { value: 'N', label: 'Không hoạt động' },
+            ]}
+          />
+        </div>
+      )}
+
+      {activeTab === 'DRIVERS' && (
+        <div className="flex flex-wrap items-center gap-3 pt-4 pb-1">
+          <FloatingSelect
+            label="Tài khoản đăng nhập"
+            value={driverAccountFilter}
+            onChange={setDriverAccountFilter}
+            options={[
+              { value: 'LINKED', label: 'Đã liên kết' },
+              { value: 'UNLINKED', label: 'Chưa liên kết' },
+            ]}
+          />
+          <FloatingSelect
+            label="Trạng thái"
+            value={activeFlagFilter}
+            onChange={setActiveFlagFilter}
+            options={[
+              { value: 'Y', label: 'Hoạt động' },
+              { value: 'N', label: 'Không hoạt động' },
+            ]}
+          />
+        </div>
+      )}
+
+      {activeTab === 'VEHICLES' && (
+        <div className="flex flex-wrap items-center gap-3 pt-4 pb-1">
+          <FloatingSelect
+            label="Loại xe"
+            value={vehicleTypeFilter}
+            onChange={setVehicleTypeFilter}
+            options={[
+              { value: 'BUS_29', label: 'Bus 29 chỗ' },
+              { value: 'VAN_16', label: 'Van 16 chỗ' },
+              { value: 'BUS_45', label: 'Bus 45 chỗ' },
+              { value: 'SUV_7', label: 'SUV 7 chỗ' },
+            ]}
+          />
+          <FloatingSelect
+            label="Phương thức tính cước"
+            value={packageModeFilter}
+            onChange={setPackageModeFilter}
+            options={[
+              { value: 'BY_ROUTE', label: 'Giá thuê cơ bản' },
+              { value: 'BY_SEGMENT', label: 'Theo số chặng' },
+            ]}
+          />
+          <FloatingSelect
+            label="Trạng thái"
+            value={activeFlagFilter}
+            onChange={setActiveFlagFilter}
+            options={[
+              { value: 'Y', label: 'Hoạt động' },
+              { value: 'N', label: 'Không hoạt động' },
+            ]}
+          />
+        </div>
+      )}
+
       {activeTab === 'LEGS' && (
         <div className="flex flex-wrap items-center gap-3 pt-4 pb-1">
           <FloatingSelect
@@ -896,6 +1104,15 @@ export const MasterDataPage: React.FC = () => {
               { value: 'MON_SUN', label: 'Thứ Hai đến Chủ nhật' },
             ]}
           />
+          <FloatingSelect
+            label="Trạng thái"
+            value={activeFlagFilter}
+            onChange={(val) => setActiveFlagFilter(val)}
+            options={[
+              { value: 'Y', label: 'Hoạt động' },
+              { value: 'N', label: 'Không hoạt động' },
+            ]}
+          />
         </div>
       )}
 
@@ -909,6 +1126,12 @@ export const MasterDataPage: React.FC = () => {
               { value: 'STAFF', label: 'Nhân viên' },
               { value: 'WORKER', label: 'Công nhân' },
             ]}
+          />
+          <FloatingSelect
+            label="Tuyến xe"
+            value={etpRouteFilter}
+            onChange={(val) => setEtpRouteFilter(val)}
+            options={routes.map((r) => ({ value: String(r.id), label: r.routeName }))}
           />
           <FloatingSelect
             label="Trạng thái phê duyệt"
@@ -960,8 +1183,8 @@ export const MasterDataPage: React.FC = () => {
               { value: 'SEDAN_4', label: 'Xe 4 chỗ' },
               { value: 'SUV_7', label: 'Xe 7 chỗ' },
               { value: 'VAN_16', label: 'Xe 16 chỗ' },
-              { value: 'BUS_29', label: 'Xe 29 chỗ' },
-              { value: 'BUS_45', label: 'Xe 45 chỗ' },
+              { value: 'BUS_29', label: 'Bus 29 chỗ' },
+              { value: 'BUS_45', label: 'Bus 45 chỗ' },
             ]}
           />
         </div>
@@ -1190,7 +1413,7 @@ export const MasterDataPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb]">
-                {points.map((pt, idx) => (
+                {pointsPaging.pagedItems.map((pt, idx) => (
                   <tr
                     key={pt.id}
                     onClick={(e) =>
@@ -1220,7 +1443,9 @@ export const MasterDataPage: React.FC = () => {
                     }
                     className="hover:bg-[#f9fafb] cursor-pointer transition-colors"
                   >
-                    <td className="px-2.5 text-[#374151]">{idx + 1}</td>
+                    <td className="px-2.5 text-[#374151]">
+                      {(pointsPaging.page - 1) * pointsPaging.pageSize + idx + 1}
+                    </td>
                     <td className="px-2.5 text-[#1f2937] truncate">{pt.pointCode}</td>
                     <td className="px-2.5 text-[#1f2937] truncate">{pt.pointName}</td>
                     <td className="px-2.5 text-[#374151] truncate">{pt.districtName || ''}</td>
@@ -1244,7 +1469,7 @@ export const MasterDataPage: React.FC = () => {
                     </td>
                   </tr>
                 ))}
-                {points.length === 0 && (
+                {filteredPoints.length === 0 && (
                   <tr>
                     <td colSpan={8} className="py-8 text-center text-xs text-gray-400">
                       Không có dữ liệu điểm đón/trả
@@ -1254,7 +1479,14 @@ export const MasterDataPage: React.FC = () => {
               </tbody>
             </table>
           </div>
-          <LegacyPagination totalItems={points.length} />
+          <LegacyPagination
+            totalItems={filteredPoints.length}
+            shownCount={pointsPaging.pagedItems.length}
+            page={pointsPaging.page}
+            pageSize={pointsPaging.pageSize}
+            onPageChange={pointsPaging.setPage}
+            onPageSizeChange={pointsPaging.setPageSize}
+          />
         </div>
       )}
 
@@ -1277,7 +1509,7 @@ export const MasterDataPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb]">
-                {drivers.map((drv, idx) => (
+                {driversPaging.pagedItems.map((drv, idx) => (
                   <tr
                     key={drv.id}
                     onClick={(e) =>
@@ -1309,7 +1541,9 @@ export const MasterDataPage: React.FC = () => {
                     }
                     className="hover:bg-[#f9fafb] cursor-pointer transition-colors"
                   >
-                    <td className="px-2.5 text-[#374151]">{idx + 1}</td>
+                    <td className="px-2.5 text-[#374151]">
+                      {(driversPaging.page - 1) * driversPaging.pageSize + idx + 1}
+                    </td>
                     <td className="px-2.5 text-[#1f2937] truncate">{drv.driverName}</td>
                     <td className="px-2.5">
                       {drv.user || drv.identityUserId ? (
@@ -1341,7 +1575,14 @@ export const MasterDataPage: React.FC = () => {
               </tbody>
             </table>
           </div>
-          <LegacyPagination totalItems={drivers.length} />
+          <LegacyPagination
+            totalItems={filteredDrivers.length}
+            shownCount={driversPaging.pagedItems.length}
+            page={driversPaging.page}
+            pageSize={driversPaging.pageSize}
+            onPageChange={driversPaging.setPage}
+            onPageSizeChange={driversPaging.setPageSize}
+          />
         </div>
       )}
 
@@ -1367,7 +1608,7 @@ export const MasterDataPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb]">
-                {vehicles.map((v, idx) => (
+                {vehiclesPaging.pagedItems.map((v, idx) => (
                   <tr
                     key={v.id}
                     onClick={(e) =>
@@ -1392,7 +1633,9 @@ export const MasterDataPage: React.FC = () => {
                     }
                     className="hover:bg-[#f9fafb] cursor-pointer transition-colors"
                   >
-                    <td className="px-2.5 text-[#374151]">{idx + 1}</td>
+                    <td className="px-2.5 text-[#374151]">
+                      {(vehiclesPaging.page - 1) * vehiclesPaging.pageSize + idx + 1}
+                    </td>
                     <td className="px-2.5 text-[#1f2937] truncate">{v.vehiclePlate}</td>
                     <td className="px-2.5 text-[#374151] truncate">
                       {String(v.vendor?.vendorName || 'Meiko Electronics').replace(/\s+Vietnam$/i, '')}
@@ -1446,7 +1689,14 @@ export const MasterDataPage: React.FC = () => {
               </tbody>
             </table>
           </div>
-          <LegacyPagination totalItems={vehicles.length} />
+          <LegacyPagination
+            totalItems={filteredVehicles.length}
+            shownCount={vehiclesPaging.pagedItems.length}
+            page={vehiclesPaging.page}
+            pageSize={vehiclesPaging.pageSize}
+            onPageChange={vehiclesPaging.setPage}
+            onPageSizeChange={vehiclesPaging.setPageSize}
+          />
         </div>
       )}
 
@@ -1470,7 +1720,7 @@ export const MasterDataPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb]">
-                {legs.map((leg, idx) => (
+                {legsPaging.pagedItems.map((leg, idx) => (
                   <tr
                     key={leg.id}
                     onClick={(e) =>
@@ -1495,7 +1745,9 @@ export const MasterDataPage: React.FC = () => {
                     }
                     className="hover:bg-[#f9fafb] cursor-pointer transition-colors"
                   >
-                    <td className="px-2.5 text-[#374151]">{idx + 1}</td>
+                    <td className="px-2.5 text-[#374151]">
+                      {(legsPaging.page - 1) * legsPaging.pageSize + idx + 1}
+                    </td>
                     <td className="px-2.5 text-[#1f2937] truncate">{leg.legCode}</td>
                     <td className="px-2.5 text-[#374151] truncate">{leg.legName}</td>
                     <td className="px-2.5">{renderPassengerTypeBadge(leg.passengerType)}</td>
@@ -1514,7 +1766,14 @@ export const MasterDataPage: React.FC = () => {
               </tbody>
             </table>
           </div>
-          <LegacyPagination totalItems={legs.length} />
+          <LegacyPagination
+            totalItems={filteredLegsList.length}
+            shownCount={legsPaging.pagedItems.length}
+            page={legsPaging.page}
+            pageSize={legsPaging.pageSize}
+            onPageChange={legsPaging.setPage}
+            onPageSizeChange={legsPaging.setPageSize}
+          />
         </div>
       )}
 
@@ -1536,7 +1795,7 @@ export const MasterDataPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb]">
-                {routes.map((rt, idx) => (
+                {routesPaging.pagedItems.map((rt, idx) => (
                   <tr
                     key={rt.id}
                     onClick={() => openRouteEditModal(rt)}
@@ -1556,7 +1815,9 @@ export const MasterDataPage: React.FC = () => {
                     }}
                     className="hover:bg-[#f9fafb] cursor-pointer transition-colors"
                   >
-                    <td className="px-2.5 text-[#374151]">{idx + 1}</td>
+                    <td className="px-2.5 text-[#374151]">
+                      {(routesPaging.page - 1) * routesPaging.pageSize + idx + 1}
+                    </td>
                     <td className="px-2.5 text-[#1f2937] truncate">{rt.routeName}</td>
                     <td className="px-2.5">
                       {renderPassengerTypeBadge(rt.passengerType)}
@@ -1579,7 +1840,14 @@ export const MasterDataPage: React.FC = () => {
               </tbody>
             </table>
           </div>
-          <LegacyPagination totalItems={routes.length} />
+          <LegacyPagination
+            totalItems={filteredRoutes.length}
+            shownCount={routesPaging.pagedItems.length}
+            page={routesPaging.page}
+            pageSize={routesPaging.pageSize}
+            onPageChange={routesPaging.setPage}
+            onPageSizeChange={routesPaging.setPageSize}
+          />
         </div>
       )}
 
@@ -1608,9 +1876,7 @@ export const MasterDataPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb]">
-                {etpProfiles
-                  .filter((etp) => !etpRouteFilter || etp.route?.id === etpRouteFilter)
-                  .map((etp, idx) => (
+                {etpPaging.pagedItems.map((etp, idx) => (
                     <tr
                       key={etp.id}
                       onClick={(e) =>
@@ -1661,7 +1927,9 @@ export const MasterDataPage: React.FC = () => {
                       <td className="px-2 text-center" onClick={(e) => e.stopPropagation()}>
                         <input type="checkbox" className="rounded border-gray-300" />
                       </td>
-                      <td className="px-2 text-[#374151]">{idx + 1}</td>
+                      <td className="px-2 text-[#374151]">
+                        {(etpPaging.page - 1) * etpPaging.pageSize + idx + 1}
+                      </td>
                       <td className="px-2 text-[#374151] truncate">
                         {etp.employee?.empCode || etp.provTempCode || '—'}
                       </td>
@@ -1702,7 +1970,14 @@ export const MasterDataPage: React.FC = () => {
               </tbody>
             </table>
           </div>
-          <LegacyPagination totalItems={etpProfiles.length} />
+          <LegacyPagination
+            totalItems={filteredEtpProfiles.length}
+            shownCount={etpPaging.pagedItems.length}
+            page={etpPaging.page}
+            pageSize={etpPaging.pageSize}
+            onPageChange={etpPaging.setPage}
+            onPageSizeChange={etpPaging.setPageSize}
+          />
         </div>
       )}
 
@@ -1732,7 +2007,7 @@ export const MasterDataPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb]">
-                {costConfigs.map((cfg, idx) => {
+                {costPaging.pagedItems.map((cfg, idx) => {
                   const rules: any[] = cfg.rules || [];
                   const mainRule =
                     rules.find(
@@ -1754,8 +2029,28 @@ export const MasterDataPage: React.FC = () => {
                           y: e.clientY,
                           items: [
                             {
-                              label: 'Xem chi tiết',
-                              onClick: () => {},
+                              label: 'Xem chi tiết & chỉnh sửa',
+                              icon: <Edit3 className="w-3.5 h-3.5" />,
+                              onClick: () =>
+                                setCostConfigModal({
+                                  versionCode: cfg.versionCode,
+                                  configType: cfg.configType,
+                                  passengerType: cfg.passengerType,
+                                  vehicleType: cfg.vehicleType,
+                                  pricingScope: cfg.pricingScope || 'STANDARD',
+                                  effectiveFrom: cfg.effectiveFrom || new Date().toISOString().slice(0, 10),
+                                  effectiveTo: cfg.effectiveTo || '',
+                                  rules: (cfg.rules || []).map((r: any) => ({
+                                    ruleCode: r.ruleCode,
+                                    rateType: r.rateType,
+                                    dayType: r.dayType || 'WEEKDAY',
+                                    dailyTripCount: r.dailyTripCount || 2,
+                                    includedDistanceKm: r.includedDistanceKm || '',
+                                    unitPrice: r.unitPrice || '0',
+                                    priceUnit: r.priceUnit || 'VND/TRIP',
+                                    description: r.description || '',
+                                  })),
+                                }),
                             },
                             {
                               label: 'Tạo phiên bản tiếp theo',
@@ -1786,7 +2081,9 @@ export const MasterDataPage: React.FC = () => {
                       }
                       className="hover:bg-[#f9fafb] cursor-pointer transition-colors"
                     >
-                      <td className="px-1 text-[#374151]">{idx + 1}</td>
+                      <td className="px-1 text-[#374151]">
+                        {(costPaging.page - 1) * costPaging.pageSize + idx + 1}
+                      </td>
                       <td className="px-1 text-[#1f2937] truncate">{cfg.versionCode}</td>
                       <td className="px-1">
                         {cfg.configType === 'COMMUTE' ? (
@@ -1858,7 +2155,14 @@ export const MasterDataPage: React.FC = () => {
               </tbody>
             </table>
           </div>
-          <LegacyPagination totalItems={costConfigs.length} />
+          <LegacyPagination
+            totalItems={filteredCostConfigs.length}
+            shownCount={costPaging.pagedItems.length}
+            page={costPaging.page}
+            pageSize={costPaging.pageSize}
+            onPageChange={costPaging.setPage}
+            onPageSizeChange={costPaging.setPageSize}
+          />
         </div>
       )}
 

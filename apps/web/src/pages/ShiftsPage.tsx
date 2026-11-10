@@ -8,10 +8,11 @@ import {
 import { gqlRequest } from '../lib/graphql';
 import {
   FloatingDateFilter,
-  FloatingTextInput,
+  FloatingSelect,
   SectionToolbar,
   LegacyPagination,
   PastelBadge,
+  usePagination,
 } from '../components/legacy-ui';
 
 function formatDdMmYyyy(isoDate: string): string {
@@ -174,6 +175,51 @@ export const ShiftsPage: React.FC = () => {
 
   const sevenDates = getSevenDates(startDate);
 
+  const distinctDepartments = Array.from(
+    new Set([
+      'Khối Kỹ thuật EMS',
+      'Khối Sản xuất',
+      'Phòng Hành chính Nhân sự (GA)',
+      ...registrations
+        .map((r) => String(r.departmentName || '').trim())
+        .filter((d) => d.length > 0 && d !== '—'),
+    ])
+  );
+
+  const kw = searchEmp.trim().toLowerCase();
+  const filteredRegistrations = registrations
+    .filter(
+      (r) =>
+        !departmentFilter ||
+        String(r.departmentName || '')
+          .toLowerCase()
+          .includes(departmentFilter.toLowerCase())
+    )
+    .filter(
+      (r) =>
+        !kw ||
+        String(r.empCode || '').toLowerCase().includes(kw) ||
+        String(r.fullName || '').toLowerCase().includes(kw) ||
+        String(r.departmentName || '').toLowerCase().includes(kw)
+    );
+
+  const shiftsPaging = usePagination(filteredRegistrations, 20);
+
+  const handleCycleEmployeeShift = (rowId: string, dayIdx: number, empCode: string, dateStr: string) => {
+    const cycle = ['HC', 'C1', 'C2', 'C3', 'OFF'];
+    setRegistrations((prev) =>
+      prev.map((r) => {
+        if (r.id !== rowId) return r;
+        const cur = r.days?.[dayIdx] || 'HC';
+        const nextCode = cycle[(cycle.indexOf(cur) + 1) % cycle.length];
+        const nextDays = [...(r.days || [])];
+        nextDays[dayIdx] = nextCode;
+        showToast(`Đã đổi ca của ${empCode} ngày ${formatDdMmYyyy(dateStr)} → ${nextCode}`);
+        return { ...r, days: nextDays };
+      })
+    );
+  };
+
   return (
     <div>
       {toast && (
@@ -191,10 +237,11 @@ export const ShiftsPage: React.FC = () => {
           onChange={setStartDate}
           floatingAlways
         />
-        <FloatingTextInput
+        <FloatingSelect
           label="Phòng ban"
           value={departmentFilter}
           onChange={setDepartmentFilter}
+          options={distinctDepartments.map((d) => ({ value: d, label: d }))}
         />
       </div>
 
@@ -237,16 +284,30 @@ export const ShiftsPage: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">
-            {registrations.map((row, idx) => (
+            {shiftsPaging.pagedItems.map((row, idx) => (
               <tr key={row.id} className="hover:bg-[#f9fafb] transition-colors">
-                <td className="px-2.5 text-[#374151]">{idx + 1}</td>
+                <td className="px-2.5 text-[#374151]">
+                  {(shiftsPaging.page - 1) * shiftsPaging.pageSize + idx + 1}
+                </td>
                 <td className="px-2.5 text-[#1f2937] truncate">{row.empCode}</td>
                 <td className="px-2.5 text-[#1f2937] truncate">{row.fullName}</td>
                 <td className="px-2.5 text-[#374151] truncate">{row.departmentName || '—'}</td>
                 {(row.days || []).map((shiftCode: string | null, dayIdx: number) => {
                   const isInvalid = row.invalidDays?.[dayIdx];
                   return (
-                    <td key={dayIdx} className="px-2">
+                    <td
+                      key={dayIdx}
+                      onClick={() =>
+                        handleCycleEmployeeShift(
+                          row.id,
+                          dayIdx,
+                          row.empCode,
+                          sevenDates[dayIdx] || startDate
+                        )
+                      }
+                      title="Nhấn để đổi mã ca (HC → C1 → C2 → C3 → OFF)"
+                      className="px-2 cursor-pointer hover:bg-[#eefbf6] transition-colors"
+                    >
                       {isInvalid ? (
                         <PastelBadge label={shiftCode || 'Lỗi'} tone="red" />
                       ) : (
@@ -257,7 +318,7 @@ export const ShiftsPage: React.FC = () => {
                 })}
               </tr>
             ))}
-            {registrations.length === 0 && (
+            {filteredRegistrations.length === 0 && (
               <tr>
                 <td colSpan={11} className="py-8 text-center text-[13px] text-[#9ca3af]">
                   Không có dữ liệu đăng ký ca làm việc
@@ -268,7 +329,14 @@ export const ShiftsPage: React.FC = () => {
         </table>
       </div>
 
-      <LegacyPagination totalCount={registrations.length} />
+      <LegacyPagination
+        totalCount={filteredRegistrations.length}
+        shownCount={shiftsPaging.pagedItems.length}
+        page={shiftsPaging.page}
+        pageSize={shiftsPaging.pageSize}
+        onPageChange={shiftsPaging.setPage}
+        onPageSizeChange={shiftsPaging.setPageSize}
+      />
 
       {/* ==================================================================== */}
       {/* MODAL / DRAWER: DANH SÁCH CA LÀM VIỆC & CỜ ĐƯA ĐÓN */}
@@ -337,7 +405,19 @@ export const ShiftsPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#e5e7eb] text-[13px]">
-                  {shifts.map((sh, idx) => (
+                  {shifts
+                    .filter((sh) => !transportFlagFilter || sh.transportFlag === transportFlagFilter)
+                    .filter(
+                      (sh) =>
+                        !searchShift.trim() ||
+                        String(sh.shiftCode || '')
+                          .toLowerCase()
+                          .includes(searchShift.trim().toLowerCase()) ||
+                        String(sh.shiftName || '')
+                          .toLowerCase()
+                          .includes(searchShift.trim().toLowerCase())
+                    )
+                    .map((sh, idx) => (
                     <tr key={sh.id} className="hover:bg-[#f9fafb]">
                       <td className="py-2 px-3 text-[#6b7280]">{idx + 1}</td>
                       <td className="py-2 px-3 font-semibold text-[#1f2937]">{sh.shiftCode}</td>

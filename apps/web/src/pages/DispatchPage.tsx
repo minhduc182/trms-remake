@@ -20,6 +20,8 @@ import {
   RowContextMenu,
   renderRequestTypeBadge,
   renderPassengerTypeBadge,
+  usePagination,
+  exportTableToCsv,
 } from '../components/legacy-ui';
 
 function formatLegacyDateTime(businessDate?: string, timeStr?: string | null): string {
@@ -58,6 +60,7 @@ export const DispatchPage: React.FC = () => {
   // Tab 1: Request Dispatch Queue
   const [reqDateFilter, setReqDateFilter] = useState('');
   const [reqTypeFilter, setReqTypeFilter] = useState('');
+  const [reqDeptFilter, setReqDeptFilter] = useState('');
   const [waitingRequests, setWaitingRequests] = useState<any[]>([]);
   const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
   const [contextRow, setContextRow] = useState<{
@@ -436,8 +439,53 @@ export const DispatchPage: React.FC = () => {
     })
     .filter((row) => {
       if (displayModeFilter === 'SHORTAGE_ONLY') return row.isShortage;
+      if (displayModeFilter === 'ENOUGH_ONLY') return !row.isShortage;
       return true;
     });
+
+  const distinctReqDepts = Array.from(
+    new Set([
+      'Khối Kỹ thuật EMS',
+      'Khối Sản xuất',
+      'Phòng Hành chính Nhân sự (GA)',
+      ...waitingRequests
+        .map((r) => String(r.departmentName || '').trim())
+        .filter((d) => d.length > 0 && d !== '-'),
+    ])
+  );
+
+  const kw = search.trim().toLowerCase();
+  const filteredWaitingRequests = waitingRequests
+    .filter((req) => !reqDateFilter || req.businessDate === reqDateFilter)
+    .filter((req) => {
+      if (!reqTypeFilter) return true;
+      if (reqTypeFilter === 'BUSINESS')
+        return req.requestType === 'BUSINESS' || req.requestType === 'BUSINESS_TRIP';
+      if (reqTypeFilter === 'GOODS')
+        return req.requestType === 'GOODS' || req.requestType === 'CARGO';
+      if (reqTypeFilter === 'OVERTIME')
+        return req.requestType === 'OVERTIME' || req.requestType === 'OT';
+      return req.requestType === reqTypeFilter;
+    })
+    .filter(
+      (req) =>
+        !reqDeptFilter ||
+        String(req.departmentName || 'Khối Kỹ thuật EMS')
+          .toLowerCase()
+          .includes(reqDeptFilter.toLowerCase())
+    )
+    .filter(
+      (req) =>
+        !kw ||
+        String(req.requestCode || '').toLowerCase().includes(kw) ||
+        String(req.requesterName || '').toLowerCase().includes(kw) ||
+        String(req.departmentName || '').toLowerCase().includes(kw) ||
+        String(req.departurePickupPointText || '').toLowerCase().includes(kw) ||
+        String(req.departureDropoffPointText || '').toLowerCase().includes(kw)
+    );
+
+  const reqPaging = usePagination(filteredWaitingRequests, 20);
+  const commutePaging = usePagination(commuteRouteRows, 20);
 
   return (
     <div>
@@ -483,6 +531,12 @@ export const DispatchPage: React.FC = () => {
                 { value: 'GOODS', label: 'Hàng hóa' },
               ]}
             />
+            <FloatingSelect
+              label="Bộ phận"
+              value={reqDeptFilter}
+              onChange={setReqDeptFilter}
+              options={distinctReqDepts.map((d) => ({ value: d, label: d }))}
+            />
           </div>
 
           {/* Section Toolbar */}
@@ -519,7 +573,10 @@ export const DispatchPage: React.FC = () => {
             primaryButton={{
               label: 'Xuất excel trang hiện tại',
               icon: <FileSpreadsheet className="w-4 h-4" />,
-              onClick: () => showToast('Đã xuất file Excel Hàng chờ điều phối'),
+              onClick: () => {
+                exportTableToCsv('hang-cho-dieu-phoi');
+                showToast('Đã xuất file Excel Hàng chờ điều phối');
+              },
             }}
           />
 
@@ -532,12 +589,12 @@ export const DispatchPage: React.FC = () => {
                     <input
                       type="checkbox"
                       checked={
-                        waitingRequests.length > 0 &&
-                        selectedRequestIds.length === waitingRequests.length
+                        filteredWaitingRequests.length > 0 &&
+                        selectedRequestIds.length === filteredWaitingRequests.length
                       }
                       onChange={(e) =>
                         setSelectedRequestIds(
-                          e.target.checked ? waitingRequests.map((r) => r.id) : []
+                          e.target.checked ? filteredWaitingRequests.map((r) => r.id) : []
                         )
                       }
                     />
@@ -553,13 +610,13 @@ export const DispatchPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">
-                {waitingRequests.map((req, idx) => (
+                {reqPaging.pagedItems.map((req, idx) => (
                   <tr
                     key={req.id}
                     onClick={(e) =>
                       setContextRow({
                         req,
-                        index: idx + 1,
+                        index: (reqPaging.page - 1) * reqPaging.pageSize + idx + 1,
                         x: e.clientX,
                         y: e.clientY,
                       })
@@ -568,7 +625,7 @@ export const DispatchPage: React.FC = () => {
                       e.preventDefault();
                       setContextRow({
                         req,
-                        index: idx + 1,
+                        index: (reqPaging.page - 1) * reqPaging.pageSize + idx + 1,
                         x: e.clientX,
                         y: e.clientY,
                       });
@@ -591,7 +648,9 @@ export const DispatchPage: React.FC = () => {
                         }
                       />
                     </td>
-                    <td className="px-2.5 text-[#374151]">{idx + 1}</td>
+                    <td className="px-2.5 text-[#374151]">
+                      {(reqPaging.page - 1) * reqPaging.pageSize + idx + 1}
+                    </td>
                     <td className="px-2.5">{renderRequestTypeBadge(req.requestType)}</td>
                     <td className="px-2.5 text-[#1f2937] truncate">{req.requesterName || '-'}</td>
                     <td className="px-2.5 text-[#374151] truncate">{req.departmentName || '-'}</td>
@@ -609,7 +668,7 @@ export const DispatchPage: React.FC = () => {
                     </td>
                   </tr>
                 ))}
-                {waitingRequests.length === 0 && (
+                {filteredWaitingRequests.length === 0 && (
                   <tr>
                     <td colSpan={9} className="py-8 text-center text-[13px] text-[#9ca3af]">
                       Không có đơn yêu cầu nào chờ điều phối
@@ -620,7 +679,14 @@ export const DispatchPage: React.FC = () => {
             </table>
           </div>
 
-          <LegacyPagination totalCount={waitingRequests.length} />
+          <LegacyPagination
+            totalCount={filteredWaitingRequests.length}
+            shownCount={reqPaging.pagedItems.length}
+            page={reqPaging.page}
+            pageSize={reqPaging.pageSize}
+            onPageChange={reqPaging.setPage}
+            onPageSizeChange={reqPaging.setPageSize}
+          />
 
           {contextRow && (
             <RowContextMenu
@@ -677,6 +743,7 @@ export const DispatchPage: React.FC = () => {
                 allLabel="Tất cả tuyến"
                 options={[
                   { value: 'SHORTAGE_ONLY', label: 'Tuyến thiếu chỗ' },
+                  { value: 'ENOUGH_ONLY', label: 'Tuyến đủ chỗ' },
                 ]}
               />
             </div>
@@ -705,7 +772,34 @@ export const DispatchPage: React.FC = () => {
             primaryButton={{
               label: 'Xuất excel trang hiện tại',
               icon: <FileSpreadsheet className="w-4 h-4" />,
-              onClick: () => showToast('Đã xuất file Excel Điều phối tuyến hàng ngày'),
+              onClick: () => {
+                exportTableToCsv('dieu-phoi-tuyen-hang-ngay');
+                showToast('Đã xuất file Excel Điều phối tuyến hàng ngày');
+              },
+              splitItems: [
+                {
+                  label: 'Tạo Kế hoạch xe tuyến tự động',
+                  icon: <RefreshCw className="w-4 h-4 text-[#00897b]" />,
+                  onClick: handleRunAutoCreatePlan,
+                },
+                {
+                  label: 'Chốt Kế hoạch & Sinh chuyến chạy',
+                  icon: <ShieldCheck className="w-4 h-4 text-[#00897b]" />,
+                  onClick: handleFinalizePlan,
+                },
+                {
+                  label: 'Thêm xe bổ sung / điều bù',
+                  icon: <Plus className="w-4 h-4 text-[#00897b]" />,
+                  onClick: () =>
+                    setAddSupplementModal({
+                      routeId: routes[0]?.id || '',
+                      legCode: 'L1',
+                      vehicleId: vehicles[0]?.id || '',
+                      driverId: drivers[0]?.id || '',
+                      demandCount: 15,
+                    }),
+                },
+              ],
             }}
           />
 
@@ -725,7 +819,7 @@ export const DispatchPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">
-                {commuteRouteRows.map((row, idx) => (
+                {commutePaging.pagedItems.map((row, idx) => (
                   <tr
                     key={row.route.id}
                     onClick={() => {
@@ -752,7 +846,9 @@ export const DispatchPage: React.FC = () => {
                         onChange={() => setSelectedRouteId(row.route.id)}
                       />
                     </td>
-                    <td className="px-2.5 text-[#374151]">{idx + 1}</td>
+                    <td className="px-2.5 text-[#374151]">
+                      {(commutePaging.page - 1) * commutePaging.pageSize + idx + 1}
+                    </td>
                     <td className="px-2.5 text-[#1f2937] truncate">
                       {row.route.routeName}
                     </td>
@@ -796,7 +892,14 @@ export const DispatchPage: React.FC = () => {
             </table>
           </div>
 
-          <LegacyPagination totalCount={commuteRouteRows.length} />
+          <LegacyPagination
+            totalCount={commuteRouteRows.length}
+            shownCount={commutePaging.pagedItems.length}
+            page={commutePaging.page}
+            pageSize={commutePaging.pageSize}
+            onPageChange={commutePaging.setPage}
+            onPageSizeChange={commutePaging.setPageSize}
+          />
         </div>
       )}
 

@@ -23,6 +23,8 @@ import {
   renderRequestStatusBadge,
   renderPassengerTypeBadge,
   renderVehicleTypeLabel,
+  usePagination,
+  exportTableToCsv,
 } from '../components/legacy-ui';
 
 function formatTripTimeWindow(startStr?: string | null, endStr?: string | null, businessDate?: string): string {
@@ -318,6 +320,19 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
   }
 
   const filteredTrips = trips
+    .filter((t) => !businessDate || t.businessDate === businessDate)
+    .filter((t) => {
+      if (!statusFilter) return true;
+      if (statusFilter === 'DISPATCHED')
+        return t.status === 'DISPATCHED' || t.status === 'WAITING_DRIVER_CONFIRM';
+      return t.status === statusFilter;
+    })
+    .filter((t) => {
+      if (!dispatchTypeFilter) return true;
+      if (dispatchTypeFilter === 'DISPATCH')
+        return ['DISPATCH', 'AD_HOC', 'MERGED'].includes(t.dispatchType);
+      return t.dispatchType === dispatchTypeFilter;
+    })
     .filter((t) => {
       if (!passengerTypeFilter) return true;
       const pt = t.passengerType || t.route?.passengerType;
@@ -331,11 +346,13 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
         (t.vehiclePlateSnapshot || '').toLowerCase().includes(kw) ||
         (t.driverNameSnapshot || '').toLowerCase().includes(kw) ||
         (t.route?.routeName || '').toLowerCase().includes(kw) ||
-        (t.departurePickupPointText || '').toLowerCase().includes(kw)
+        (t.departurePickupPointText || '').toLowerCase().includes(kw) ||
+        (t.departureDropoffPointText || '').toLowerCase().includes(kw)
       );
     });
 
   const filteredVehicleStatuses = vehicleStatuses
+    .filter((vs) => !vehicleStatusFilter || vs.status === vehicleStatusFilter)
     .filter((vs) => {
       if (!vehicleTypeFilter) return true;
       return vs.vehicle?.vehicleType === vehicleTypeFilter;
@@ -345,9 +362,13 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
       const kw = search.trim().toLowerCase();
       return (
         (vs.vehicle?.vehiclePlate || '').toLowerCase().includes(kw) ||
-        (vs.latestTrip?.driverNameSnapshot || '').toLowerCase().includes(kw)
+        (vs.latestTrip?.driverNameSnapshot || '').toLowerCase().includes(kw) ||
+        (vs.latestTrip?.route?.routeName || '').toLowerCase().includes(kw)
       );
     });
+
+  const tripsPaging = usePagination(filteredTrips, 20);
+  const vehPaging = usePagination(filteredVehicleStatuses, 20);
 
   return (
     <div>
@@ -415,11 +436,12 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
               label: 'Bổ sung chuyến đã chạy',
               icon: <Plus className="w-4 h-4" />,
               onClick: () => {
-                if (filteredTrips[0]) {
-                  const t = filteredTrips[0];
-                  const fact = t.executionFacts?.[0];
+                const targetTrip =
+                  filteredTrips.find((t) => t.id === selectedTripId) || filteredTrips[0];
+                if (targetTrip) {
+                  const fact = targetTrip.executionFacts?.[0];
                   setKmModal({
-                    trip: t,
+                    trip: targetTrip,
                     actualKm: String(fact?.actualKm || '28.5'),
                     otHours: String(fact?.otHours || '0'),
                     executionNote: fact?.executionNote || '',
@@ -435,7 +457,10 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
                 {
                   label: 'Xuất excel trang hiện tại',
                   icon: <FileSpreadsheet className="w-4 h-4 text-[#00897b]" />,
-                  onClick: () => showToast('Đã xuất Excel danh sách chuyến'),
+                  onClick: () => {
+                    exportTableToCsv('theo-doi-chuyen-di');
+                    showToast('Đã xuất Excel danh sách chuyến');
+                  },
                 },
               ],
             }}
@@ -459,7 +484,7 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">
-                {filteredTrips.map((trip, idx) => {
+                {tripsPaging.pagedItems.map((trip, idx) => {
                   const isDeadhead =
                     (trip.notes || '').toLowerCase().includes('rỗng') ||
                     trip.passengerCount === 0;
@@ -467,6 +492,7 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
                     vehicleTypeMap.get(trip.vehiclePlateSnapshot) ||
                     (trip.seatCapacitySnapshot === 15 ? 'VAN_16' : 'BUS_29');
                   const pt = trip.passengerType || trip.route?.passengerType;
+                  const rowIndex = (tripsPaging.page - 1) * tripsPaging.pageSize + idx + 1;
                   return (
                     <tr
                       key={trip.id}
@@ -474,7 +500,7 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
                         setSelectedTripId(trip.id);
                         setContextTrip({
                           trip,
-                          index: idx + 1,
+                          index: rowIndex,
                           x: e.clientX,
                           y: e.clientY,
                         });
@@ -484,7 +510,7 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
                         setSelectedTripId(trip.id);
                         setContextTrip({
                           trip,
-                          index: idx + 1,
+                          index: rowIndex,
                           x: e.clientX,
                           y: e.clientY,
                         });
@@ -505,7 +531,7 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
                           onChange={() => setSelectedTripId(trip.id)}
                         />
                       </td>
-                      <td className="px-2.5 text-[#374151]">{idx + 1}</td>
+                      <td className="px-2.5 text-[#374151]">{rowIndex}</td>
                       <td className="px-2.5">
                         {renderTripTypeBadge(trip.dispatchType, isDeadhead)}
                       </td>
@@ -552,7 +578,14 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
             </table>
           </div>
 
-          <LegacyPagination totalCount={filteredTrips.length} pageSize={20} />
+          <LegacyPagination
+            totalCount={filteredTrips.length}
+            shownCount={tripsPaging.pagedItems.length}
+            page={tripsPaging.page}
+            pageSize={tripsPaging.pageSize}
+            onPageChange={tripsPaging.setPage}
+            onPageSizeChange={tripsPaging.setPageSize}
+          />
 
           {contextTrip && (
             <RowContextMenu
@@ -563,7 +596,9 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
                 {
                   label: 'Tài xế xác nhận chuyến',
                   icon: <CheckCircle2 className="w-4 h-4 text-[#00897b]" />,
-                  disabled: contextTrip.trip.status !== 'DISPATCHED',
+                  disabled: !['DISPATCHED', 'WAITING_DRIVER_CONFIRM'].includes(
+                    contextTrip.trip.status
+                  ),
                   onClick: () => handleConfirmTrip(contextTrip.trip),
                 },
                 {
@@ -571,7 +606,7 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
                   icon: <Play className="w-4 h-4 text-[#0284c7]" />,
                   disabled:
                     contextTrip.trip.dispatchType === 'FIXED_ROUTE' ||
-                    !['DISPATCHED', 'DRIVER_CONFIRMED'].includes(
+                    !['DISPATCHED', 'WAITING_DRIVER_CONFIRM', 'DRIVER_CONFIRMED'].includes(
                       contextTrip.trip.status
                     ),
                   onClick: () => handleStartTrip(contextTrip.trip),
@@ -668,7 +703,10 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
             primaryButton={{
               label: 'Xuất excel trang hiện tại',
               icon: <FileSpreadsheet className="w-4 h-4" />,
-              onClick: () => showToast('Đã xuất Excel Danh sách vận hành xe'),
+              onClick: () => {
+                exportTableToCsv('danh-sach-van-hanh-xe');
+                showToast('Đã xuất Excel Danh sách vận hành xe');
+              },
               splitItems: [
                 {
                   label: 'Đồng bộ trạng thái đội xe (Job Sync)',
@@ -697,12 +735,28 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">
-                {filteredVehicleStatuses.map((vs, idx) => {
+                {vehPaging.pagedItems.map((vs, idx) => {
                   const lt = vs.latestTrip;
+                  const rowIndex = (vehPaging.page - 1) * vehPaging.pageSize + idx + 1;
                   return (
                     <tr
                       key={vs.vehicleId}
-                      onClick={() => setSelectedVehId(String(vs.vehicleId))}
+                      onClick={() => {
+                        setSelectedVehId(String(vs.vehicleId));
+                        if (vs.vehicle?.vehiclePlate) {
+                          showToast(
+                            `Xe ${vs.vehicle.vehiclePlate} (${renderVehicleTypeLabel(
+                              vs.vehicle.vehicleType
+                            )}): ${
+                              vs.status === 'ON_FIXED_ROUTE'
+                                ? 'Đang chạy trên tuyến cố định'
+                                : vs.status === 'AVAILABLE'
+                                  ? 'Sẵn sàng điều phối'
+                                  : 'Đang vận hành'
+                            }`
+                          );
+                        }
+                      }}
                       className="hover:bg-[#f9fafb] cursor-pointer transition-colors"
                     >
                       <td className="px-2.5 text-center">
@@ -713,7 +767,7 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
                           onChange={() => setSelectedVehId(String(vs.vehicleId))}
                         />
                       </td>
-                      <td className="px-2.5 text-[#374151]">{idx + 1}</td>
+                      <td className="px-2.5 text-[#374151]">{rowIndex}</td>
                       <td className="px-2.5 text-[#1f2937] truncate">
                         {vs.vehicle?.vehiclePlate}
                       </td>
@@ -774,7 +828,14 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
             </table>
           </div>
 
-          <LegacyPagination totalCount={filteredVehicleStatuses.length} />
+          <LegacyPagination
+            totalCount={filteredVehicleStatuses.length}
+            shownCount={vehPaging.pagedItems.length}
+            page={vehPaging.page}
+            pageSize={vehPaging.pageSize}
+            onPageChange={vehPaging.setPage}
+            onPageSizeChange={vehPaging.setPageSize}
+          />
         </div>
       )}
 
