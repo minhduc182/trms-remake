@@ -1503,11 +1503,15 @@ export function registerMasterModule() {
         identityUserId: t.arg({ type: 'BigInt' }),
         username: t.arg.string(),
         password: t.arg.string(),
+        newUsername: t.arg.string(),
+        newPassword: t.arg.string(),
       },
       resolve: async (query, _root, args, ctx) => {
         const name = args.driverName.trim();
         const phone = args.phoneNumber.trim();
         const activeFlag = args.activeFlag === 'N' ? 'N' : 'Y';
+        const effectiveUsername = args.username ?? args.newUsername;
+        const effectivePassword = args.password ?? args.newPassword;
 
         if (!name || !phone) {
           throw new Error('Tên tài xế và Số điện thoại là bắt buộc');
@@ -1516,8 +1520,8 @@ export function registerMasterModule() {
         const linkedUserId = await resolveDriverAccount({
           accountMode: args.accountMode,
           identityUserId: args.identityUserId,
-          username: args.username,
-          password: args.password,
+          username: effectiveUsername,
+          password: effectivePassword,
           driverName: name,
           phoneNumber: phone,
         });
@@ -1567,6 +1571,8 @@ export function registerMasterModule() {
         identityUserId: t.arg({ type: 'BigInt' }),
         username: t.arg.string(),
         password: t.arg.string(),
+        newUsername: t.arg.string(),
+        newPassword: t.arg.string(),
       },
       resolve: async (query, _root, args, ctx) => {
         const driverId = BigInt(args.id);
@@ -1588,13 +1594,16 @@ export function registerMasterModule() {
           throw new Error('Tên tài xế và Số điện thoại không được để trống');
         }
 
+        const effectiveUsername = args.username ?? args.newUsername;
+        const effectivePassword = args.password ?? args.newPassword;
+
         let nextIdentityUserId = current.identityUserId;
-        if (args.accountMode || args.identityUserId !== undefined || args.username) {
+        if (args.accountMode || args.identityUserId !== undefined || effectiveUsername) {
           nextIdentityUserId = await resolveDriverAccount({
             accountMode: args.accountMode,
             identityUserId: args.identityUserId,
-            username: args.username,
-            password: args.password,
+            username: effectiveUsername,
+            password: effectivePassword,
             driverName: nextName,
             phoneNumber: nextPhone,
             currentDriverId: driverId,

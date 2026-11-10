@@ -360,23 +360,27 @@ export const MasterDataPage: React.FC = () => {
     try {
       if (driverModal.id) {
         await gqlRequest(
-          `mutation UpdateDriver($id: BigInt!, $driverName: String, $phoneNumber: String, $shortAddress: String, $fullAddress: String, $accountMode: String, $identityUserId: BigInt, $newUsername: String, $newPassword: String, $activeFlag: String) {
-            updateDriver(id: $id, driverName: $driverName, phoneNumber: $phoneNumber, shortAddress: $shortAddress, fullAddress: $fullAddress, accountMode: $accountMode, identityUserId: $identityUserId, newUsername: $newUsername, newPassword: $newPassword, activeFlag: $activeFlag) { id }
+          `mutation UpdateDriver($id: BigInt!, $driverName: String, $phoneNumber: String, $shortAddress: String, $fullAddress: String, $accountMode: String, $identityUserId: BigInt, $username: String, $password: String, $activeFlag: String) {
+            updateDriver(id: $id, driverName: $driverName, phoneNumber: $phoneNumber, shortAddress: $shortAddress, fullAddress: $fullAddress, accountMode: $accountMode, identityUserId: $identityUserId, username: $username, password: $password, activeFlag: $activeFlag) { id }
           }`,
           {
             ...driverModal,
             identityUserId: driverModal.identityUserId || undefined,
+            username: driverModal.newUsername || driverModal.username || undefined,
+            password: driverModal.newPassword || driverModal.password || undefined,
           }
         );
         showToast('Đã cập nhật thông tin tài xế');
       } else {
         await gqlRequest(
-          `mutation CreateDriver($driverName: String!, $phoneNumber: String!, $shortAddress: String, $fullAddress: String, $accountMode: String, $identityUserId: BigInt, $newUsername: String, $newPassword: String) {
-            createDriver(driverName: $driverName, phoneNumber: $phoneNumber, shortAddress: $shortAddress, fullAddress: $fullAddress, accountMode: $accountMode, identityUserId: $identityUserId, newUsername: $newUsername, newPassword: $newPassword) { id }
+          `mutation CreateDriver($driverName: String!, $phoneNumber: String!, $shortAddress: String, $fullAddress: String, $accountMode: String, $identityUserId: BigInt, $username: String, $password: String) {
+            createDriver(driverName: $driverName, phoneNumber: $phoneNumber, shortAddress: $shortAddress, fullAddress: $fullAddress, accountMode: $accountMode, identityUserId: $identityUserId, username: $username, password: $password) { id }
           }`,
           {
             ...driverModal,
             identityUserId: driverModal.identityUserId || undefined,
+            username: driverModal.newUsername || driverModal.username || undefined,
+            password: driverModal.newPassword || driverModal.password || undefined,
           }
         );
         showToast('Đã thêm tài xế mới');
@@ -769,10 +773,11 @@ export const MasterDataPage: React.FC = () => {
   };
 
   const renderRunDaysLabel = (runDays?: string) => {
-    if (runDays === 'MON_FRI') return 'T2-T6';
-    if (runDays === 'MON_SAT') return 'T2-T7';
-    if (runDays === 'MON_SUN') return 'T2-CN';
-    return runDays || 'T2-T7';
+    if (runDays === 'MON_FRI' || runDays === '31') return 'Thứ Hai đến Thứ Sáu';
+    if (runDays === 'MON_SAT' || runDays === '63') return 'Thứ Hai đến Thứ Bảy';
+    if (runDays === 'SAT_ONLY' || runDays === '32') return 'Chỉ Thứ Bảy';
+    if (runDays === 'MON_SUN' || runDays === '127') return 'Thứ Hai đến Chủ nhật';
+    return runDays || 'Thứ Hai đến Thứ Bảy';
   };
 
   return (
@@ -825,9 +830,10 @@ export const MasterDataPage: React.FC = () => {
             value={runDaysFilter}
             onChange={(val) => setRunDaysFilter(val)}
             options={[
-              { value: 'MON_FRI', label: 'T2-T6' },
-              { value: 'MON_SAT', label: 'T2-T7' },
-              { value: 'MON_SUN', label: 'T2-CN' },
+              { value: 'MON_FRI', label: 'Thứ Hai đến Thứ Sáu' },
+              { value: 'MON_SAT', label: 'Thứ Hai đến Thứ Bảy' },
+              { value: 'SAT_ONLY', label: 'Chỉ Thứ Bảy' },
+              { value: 'MON_SUN', label: 'Thứ Hai đến Chủ nhật' },
             ]}
           />
         </div>
@@ -1444,12 +1450,12 @@ export const MasterDataPage: React.FC = () => {
             <table className="w-full table-fixed text-left border-collapse text-[13px]">
               <thead>
                 <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] text-[#1f2937] font-semibold">
-                  <th className="px-2.5 w-[5%]">#</th>
-                  <th className="px-2.5 w-[42%]">Tên tuyến</th>
+                  <th className="px-2.5 w-[4.5%]">#</th>
+                  <th className="px-2.5 w-[40.5%]">Tên tuyến</th>
                   <th className="px-2.5 w-[13%]">Loại hành khách</th>
                   <th className="px-2.5 w-[13%]">Loại tuyến</th>
                   <th className="px-2.5 w-[16%]">Ngày có kế hoạch xe</th>
-                  <th className="px-2.5 w-[11%]">Trạng thái</th>
+                  <th className="px-2.5 w-[13%]">Trạng thái</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb]">

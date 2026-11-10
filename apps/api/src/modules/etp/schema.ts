@@ -426,6 +426,7 @@ builder.mutationFields((t) => ({
       pickupPointId: t.arg({ type: 'BigInt', required: true }),
       dropoffPointId: t.arg({ type: 'BigInt' }),
       effectiveFrom: t.arg.string({ required: true }),
+      effectiveTo: t.arg.string(),
     },
     resolve: async (query, _root, args, ctx) => {
       const today = getTodayStr();
