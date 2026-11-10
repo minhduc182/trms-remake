@@ -42,7 +42,7 @@ test.describe('TRMS Remake E2E UI Acceptance Suite (Full QA Coverage)', () => {
 
     // 1. Tab POINTS: Create a new point via UI modal
     await expect(page.locator('[data-testid="master-tab-POINTS"]')).toBeVisible();
-    await page.click('button:has-text("Thêm điểm đón/trả")');
+    await page.click('button:has-text("Thêm điểm")');
     const ptForm = page.locator('form', { hasText: 'Thêm điểm đón/trả' });
     await expect(ptForm).toBeVisible();
     await ptForm.locator('input[placeholder="VD: PT_CAUGIAY"]').fill(`PT_UI_${suffix}`);
@@ -206,9 +206,9 @@ test.describe('TRMS Remake E2E UI Acceptance Suite (Full QA Coverage)', () => {
     await page.click('text=Báo cáo chi phí');
     await expect(page.locator('button:has-text("Hóa đơn xe")')).toBeVisible();
     await page.click('button:has-text("Chi phí ngày")');
-    await expect(page.locator('button:has-text("Tính lại chi phí ngày")')).toBeVisible();
+    await expect(page.locator('button:has-text("Tính toán chi phí")')).toBeVisible();
     await page.click('button:has-text("Thanh toán tháng")');
-    await expect(page.locator('button:has-text("Tính lại thanh toán tháng")')).toBeVisible();
+    await expect(page.locator('button:has-text("Tính toán thanh toán")')).toBeVisible();
 
     // 2. ETP Reports
     await page.click('text=Báo cáo hồ sơ sử dụng xe');

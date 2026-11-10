@@ -83,7 +83,9 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [drivers, setDrivers] = useState<any[]>([]);
 
-  // Modals
+  // Modals & Drawers
+  const [tripDetailDrawer, setTripDetailDrawer] = useState<any | null>(null);
+  const [vehOpsDrawer, setVehOpsDrawer] = useState<any | null>(null);
   const [kmModal, setKmModal] = useState<{
     trip: any;
     actualKm: string;
@@ -683,6 +685,11 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
               onClose={() => setContextTrip(null)}
               actions={[
                 {
+                  label: 'Xem thông tin chi tiết',
+                  icon: <CheckCircle2 className="w-4 h-4 text-[#4b5563]" />,
+                  onClick: () => setTripDetailDrawer(contextTrip.trip),
+                },
+                {
                   label: 'Tài xế xác nhận chuyến',
                   icon: <CheckCircle2 className="w-4 h-4 text-[#00897b]" />,
                   disabled: !['DISPATCHED', 'WAITING_DRIVER_CONFIRM'].includes(
@@ -833,19 +840,7 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
                       key={vs.vehicleId}
                       onClick={() => {
                         setSelectedVehId(String(vs.vehicleId));
-                        if (vs.vehicle?.vehiclePlate) {
-                          showToast(
-                            `Xe ${vs.vehicle.vehiclePlate} (${renderVehicleTypeLabel(
-                              vs.vehicle.vehicleType
-                            )}): ${
-                              vs.status === 'ON_FIXED_ROUTE'
-                                ? 'Đang chạy trên tuyến cố định'
-                                : vs.status === 'AVAILABLE'
-                                  ? 'Sẵn sàng điều phối'
-                                  : 'Đang vận hành'
-                            }`
-                          );
-                        }
+                        setVehOpsDrawer(vs);
                       }}
                       className="hover:bg-[#f9fafb] cursor-pointer transition-colors"
                     >
@@ -930,163 +925,452 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
       )}
 
       {/* ==================================================================== */}
-      {/* MODAL: INPUT ACTUAL KM */}
+      {/* DRAWER: TRIP DETAIL (Legacy 084-trip-tracking-route-detail-actions.png) */}
+      {/* ==================================================================== */}
+      {tripDetailDrawer && (
+        <div className="fixed inset-0 z-50 bg-black/35 flex justify-end">
+          <div className="bg-white w-full max-w-[680px] h-full shadow-2xl border-l border-[#e5e7eb] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e7eb]">
+              <h3 className="text-[15px] font-bold text-[#1f2937]">
+                {tripDetailDrawer.tripCode} - Thông tin chi tiết
+              </h3>
+              <button
+                type="button"
+                onClick={() => setTripDetailDrawer(null)}
+                className="text-[#4b5563] hover:text-[#1f2937] p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 text-[13px]">
+              <div className="flex items-center justify-between">
+                <h4 className="text-[14px] font-bold text-[#1f2937]">Chuyến</h4>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const t = tripDetailDrawer;
+                      setTripDetailDrawer(null);
+                      setReassignModal({
+                        trip: t,
+                        vehicleId: t.vehicleId || vehicles[0]?.id || '',
+                        driverId: t.driverId || drivers[0]?.id || '',
+                        reason: 'Đổi xe điều hành',
+                      });
+                    }}
+                    className="h-[32px] px-3 rounded-[6px] border border-[#00897b] bg-white text-[#00897b] text-[12px] font-medium hover:bg-[#f0fdf4] cursor-pointer"
+                  >
+                    Phân công lại xe / tài xế
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const t = tripDetailDrawer;
+                      const fact = t.executionFacts?.[0];
+                      setTripDetailDrawer(null);
+                      setKmModal({
+                        trip: t,
+                        actualKm: String(fact?.actualKm || '28.5'),
+                        otHours: String(fact?.otHours || '0'),
+                        executionNote: fact?.executionNote || '',
+                      });
+                    }}
+                    className="h-[32px] px-3 rounded-[6px] border border-[#00897b] bg-white text-[#00897b] text-[12px] font-medium hover:bg-[#f0fdf4] cursor-pointer"
+                  >
+                    Sửa thực tế
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-3 border-t border-[#f3f4f6] pt-3">
+                <div className="grid grid-cols-12 gap-2">
+                  <span className="col-span-4 text-[#6b7280]">Mã chuyến</span>
+                  <span className="col-span-8 text-[#1f2937]">{tripDetailDrawer.tripCode}</span>
+                </div>
+                <div className="grid grid-cols-12 gap-2 items-center">
+                  <span className="col-span-4 text-[#6b7280]">Loại chuyến đi</span>
+                  <span className="col-span-8">
+                    {renderTripTypeBadge(
+                      tripDetailDrawer.dispatchType,
+                      tripDetailDrawer.passengerCount === 0
+                    )}
+                  </span>
+                </div>
+                <div className="grid grid-cols-12 gap-2">
+                  <span className="col-span-4 text-[#6b7280]">Loại điều phối</span>
+                  <span className="col-span-8 text-[#1f2937]">
+                    {tripDetailDrawer.dispatchType === 'FIXED_ROUTE'
+                      ? 'Tuyến cố định'
+                      : 'Điều chuyến'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-12 gap-2">
+                  <span className="col-span-4 text-[#6b7280]">Xe</span>
+                  <span className="col-span-8 text-[#1f2937]">
+                    {tripDetailDrawer.vehiclePlateSnapshot || '—'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-12 gap-2">
+                  <span className="col-span-4 text-[#6b7280]">Loại xe</span>
+                  <span className="col-span-8 text-[#1f2937]">
+                    {renderVehicleTypeLabel(
+                      vehicleTypeMap.get(tripDetailDrawer.vehiclePlateSnapshot) || 'BUS_29'
+                    )}
+                  </span>
+                </div>
+                <div className="grid grid-cols-12 gap-2">
+                  <span className="col-span-4 text-[#6b7280]">Tài xế</span>
+                  <span className="col-span-8 text-[#1f2937]">
+                    {tripDetailDrawer.driverNameSnapshot || '—'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-12 gap-2">
+                  <span className="col-span-4 text-[#6b7280]">Tên tuyến</span>
+                  <span className="col-span-8 text-[#1f2937]">
+                    {tripDetailDrawer.route?.routeName || '—'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-12 gap-2">
+                  <span className="col-span-4 text-[#6b7280]">Điểm đón → Điểm trả</span>
+                  <span className="col-span-8 text-[#1f2937]">
+                    {tripDetailDrawer.departurePickupPointText || 'Điểm đón'} →{' '}
+                    {tripDetailDrawer.departureDropoffPointText || 'MKVC'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-12 gap-2">
+                  <span className="col-span-4 text-[#6b7280]">Khung giờ kế hoạch</span>
+                  <span className="col-span-8 text-[#1f2937]">
+                    {formatTripTimeWindow(
+                      tripDetailDrawer.plannedDepartureAt,
+                      tripDetailDrawer.plannedArrivalAt,
+                      tripDetailDrawer.businessDate
+                    )}
+                  </span>
+                </div>
+                <div className="grid grid-cols-12 gap-2">
+                  <span className="col-span-4 text-[#6b7280]">Chế độ chuyến</span>
+                  <span className="col-span-8 text-[#1f2937]">Một chiều</span>
+                </div>
+                <div className="grid grid-cols-12 gap-2 items-center">
+                  <span className="col-span-4 text-[#6b7280]">Trạng thái</span>
+                  <span className="col-span-8">
+                    {renderRequestStatusBadge(tripDetailDrawer.status)}
+                  </span>
+                </div>
+                <div className="grid grid-cols-12 gap-2">
+                  <span className="col-span-4 text-[#6b7280]">Hành khách</span>
+                  <span className="col-span-8 text-[#1f2937]">
+                    {tripDetailDrawer.passengerCount ?? 0}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-[14px] font-bold text-[#1f2937] mb-3">Tóm tắt lịch sử</h4>
+                <div className="text-center text-[12px] text-[#9ca3af] py-4">
+                  Không có dữ liệu
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* DRAWER: VEHICLE OPS DETAIL (Legacy 036-vehicle-ops-row-drawer.png) */}
+      {/* ==================================================================== */}
+      {vehOpsDrawer && (
+        <div className="fixed inset-0 z-50 bg-black/35 flex justify-end">
+          <div className="bg-white w-full max-w-[680px] h-full shadow-2xl border-l border-[#e5e7eb] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e7eb]">
+              <h3 className="text-[15px] font-bold text-[#1f2937]">
+                {vehOpsDrawer.vehicle?.vehiclePlate} —{' '}
+                {vehOpsDrawer.status === 'ON_FIXED_ROUTE'
+                  ? 'Trên tuyến cố định'
+                  : 'Sẵn sàng'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setVehOpsDrawer(null)}
+                className="text-[#4b5563] hover:text-[#1f2937] p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 text-[13px]">
+              <div>
+                <h4 className="text-[14px] font-bold text-[#1f2937] mb-3">Xe</h4>
+                <div className="space-y-2.5 border-t border-[#f3f4f6] pt-3">
+                  <div className="grid grid-cols-12 gap-2">
+                    <span className="col-span-4 text-[#6b7280]">Biển số</span>
+                    <span className="col-span-8 text-[#1f2937]">
+                      {vehOpsDrawer.vehicle?.vehiclePlate}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2">
+                    <span className="col-span-4 text-[#6b7280]">Loại</span>
+                    <span className="col-span-8 text-[#1f2937]">
+                      {renderVehicleTypeLabel(vehOpsDrawer.vehicle?.vehicleType)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2">
+                    <span className="col-span-4 text-[#6b7280]">Số ghế</span>
+                    <span className="col-span-8 text-[#1f2937]">
+                      {vehOpsDrawer.vehicle?.seatCapacity ?? 28}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2 items-center">
+                    <span className="col-span-4 text-[#6b7280]">Trạng thái</span>
+                    <span className="col-span-8">
+                      {vehOpsDrawer.status === 'ON_FIXED_ROUTE' ? (
+                        <PastelBadge label="Trên tuyến cố định" tone="sky" />
+                      ) : (
+                        <PastelBadge label="Sẵn sàng" tone="green" />
+                      )}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2">
+                    <span className="col-span-4 text-[#6b7280]">Tài xế</span>
+                    <span className="col-span-8 text-[#1f2937]">
+                      {vehOpsDrawer.fixedOverlay?.driver ||
+                        vehOpsDrawer.latestTrip?.driverNameSnapshot ||
+                        '-'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-[14px] font-bold text-[#1f2937] mb-3">Chuyến</h4>
+                <div className="space-y-2.5 border-t border-[#f3f4f6] pt-3">
+                  <div className="grid grid-cols-12 gap-2">
+                    <span className="col-span-4 text-[#6b7280]">Mã chuyến</span>
+                    <span className="col-span-8 text-[#1f2937]">
+                      {vehOpsDrawer.fixedOverlay?.tripCode ||
+                        vehOpsDrawer.latestTrip?.tripCode ||
+                        'TRIP-202610120040'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2">
+                    <span className="col-span-4 text-[#6b7280]">Điều phối</span>
+                    <span className="col-span-8 text-[#1f2937]">Tuyến cố định</span>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2">
+                    <span className="col-span-4 text-[#6b7280]">Điểm khởi hành</span>
+                    <span className="col-span-8 text-[#1f2937]">
+                      {vehOpsDrawer.fixedOverlay?.start ||
+                        vehOpsDrawer.latestTrip?.departurePickupPointText ||
+                        'MKVC'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2">
+                    <span className="col-span-4 text-[#6b7280]">Đến</span>
+                    <span className="col-span-8 text-[#1f2937]">
+                      {vehOpsDrawer.fixedOverlay?.end ||
+                        vehOpsDrawer.latestTrip?.departureDropoffPointText ||
+                        'Điểm trả'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* DRAWER: INPUT ACTUAL KM (Legacy 085-trip-tracking-edit-actual-form.png) */}
       {/* ==================================================================== */}
       {kmModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/35 flex justify-end">
           <form
             onSubmit={handleSaveActualKm}
-            className="bg-white rounded-[10px] shadow-xl border border-[#e5e7eb] w-full max-w-sm p-5 space-y-4"
+            className="bg-white w-full max-w-[680px] h-full shadow-2xl border-l border-[#e5e7eb] flex flex-col"
           >
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="text-[15px] font-bold text-gray-900">
-                Nhập KM thực tế: {kmModal.trip.tripCode}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e7eb]">
+              <h3 className="text-[15px] font-bold text-[#1f2937]">
+                {kmModal.trip.tripCode} - Thông tin chi tiết
               </h3>
               <button
                 type="button"
                 onClick={() => setKmModal(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-[#4b5563] hover:text-[#1f2937] p-1 cursor-pointer"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">
-                  Số KM thực tế (Phải &gt; 0) *
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  required
-                  value={kmModal.actualKm}
-                  onChange={(e) => setKmModal({ ...kmModal, actualKm: e.target.value })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 font-mono font-bold text-gray-900"
-                />
+            <div className="flex-1 overflow-y-auto p-6 space-y-5 text-[13px]">
+              <h4 className="text-[14px] font-bold text-[#1f2937]">Chuyến</h4>
+              <div className="grid grid-cols-2 gap-3.5">
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    KM thực tế
+                  </span>
+                  <input
+                    type="number"
+                    step="0.1"
+                    required
+                    value={kmModal.actualKm}
+                    onChange={(e) => setKmModal({ ...kmModal, actualKm: e.target.value })}
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937]"
+                    placeholder="KM thực tế"
+                  />
+                </div>
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Số giờ OT phát sinh
+                  </span>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={kmModal.otHours}
+                    onChange={(e) => setKmModal({ ...kmModal, otHours: e.target.value })}
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937]"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">
-                  Số giờ OT phát sinh (nếu có)
-                </label>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={kmModal.otHours}
-                  onChange={(e) => setKmModal({ ...kmModal, otHours: e.target.value })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 font-mono"
-                />
-              </div>
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">Ghi chú vận hành</label>
-                <input
-                  type="text"
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Lý do (Bắt buộc để kiểm toán)
+                </span>
+                <textarea
+                  rows={3}
                   value={kmModal.executionNote}
                   onChange={(e) => setKmModal({ ...kmModal, executionNote: e.target.value })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  className="w-full border border-[#d1d5db] rounded-[6px] px-3 py-2 text-[13px] text-[#1f2937]"
+                  placeholder="Lý do (Bắt buộc để kiểm toán)"
                 />
               </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
-              <button
-                type="button"
-                onClick={() => setKmModal(null)}
-                className="px-3 py-1.5 rounded-md border border-gray-300 text-xs"
-              >
-                Hủy
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-1.5 rounded-md bg-[#00897b] text-white text-xs font-semibold cursor-pointer"
-              >
-                Lưu KM & Tính phí
-              </button>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setKmModal(null)}
+                  className="h-[34px] px-4 rounded-[6px] border border-[#00897b] bg-white text-[#00897b] text-[13px] font-medium hover:bg-[#f0fdf4] cursor-pointer"
+                >
+                  Đóng
+                </button>
+                <button
+                  type="submit"
+                  className="h-[34px] px-4 rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[13px] font-medium cursor-pointer"
+                >
+                  Hoàn thành chuyến
+                </button>
+              </div>
+
+              <div className="space-y-2.5 border-t border-[#f3f4f6] pt-4">
+                <div className="grid grid-cols-12 gap-2">
+                  <span className="col-span-4 text-[#6b7280]">Mã chuyến</span>
+                  <span className="col-span-8 text-[#1f2937]">{kmModal.trip.tripCode}</span>
+                </div>
+                <div className="grid grid-cols-12 gap-2">
+                  <span className="col-span-4 text-[#6b7280]">Xe</span>
+                  <span className="col-span-8 text-[#1f2937]">
+                    {kmModal.trip.vehiclePlateSnapshot || '—'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-12 gap-2">
+                  <span className="col-span-4 text-[#6b7280]">Tài xế</span>
+                  <span className="col-span-8 text-[#1f2937]">
+                    {kmModal.trip.driverNameSnapshot || '—'}
+                  </span>
+                </div>
+              </div>
             </div>
           </form>
         </div>
       )}
 
       {/* ==================================================================== */}
-      {/* MODAL: REASSIGN VEHICLE / DRIVER */}
+      {/* DRAWER: REASSIGN VEHICLE / DRIVER (Legacy 086-trip-tracking-reassign.png) */}
       {/* ==================================================================== */}
       {reassignModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/35 flex justify-end">
           <form
             onSubmit={handleSaveReassign}
-            className="bg-white rounded-[10px] shadow-xl border border-[#e5e7eb] w-full max-w-sm p-5 space-y-4"
+            className="bg-white w-full max-w-[680px] h-full shadow-2xl border-l border-[#e5e7eb] flex flex-col"
           >
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="text-[15px] font-bold text-gray-900">
-                Đổi xe / tài xế: {reassignModal.trip.tripCode}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e7eb]">
+              <h3 className="text-[15px] font-bold text-[#1f2937]">
+                {reassignModal.trip.tripCode} - Phân công lại xe / tài xế
               </h3>
               <button
                 type="button"
                 onClick={() => setReassignModal(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-[#4b5563] hover:text-[#1f2937] p-1 cursor-pointer"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">Xe mới *</label>
-                <select
-                  required
-                  value={reassignModal.vehicleId}
-                  onChange={(e) =>
-                    setReassignModal({ ...reassignModal, vehicleId: e.target.value })
-                  }
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 font-mono"
-                >
-                  {vehicles.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.vehiclePlate} ({v.seatCapacity} ghế)
-                    </option>
-                  ))}
-                </select>
+            <div className="flex-1 overflow-y-auto p-6 space-y-5 text-[13px]">
+              <div className="grid grid-cols-2 gap-3.5">
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Xe
+                  </span>
+                  <select
+                    required
+                    value={reassignModal.vehicleId}
+                    onChange={(e) =>
+                      setReassignModal({ ...reassignModal, vehicleId: e.target.value })
+                    }
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white"
+                  >
+                    {vehicles.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.vehiclePlate} ({v.seatCapacity} chỗ)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Tài xế
+                  </span>
+                  <select
+                    required
+                    value={reassignModal.driverId}
+                    onChange={(e) =>
+                      setReassignModal({ ...reassignModal, driverId: e.target.value })
+                    }
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white"
+                  >
+                    {drivers.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.driverName} ({d.phoneNumber})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">Tài xế mới *</label>
-                <select
-                  required
-                  value={reassignModal.driverId}
-                  onChange={(e) =>
-                    setReassignModal({ ...reassignModal, driverId: e.target.value })
-                  }
-                  className="w-full border border-gray-300 rounded-md px-3 py-2"
-                >
-                  {drivers.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.driverName} ({d.phoneNumber})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">Lý do đổi xe</label>
-                <input
-                  type="text"
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Lý do (Bắt buộc để kiểm toán)
+                </span>
+                <textarea
+                  rows={3}
                   value={reassignModal.reason}
                   onChange={(e) =>
                     setReassignModal({ ...reassignModal, reason: e.target.value })
                   }
-                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  className="w-full border border-[#d1d5db] rounded-[6px] px-3 py-2 text-[13px] text-[#1f2937]"
+                  placeholder="Lý do (Bắt buộc để kiểm toán)"
                 />
               </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
-              <button
-                type="button"
-                onClick={() => setReassignModal(null)}
-                className="px-3 py-1.5 rounded-md border border-gray-300 text-xs"
-              >
-                Hủy
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-1.5 rounded-md bg-[#00897b] text-white text-xs font-semibold cursor-pointer"
-              >
-                Lưu thay đổi
-              </button>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReassignModal(null)}
+                  className="h-[34px] px-4 rounded-[6px] border border-[#00897b] bg-white text-[#00897b] text-[13px] font-medium hover:bg-[#f0fdf4] cursor-pointer"
+                >
+                  Đóng
+                </button>
+                <button
+                  type="submit"
+                  className="h-[34px] px-4 rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[13px] font-medium cursor-pointer"
+                >
+                  Phân công lại xe / tài xế
+                </button>
+              </div>
             </div>
           </form>
         </div>
