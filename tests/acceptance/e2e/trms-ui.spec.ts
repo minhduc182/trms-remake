@@ -148,12 +148,12 @@ test.describe('TRMS Remake E2E UI Acceptance Suite (Full QA Coverage)', () => {
 
     // Verify Column Customizer ("Tùy chỉnh") popover
     await page.click('button:has-text("Tùy chỉnh")');
-    await expect(page.locator('text=Hiển thị')).toBeVisible();
+    await expect(page.getByText('Hiển thị', { exact: true })).toBeVisible();
     await expect(page.locator('button:has-text("Đặt lại")')).toBeVisible();
     await page.click('button:has-text("Tùy chỉnh")');
 
     // Verify split menu on "+ Tạo yêu cầu" ("Nhập yêu cầu" & "Xuất excel trang hiện tại")
-    await page.click('button[title="Tùy chọn thêm"]');
+    await page.locator('button:has-text("Tạo yêu cầu") + button').click();
     await expect(page.locator('button:has-text("Nhập yêu cầu")')).toBeVisible();
     await expect(page.locator('button:has-text("Xuất excel trang hiện tại")')).toBeVisible();
     await page.click('button:has-text("Nhập yêu cầu")');
