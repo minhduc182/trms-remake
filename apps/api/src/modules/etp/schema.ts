@@ -191,7 +191,6 @@ builder.queryFields((t) => ({
       // 2. Currently effective registration (APPROVED, effectiveFrom <= today <= effectiveTo)
       // 3. Most recent registration (effectiveFrom desc, id desc)
       const candidates = await prisma.employeeTransportProfile.findMany({
-        ...query,
         where: {
           delFlag: 'N',
           ...(args.approvalStatus ? { approvalStatus: args.approvalStatus } : {}),
@@ -217,10 +216,17 @@ builder.queryFields((t) => ({
               }
             : {}),
         },
-        include: {
-          ...(query as { include?: Record<string, unknown> }).include,
-          employee: { include: { orgUnit: true } },
-          route: true,
+        select: {
+          id: true,
+          employeeId: true,
+          provTempCode: true,
+          provFullName: true,
+          approvalStatus: true,
+          delFlag: true,
+          effectiveFrom: true,
+          effectiveTo: true,
+          activeFlag: true,
+          employee: { select: { fullName: true } },
         },
         orderBy: [{ effectiveFrom: 'desc' }, { id: 'desc' }],
       });
@@ -310,7 +316,15 @@ builder.queryFields((t) => ({
       });
 
       const limit = args.limit ?? 200;
-      return representatives.slice(0, limit);
+      const topIds = representatives.slice(0, limit).map((r) => r.id);
+      if (topIds.length === 0) return [];
+
+      const fullRows = await prisma.employeeTransportProfile.findMany({
+        ...query,
+        where: { id: { in: topIds } },
+      });
+      const rowById = new Map(fullRows.map((r) => [String(r.id), r]));
+      return topIds.map((id) => rowById.get(String(id))!).filter(Boolean);
     },
   }),
 

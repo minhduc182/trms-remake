@@ -38,9 +38,10 @@ td {
   font-size: 13px;
 }
 
-td.allow-wrap {
-  white-space: normal;
-  height: auto;
-  padding-top: 8px !important;
-  padding-bottom: 8px !important;
+td.allow-wrap,
+body.table-wrap-mode td {
+  white-space: normal !important;
+  height: auto !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
 }

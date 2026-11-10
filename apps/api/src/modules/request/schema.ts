@@ -252,14 +252,38 @@ builder.queryFields((t) => ({
     },
     resolve: (query, _root, args) => {
       const statusList: string[] = [];
-      if (args.status) statusList.push(args.status);
-      if (args.statuses && args.statuses.length > 0) statusList.push(...args.statuses);
+      const addExpandedStatus = (st: string) => {
+        statusList.push(st);
+        if (st === 'WAITING_DRIVER_CONFIRM') statusList.push('DISPATCHED');
+        if (st === 'DISPATCHED') statusList.push('WAITING_DRIVER_CONFIRM');
+        if (st === 'APPROVED_BY_TAXI') statusList.push('APPROVED_TAXI');
+        if (st === 'APPROVED_TAXI') statusList.push('APPROVED_BY_TAXI');
+        if (st === 'PENDING_GA') statusList.push('PENDING_GA_DEPARTMENT');
+      };
+      if (args.status) addExpandedStatus(args.status);
+      if (args.statuses && args.statuses.length > 0) {
+        for (const st of args.statuses) addExpandedStatus(st);
+      }
+
+      let requestTypeList: string[] | undefined;
+      if (args.requestType) {
+        const rt = args.requestType.trim().toUpperCase();
+        if (rt === 'BUSINESS' || rt === 'BUSINESS_TRIP') {
+          requestTypeList = ['BUSINESS', 'BUSINESS_TRIP'];
+        } else if (rt === 'GOODS' || rt === 'CARGO') {
+          requestTypeList = ['GOODS', 'CARGO'];
+        } else if (rt === 'OVERTIME' || rt === 'OT') {
+          requestTypeList = ['OVERTIME', 'OT'];
+        } else {
+          requestTypeList = [args.requestType];
+        }
+      }
 
       return prisma.transportRequest.findMany({
         ...query,
         where: {
-          ...(statusList.length > 0 ? { status: { in: statusList } } : {}),
-          ...(args.requestType ? { requestType: args.requestType } : {}),
+          ...(statusList.length > 0 ? { status: { in: Array.from(new Set(statusList)) } } : {}),
+          ...(requestTypeList ? { requestType: { in: requestTypeList } } : {}),
           ...(args.businessDate ? { businessDate: args.businessDate } : {}),
           ...(args.departmentId ? { departmentId: BigInt(args.departmentId) } : {}),
           ...(args.requesterId ? { requesterId: BigInt(args.requesterId) } : {}),

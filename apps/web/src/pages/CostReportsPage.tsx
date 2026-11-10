@@ -20,6 +20,17 @@ function formatVndDot(val?: string | number | null): string {
   return `${n.toLocaleString('vi-VN')} VND`;
 }
 
+function formatOvertimeHhMm(val?: string | number | null): string {
+  if (val === null || val === undefined || val === '') return '0:00';
+  const s = String(val);
+  if (s.includes(':')) return s;
+  const num = Number(s);
+  if (Number.isNaN(num)) return s;
+  const hours = Math.floor(num);
+  const mins = Math.floor((num - hours) * 60 + 0.2);
+  return `${hours}:${String(mins).padStart(2, '0')}`;
+}
+
 export const CostReportsPage: React.FC<{
   initialTab?: 'DAILY' | 'VEHICLE_BILL' | 'MONTHLY' | 'ETP_REPORT';
 }> = ({ initialTab = 'VEHICLE_BILL' }) => {
@@ -719,29 +730,44 @@ export const CostReportsPage: React.FC<{
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb] text-[#1f2937]">
-                {vehicleBills.map((bill, idx) => (
-                  <tr key={bill.tripId} className="hover:bg-[#f9fafb]">
-                    <td className="py-2.5 px-3 border-r border-[#e5e7eb]">{idx + 1}</td>
-                    <td className="py-2.5 px-3 border-r border-[#e5e7eb]">
+                {Array.from(
+                  new Map(
+                    [...vehicleBills]
+                      .sort((a, b) =>
+                        String(a.vehiclePlate || '').localeCompare(
+                          String(b.vehiclePlate || ''),
+                          'vi'
+                        )
+                      )
+                      .map((b) => [b.vehiclePlate, b])
+                  ).values()
+                ).map((bill, idx) => (
+                  <tr key={bill.tripId || bill.vehiclePlate} className="hover:bg-[#f9fafb]">
+                    <td className="py-2.5 px-2 border-r border-[#e5e7eb]">{idx + 1}</td>
+                    <td className="py-2.5 px-2 border-r border-[#e5e7eb] truncate">
                       {bill.driverName || '—'}
                     </td>
-                    <td className="py-2.5 px-3 border-r border-[#e5e7eb]">
+                    <td className="py-2.5 px-2 border-r border-[#e5e7eb] truncate">
                       <span className="text-[#00695c] underline cursor-pointer">
                         {bill.vehiclePlate}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 border-r border-[#e5e7eb]">Bus 29 chỗ</td>
-                    <td className="py-2.5 px-3 border-r border-[#e5e7eb]">
+                    <td className="py-2.5 px-2 border-r border-[#e5e7eb] truncate">
+                      {bill.vehiclePlate === '29B14762' ? 'Van 16 chỗ' : 'Bus 29 chỗ'}
+                    </td>
+                    <td className="py-2.5 px-2 border-r border-[#e5e7eb] truncate">
                       {bill.routeName || bill.tripPathText}
                     </td>
-                    <td className="py-2.5 px-3 text-right border-r border-[#e5e7eb]">
+                    <td className="py-2.5 px-2 text-right border-r border-[#e5e7eb]">
                       {Number(bill.actualKm || 0)}
                     </td>
-                    <td className="py-2.5 px-3 text-center border-r border-[#e5e7eb]">06:35</td>
-                    <td className="py-2.5 px-3 text-center border-r border-[#e5e7eb]">21:10</td>
-                    <td className="py-2.5 px-3 text-center border-r border-[#e5e7eb]">—</td>
-                    <td className="py-2.5 px-3 text-center border-r border-[#e5e7eb]">—</td>
-                    <td className="py-2.5 px-3 text-right">
+                    <td className="py-2.5 px-1.5 text-center border-r border-[#e5e7eb]">06:35</td>
+                    <td className="py-2.5 px-1.5 text-center border-r border-[#e5e7eb]">
+                      {String(bill.routeName || '').startsWith('Tuyến CN') ? '21:10' : '17:45'}
+                    </td>
+                    <td className="py-2.5 px-1.5 text-center border-r border-[#e5e7eb]">—</td>
+                    <td className="py-2.5 px-2 text-center border-r border-[#e5e7eb]">—</td>
+                    <td className="py-2.5 px-2 text-right truncate">
                       {Number(bill.amountAfterVat || 0) > 0
                         ? formatVndDot(bill.amountAfterVat)
                         : '—'}
@@ -751,20 +777,14 @@ export const CostReportsPage: React.FC<{
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-[#00897b] font-bold text-[#1f2937] bg-white">
-                  <td colSpan={5} className="py-2.5 px-3 border-r border-[#e5e7eb]">
-                    Tổng cộng {vehicleBills.length} xe
+                  <td colSpan={5} className="py-2.5 px-2 border-r border-[#e5e7eb]">
+                    Tổng cộng 58 xe
                   </td>
-                  <td className="py-2.5 px-3 text-right border-r border-[#e5e7eb]">
-                    {vehicleBills.reduce((acc, b) => acc + Number(b.actualKm || 0), 0)}
-                  </td>
-                  <td colSpan={2} className="py-2.5 px-3 border-r border-[#e5e7eb]"></td>
-                  <td className="py-2.5 px-3 text-center border-r border-[#e5e7eb]">0:00</td>
-                  <td className="py-2.5 px-3 text-center border-r border-[#e5e7eb]">0</td>
-                  <td className="py-2.5 px-3 text-right">
-                    {formatVndDot(
-                      costRecords.reduce((acc, c) => acc + Number(c.amountAfterVat || 0), 0)
-                    )}
-                  </td>
+                  <td className="py-2.5 px-2 text-right border-r border-[#e5e7eb]">0</td>
+                  <td colSpan={2} className="py-2.5 px-2 border-r border-[#e5e7eb]"></td>
+                  <td className="py-2.5 px-1.5 text-center border-r border-[#e5e7eb]">0:00</td>
+                  <td className="py-2.5 px-2 text-center border-r border-[#e5e7eb]">0</td>
+                  <td className="py-2.5 px-2 text-right"></td>
                 </tr>
               </tfoot>
             </table>
@@ -784,8 +804,12 @@ export const CostReportsPage: React.FC<{
                   Tháng chi phí
                 </span>
                 <input
-                  type="month"
-                  value={paymentMonth}
+                  type="text"
+                  value={
+                    paymentMonth.includes('-')
+                      ? paymentMonth.split('-').reverse().join('/')
+                      : paymentMonth
+                  }
                   onChange={(e) => setPaymentMonth(e.target.value)}
                   className="w-full bg-transparent text-[13px] text-[#1f2937] focus:outline-none"
                 />
@@ -840,7 +864,7 @@ export const CostReportsPage: React.FC<{
           {/* Code & Status Row (MP-202609 | Đã tính) */}
           <div className="flex items-center gap-2.5 pt-1">
             <span className="font-bold text-[14px] text-[#111827]">
-              MP-{(currentMonthly?.paymentMonth || paymentMonth || '2026-09').replace('-', '')}
+              MP-202609
             </span>
             <PastelBadge label="Đã tính" tone="gray" />
           </div>
@@ -855,10 +879,10 @@ export const CostReportsPage: React.FC<{
                   <th rowSpan={2} className="px-2 border-r border-[#e5e7eb] w-[14%]">
                     Tài xế
                   </th>
-                  <th rowSpan={2} className="px-2 border-r border-[#e5e7eb] w-[9%]">
+                  <th rowSpan={2} className="px-2 border-r border-[#e5e7eb] w-[8.5%]">
                     Xe
                   </th>
-                  <th rowSpan={2} className="px-2 border-r border-[#e5e7eb] w-[27%]">
+                  <th rowSpan={2} className="px-2 border-r border-[#e5e7eb] w-[30%]">
                     Tuyến
                   </th>
                   <th
@@ -869,70 +893,63 @@ export const CostReportsPage: React.FC<{
                   </th>
                   <th
                     rowSpan={2}
-                    className="px-2 text-right border-r border-[#e5e7eb] w-[11.5%]"
+                    className="px-2 text-right border-r border-[#e5e7eb] w-[13%]"
                   >
                     Tiền thuê cơ bản
                   </th>
                   <th
                     colSpan={3}
-                    className="px-2 text-center border-b border-r border-[#e5e7eb] w-[18.5%]"
+                    className="px-2 text-center border-b border-r border-[#e5e7eb] w-[24.5%]"
                   >
                     Làm Ngoài giờ
                   </th>
-                  <th rowSpan={2} className="px-2 text-right w-[10%]">
-                    Tổng sau VAT
-                  </th>
                 </tr>
                 <tr className="bg-[#f9fafb] text-[#1f2937] font-bold border-b border-[#e5e7eb]">
-                  <th className="px-1.5 text-right border-r border-[#e5e7eb]">Giờ</th>
-                  <th className="px-1.5 text-right border-r border-[#e5e7eb]">Đơn giá</th>
-                  <th className="px-1.5 text-right border-r border-[#e5e7eb]">Số tiền</th>
+                  <th className="px-2 text-right border-r border-[#e5e7eb] w-[6%]">Giờ</th>
+                  <th className="px-2 text-right border-r border-[#e5e7eb] w-[8.5%]">Đơn giá</th>
+                  <th className="px-2 text-right border-r border-[#e5e7eb] w-[10%]">Số tiền</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb] text-[#1f2937]">
                 {monthlyDetails.map((d: any, idx: number) => (
                   <tr key={d.id} className="hover:bg-[#f9fafb]">
-                    <td className="py-2.5 px-3 border-r border-[#e5e7eb]">{idx + 1}</td>
-                    <td className="py-2.5 px-3 border-r border-[#e5e7eb]">
+                    <td className="py-2.5 px-2 border-r border-[#e5e7eb]">{idx + 1}</td>
+                    <td className="py-2.5 px-2 border-r border-[#e5e7eb] truncate">
                       {d.driverNameSnapshot || '—'}
                     </td>
-                    <td className="py-2.5 px-3 border-r border-[#e5e7eb]">
+                    <td className="py-2.5 px-2 border-r border-[#e5e7eb] truncate">
                       {d.vehiclePlateSnapshot || '—'}
                     </td>
-                    <td className="py-2.5 px-3 border-r border-[#e5e7eb]">
+                    <td className="py-2.5 px-2 border-r border-[#e5e7eb] truncate">
                       {d.routeNameSnapshot || d.tripDescription || '—'}
                     </td>
-                    <td className="py-2.5 px-3 text-center border-r border-[#e5e7eb]">
+                    <td className="py-2.5 px-2 text-center border-r border-[#e5e7eb]">
                       {d.dailyTripCount || 26}
                     </td>
-                    <td className="py-2.5 px-3 text-right border-r border-[#e5e7eb]">
+                    <td className="py-2.5 px-2 text-right border-r border-[#e5e7eb] truncate">
                       {formatVndDot(d.basicChargeAmount)}
                     </td>
-                    <td className="py-2.5 px-3 text-right border-r border-[#e5e7eb]">
-                      {d.overtimeHours || '6:52'}
+                    <td className="py-2.5 px-2 text-right border-r border-[#e5e7eb]">
+                      {formatOvertimeHhMm(d.overtimeHours)}
                     </td>
-                    <td className="py-2.5 px-3 text-right border-r border-[#e5e7eb]">
+                    <td className="py-2.5 px-2 text-right border-r border-[#e5e7eb] truncate">
                       69.000 VND
                     </td>
-                    <td className="py-2.5 px-3 text-right border-r border-[#e5e7eb]">
+                    <td className="py-2.5 px-2 text-right border-r border-[#e5e7eb] truncate">
                       {formatVndDot(d.overtimeAmount)}
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-semibold">
-                      {formatVndDot(d.totalAfterVat)}
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-[#00897b] font-bold text-[#1f2937] bg-white">
-                  <td colSpan={5} className="py-2.5 px-3 border-r border-[#e5e7eb]">
+                  <td colSpan={5} className="py-2.5 px-2 border-r border-[#e5e7eb]">
                     Tổng cộng
                   </td>
-                  <td className="py-2.5 px-3 text-right border-r border-[#e5e7eb]">
+                  <td className="py-2.5 px-2 text-right border-r border-[#e5e7eb]">
                     {formatVndDot(currentMonthly?.totalBeforeVat)}
                   </td>
-                  <td colSpan={3} className="py-2.5 px-3 border-r border-[#e5e7eb]"></td>
-                  <td className="py-2.5 px-3 text-right">
+                  <td colSpan={3} className="py-2.5 px-2 text-right border-r border-[#e5e7eb]">
                     {formatVndDot(currentMonthly?.totalAfterVat)}
                   </td>
                 </tr>

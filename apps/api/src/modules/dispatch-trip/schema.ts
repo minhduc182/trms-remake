@@ -459,14 +459,30 @@ builder.queryFields((t) => ({
       routeId: t.arg({ type: 'BigInt' }),
       limit: t.arg.int({ defaultValue: 100 }),
     },
-    resolve: (query, _root, args) =>
-      prisma.trip.findMany({
+    resolve: (query, _root, args) => {
+      let statusFilter: string[] | undefined;
+      if (args.status) {
+        if (args.status === 'WAITING_DRIVER_CONFIRM' || args.status === 'DISPATCHED') {
+          statusFilter = ['WAITING_DRIVER_CONFIRM', 'DISPATCHED'];
+        } else {
+          statusFilter = [args.status];
+        }
+      }
+      let dispatchTypeFilter: string[] | undefined;
+      if (args.dispatchType) {
+        if (args.dispatchType === 'DISPATCH') {
+          dispatchTypeFilter = ['DISPATCH', 'AD_HOC', 'MERGED'];
+        } else {
+          dispatchTypeFilter = [args.dispatchType];
+        }
+      }
+      return prisma.trip.findMany({
         ...query,
         where: {
           delFlag: 'N',
           ...(args.businessDate ? { businessDate: args.businessDate } : {}),
-          ...(args.status ? { status: args.status } : {}),
-          ...(args.dispatchType ? { dispatchType: args.dispatchType } : {}),
+          ...(statusFilter ? { status: { in: statusFilter } } : {}),
+          ...(dispatchTypeFilter ? { dispatchType: { in: dispatchTypeFilter } } : {}),
           ...(args.tripType ? { tripType: args.tripType } : {}),
           ...(args.vehicleId ? { vehicleId: BigInt(args.vehicleId) } : {}),
           ...(args.driverId ? { driverId: BigInt(args.driverId) } : {}),
@@ -474,7 +490,8 @@ builder.queryFields((t) => ({
         },
         take: args.limit ?? 100,
         orderBy: [{ businessDate: 'desc' }, { id: 'desc' }],
-      }),
+      });
+    },
   }),
 
   trip: t.prismaField({

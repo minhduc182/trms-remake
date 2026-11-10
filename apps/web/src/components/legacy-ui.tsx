@@ -213,6 +213,38 @@ export interface SplitActionItem {
   icon?: React.ReactNode;
 }
 
+export function exportTableToCsv(title = 'trms-export', containerEl?: HTMLElement | null) {
+  const root = containerEl || document.querySelector('main') || document.body;
+  const table = root.querySelector('table');
+  if (!table) return;
+  const rows = Array.from(table.querySelectorAll('tr'));
+  const csvLines = rows.map((tr) => {
+    const cells = Array.from(tr.querySelectorAll('th, td'));
+    return cells
+      .map((cell) => {
+        const text = (cell.textContent || '').replace(/\s+/g, ' ').trim();
+        return `"${text.replace(/"/g, '""')}"`;
+      })
+      .join(',');
+  });
+  const csvContent = '\uFEFF' + csvLines.join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  const slug = title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  link.href = url;
+  link.setAttribute('download', `${slug || 'trms'}-${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 export function SectionToolbar({
   title,
   loading,
@@ -226,6 +258,8 @@ export function SectionToolbar({
   showCustomize = true,
   showFilter = false,
   showFilterButton = false,
+  onFilterClick,
+  filterContent,
   primaryButton,
   primaryAction,
   extraRight,
@@ -243,6 +277,8 @@ export function SectionToolbar({
   showCustomize?: boolean;
   showFilter?: boolean;
   showFilterButton?: boolean;
+  onFilterClick?: () => void;
+  filterContent?: React.ReactNode;
   primaryButton?: {
     label: string;
     icon?: React.ReactNode;
@@ -258,10 +294,17 @@ export function SectionToolbar({
   extraActions?: React.ReactNode;
 }) {
   const [splitOpen, setSplitOpen] = useState(false);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [wrapMode, setWrapMode] = useState(() =>
+    typeof document !== 'undefined' ? document.body.classList.contains('table-wrap-mode') : false
+  );
   const splitRef = useRef<HTMLDivElement>(null);
+  const customizeRef = useRef<HTMLDivElement>(null);
+  const filterRef = useRef<HTMLDivElement>(null);
 
   const effectiveSearch = search ?? searchValue ?? '';
-  const effectiveShowFilter = showFilter || showFilterButton;
+  const effectiveShowFilter = showFilter || showFilterButton || Boolean(filterContent);
   const effectiveExtraRight = extraRight || extraActions;
   const effectivePrimaryButton =
     primaryButton ||
@@ -281,10 +324,23 @@ export function SectionToolbar({
       if (splitRef.current && !splitRef.current.contains(ev.target as Node)) {
         setSplitOpen(false);
       }
+      if (customizeRef.current && !customizeRef.current.contains(ev.target as Node)) {
+        setCustomizeOpen(false);
+      }
+      if (filterRef.current && !filterRef.current.contains(ev.target as Node)) {
+        setFilterOpen(false);
+      }
     };
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
   }, []);
+
+  const toggleWrapMode = () => {
+    const next = !wrapMode;
+    setWrapMode(next);
+    if (next) document.body.classList.add('table-wrap-mode');
+    else document.body.classList.remove('table-wrap-mode');
+  };
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 py-2.5">
@@ -316,29 +372,93 @@ export function SectionToolbar({
               onChange={(e) => onSearchChange(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && onSearchSubmit?.()}
               placeholder={searchPlaceholder}
-              className="h-[34px] w-[200px] pl-8 pr-3 rounded-[17px] border border-[#d1d5db] bg-white text-[13px] text-[#374151] placeholder:text-[#6b7280] focus:outline-none focus:border-[#00897b]"
+              className="h-[34px] w-[200px] pl-8 pr-7 rounded-[17px] border border-[#d1d5db] bg-white text-[13px] text-[#374151] placeholder:text-[#6b7280] focus:outline-none focus:border-[#00897b]"
             />
+            {effectiveSearch && (
+              <button
+                type="button"
+                onClick={() => {
+                  onSearchChange('');
+                  onSearchSubmit?.();
+                }}
+                className="absolute right-2.5 text-[#6b7280] hover:text-[#111827] cursor-pointer"
+                title="Xóa tìm kiếm"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         )}
 
         {showCustomize && (
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 h-[34px] px-3 rounded-[6px] border border-[#d1d5db] bg-white hover:bg-[#f9fafb] text-[13px] text-[#374151] cursor-pointer"
-          >
-            <Settings className="w-3.5 h-3.5 text-[#4b5563]" />
-            <span>Tùy chỉnh</span>
-          </button>
+          <div className="relative inline-flex" ref={customizeRef}>
+            <button
+              type="button"
+              onClick={() => setCustomizeOpen(!customizeOpen)}
+              className="inline-flex items-center gap-1.5 h-[34px] px-3 rounded-[6px] border border-[#d1d5db] bg-white hover:bg-[#f9fafb] text-[13px] text-[#374151] cursor-pointer"
+            >
+              <Settings className="w-3.5 h-3.5 text-[#4b5563]" />
+              <span>Tùy chỉnh</span>
+            </button>
+            {customizeOpen && (
+              <div className="absolute right-0 top-[38px] w-60 bg-white rounded-[8px] shadow-lg border border-[#e5e7eb] py-2 z-50 text-[13px] text-[#1f2937]">
+                <div className="px-3.5 py-1 text-[11px] font-semibold uppercase text-[#6b7280]">
+                  Tùy chỉnh hiển thị bảng
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleWrapMode}
+                  className="w-full px-3.5 py-2 text-left hover:bg-[#f3f4f6] flex items-center justify-between cursor-pointer"
+                >
+                  <span>Tự động xuống dòng ô dài</span>
+                  <input type="checkbox" readOnly checked={wrapMode} className="accent-[#00897b]" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomizeOpen(false);
+                    exportTableToCsv(title);
+                  }}
+                  className="w-full px-3.5 py-2 text-left hover:bg-[#f3f4f6] flex items-center justify-between cursor-pointer"
+                >
+                  <span>Xuất CSV / Excel bảng hiện tại</span>
+                </button>
+                {onRefresh && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomizeOpen(false);
+                      onRefresh();
+                    }}
+                    className="w-full px-3.5 py-2 text-left hover:bg-[#f3f4f6] flex items-center justify-between cursor-pointer"
+                  >
+                    <span>Tải lại dữ liệu mới nhất</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         )}
 
         {effectiveShowFilter && (
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 h-[34px] px-3 rounded-[6px] border border-[#d1d5db] bg-white hover:bg-[#f9fafb] text-[13px] text-[#374151] cursor-pointer"
-          >
-            <Filter className="w-3.5 h-3.5 text-[#4b5563]" />
-            <span>Bộ lọc</span>
-          </button>
+          <div className="relative inline-flex" ref={filterRef}>
+            <button
+              type="button"
+              onClick={() => {
+                if (onFilterClick) onFilterClick();
+                else setFilterOpen(!filterOpen);
+              }}
+              className="inline-flex items-center gap-1.5 h-[34px] px-3 rounded-[6px] border border-[#d1d5db] bg-white hover:bg-[#f9fafb] text-[13px] text-[#374151] cursor-pointer"
+            >
+              <Filter className="w-3.5 h-3.5 text-[#4b5563]" />
+              <span>Bộ lọc</span>
+            </button>
+            {filterOpen && filterContent && (
+              <div className="absolute right-0 top-[38px] w-72 bg-white rounded-[8px] shadow-lg border border-[#e5e7eb] p-3.5 z-50 space-y-3 text-[13px]">
+                {filterContent}
+              </div>
+            )}
+          </div>
         )}
 
         {effectivePrimaryButton && (
@@ -453,9 +573,10 @@ export function renderRequestTypeBadge(requestType: string) {
 
 export function renderRequestStatusBadge(status: string) {
   switch (status) {
-    case 'PENDING_DEPARTMENT':
     case 'PENDING_GA':
     case 'PENDING_GA_DEPARTMENT':
+      return <PastelBadge label="Chờ GA phê duyệt" tone="sky" />;
+    case 'PENDING_DEPARTMENT':
       return <PastelBadge label="Đang chờ phê duyệt" tone="amber" />;
     case 'WAITING_VENDOR_DISPATCH':
       return <PastelBadge label="Chờ điều phối" tone="sky" />;
@@ -519,54 +640,113 @@ export function renderVehicleTypeLabel(vehicleType?: string | null) {
 // ============================================================================
 // 5. LEGACY PAGINATION FOOTER (Exact match to bottom bar of Legacy tables)
 // ============================================================================
+export function usePagination<T>(items: T[], initialPageSize = 999) {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(initialPageSize);
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const startIdx = (safePage - 1) * pageSize;
+  const pagedItems = items.slice(startIdx, startIdx + pageSize);
+  return {
+    page: safePage,
+    setPage,
+    pageSize,
+    setPageSize: (nextSize: number) => {
+      setPageSize(nextSize);
+      setPage(1);
+    },
+    totalPages,
+    startIndex: startIdx,
+    pagedItems,
+    totalCount: items.length,
+  };
+}
+
 export function LegacyPagination({
   totalCount,
   totalItems,
   shownCount,
   pageSize = 999,
+  page,
+  onPageChange,
+  onPageSizeChange,
 }: {
   totalCount?: number;
   totalItems?: number;
   shownCount?: number;
   pageSize?: number;
+  page?: number;
+  onPageChange?: (nextPage: number) => void;
+  onPageSizeChange?: (nextSize: number) => void;
 }) {
+  const [internalPage, setInternalPage] = useState(1);
+  const [internalSize, setInternalSize] = useState(pageSize);
+
+  const effectiveSize = onPageSizeChange ? pageSize : internalSize;
   const effectiveTotal = totalCount ?? totalItems ?? 0;
-  const actualShown = shownCount ?? effectiveTotal;
-  const start = actualShown > 0 ? 1 : 0;
+  const totalPages = Math.max(1, Math.ceil(effectiveTotal / effectiveSize));
+  const currentPage = Math.min(onPageChange ? (page ?? 1) : internalPage, totalPages);
+
+  const start = effectiveTotal > 0 ? (currentPage - 1) * effectiveSize + 1 : 0;
+  const end =
+    shownCount !== undefined
+      ? shownCount
+      : Math.min(effectiveTotal, currentPage * effectiveSize);
+
+  const handleSizeChange = (nextSize: number) => {
+    if (onPageSizeChange) onPageSizeChange(nextSize);
+    else {
+      setInternalSize(nextSize);
+      setInternalPage(1);
+    }
+  };
+
+  const handlePageChange = (nextPage: number) => {
+    const clamped = Math.max(1, Math.min(totalPages, nextPage));
+    if (onPageChange) onPageChange(clamped);
+    else setInternalPage(clamped);
+  };
+
   return (
     <div className="sticky bottom-0 bg-white z-20 flex flex-wrap items-center justify-between gap-2 py-2.5 border-t border-[#e5e7eb] text-[12px] text-[#4b5563]">
       <div>
-        Hiển thị {start} - {actualShown} của {effectiveTotal} bản ghi
+        Hiển thị {start} - {end} của {effectiveTotal} bản ghi
       </div>
       <div className="flex items-center gap-2">
         <span>Số dòng:</span>
         <select
-          defaultValue={pageSize}
-          className="h-[28px] px-2 rounded border border-[#d1d5db] bg-white text-[12px] text-[#1f2937]"
+          value={effectiveSize}
+          onChange={(e) => handleSizeChange(Number(e.target.value))}
+          className="h-[28px] px-2 rounded border border-[#d1d5db] bg-white text-[12px] text-[#1f2937] cursor-pointer"
         >
           <option value={20}>20</option>
           <option value={50}>50</option>
+          <option value={100}>100</option>
           <option value={999}>999</option>
         </select>
         <button
           type="button"
-          className="w-[28px] h-[28px] inline-flex items-center justify-center rounded border border-[#d1d5db] text-[#9ca3af] bg-white"
-          disabled
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage <= 1}
+          className="w-[28px] h-[28px] inline-flex items-center justify-center rounded border border-[#d1d5db] text-[#374151] disabled:text-[#9ca3af] bg-white hover:bg-gray-50 disabled:hover:bg-white cursor-pointer disabled:cursor-not-allowed"
         >
           <ChevronLeft className="w-3.5 h-3.5" />
         </button>
         <span>Trang</span>
         <input
-          type="text"
-          readOnly
-          value="1"
-          className="w-[36px] h-[28px] text-center rounded border border-[#d1d5db] bg-white text-[12px] text-[#1f2937]"
+          type="number"
+          min={1}
+          max={totalPages}
+          value={currentPage}
+          onChange={(e) => handlePageChange(Number(e.target.value) || 1)}
+          className="w-[40px] h-[28px] text-center rounded border border-[#d1d5db] bg-white text-[12px] text-[#1f2937]"
         />
-        <span>/1</span>
+        <span>/{totalPages}</span>
         <button
           type="button"
-          className="w-[28px] h-[28px] inline-flex items-center justify-center rounded border border-[#d1d5db] text-[#9ca3af] bg-white"
-          disabled
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage >= totalPages}
+          className="w-[28px] h-[28px] inline-flex items-center justify-center rounded border border-[#d1d5db] text-[#374151] disabled:text-[#9ca3af] bg-white hover:bg-gray-50 disabled:hover:bg-white cursor-pointer disabled:cursor-not-allowed"
         >
           <ChevronRight className="w-3.5 h-3.5" />
         </button>

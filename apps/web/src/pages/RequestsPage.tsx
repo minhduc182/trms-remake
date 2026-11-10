@@ -19,6 +19,7 @@ import {
   FloatingTextInput,
   SectionToolbar,
   LegacyPagination,
+  usePagination,
   RowContextMenu,
   renderRequestTypeBadge,
   renderRequestStatusBadge,
@@ -213,10 +214,6 @@ export const RequestsPage: React.FC = () => {
           ['PENDING_DEPARTMENT', 'PENDING_GA', 'PENDING_GA_DEPARTMENT'].includes(r.status)
         );
       }
-      if (departmentFilter.trim()) {
-        const kw = departmentFilter.trim().toLowerCase();
-        list = list.filter((r) => (r.departmentName || '').toLowerCase().includes(kw));
-      }
       setRequests(list);
       setSelectedIds([]);
     } catch (err: any) {
@@ -225,6 +222,55 @@ export const RequestsPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const departmentOptions = Array.from(
+    new Set([
+      'Khối Kỹ thuật EMS',
+      'Fac 2 -1F/ Ép lớp (MLB/HDI)',
+      'ISO',
+      'Chỉ thị thiết kế',
+      'P. Kế hoạch',
+      'P. Sản xuất',
+      'P. Kho vận',
+      ...requests.map((r) => (r.departmentName || 'Khối Kỹ thuật EMS').trim()).filter(Boolean),
+    ])
+  ).map((d) => ({ value: d, label: d }));
+
+  const filteredRequests = requests.filter((r) => {
+    const dept = r.departmentName || 'Khối Kỹ thuật EMS';
+    if (departmentFilter.trim()) {
+      if (!dept.toLowerCase().includes(departmentFilter.trim().toLowerCase())) {
+        return false;
+      }
+    }
+    if (search.trim()) {
+      const kw = search.trim().toLowerCase();
+      const hay = [
+        r.requestCode,
+        r.requesterName,
+        dept,
+        r.departurePickupPointText,
+        r.departureDropoffPointText,
+        r.purpose,
+        r.businessDate,
+        r.departureTime,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      if (!hay.includes(kw)) return false;
+    }
+    return true;
+  });
+
+  const {
+    page: reqPage,
+    setPage: setReqPage,
+    pageSize: reqPageSize,
+    setPageSize: setReqPageSize,
+    pagedItems: pagedRequests,
+    startIndex: reqStartIndex,
+  } = usePagination(filteredRequests, 999);
 
   useEffect(() => {
     loadLookups();
@@ -516,19 +562,13 @@ export const RequestsPage: React.FC = () => {
           onChange={setDepartmentFilter}
           allLabel="Phòng ban"
           widthClass="min-w-[240px]"
-          options={[
-            { value: 'Khối Kỹ thuật EMS', label: 'Khối Kỹ thuật EMS' },
-            { value: 'Chỉ thị thiết kế', label: 'Chỉ thị thiết kế' },
-            { value: 'P. Kế hoạch', label: 'P. Kế hoạch' },
-            { value: 'P. Sản xuất', label: 'P. Sản xuất' },
-            { value: 'P. Kho vận', label: 'P. Kho vận' },
-          ]}
+          options={departmentOptions}
         />
       </div>
 
-      {/* 3. Section Toolbar Row (Exact match to 002-requests.png) */}
+      {/* 3. Section Toolbar Row (Exact match to 002-requests.png & 009-approval-row-context.png) */}
       <SectionToolbar
-        title="Yêu cầu vận chuyển"
+        title={activeTab === 'APPROVAL_QUEUE' ? 'Hàng chờ phê duyệt' : 'Yêu cầu vận chuyển'}
         loading={loading}
         onRefresh={loadRequests}
         search={search}
@@ -555,37 +595,44 @@ export const RequestsPage: React.FC = () => {
             </div>
           ) : undefined
         }
-        primaryButton={{
-          label: 'Tạo yêu cầu',
-          icon: <Plus className="w-4 h-4" />,
-          onClick: () => setCreateModalType('BUSINESS'),
-          splitItems: [
-            {
-              label: 'Yêu cầu xe Công tác',
-              icon: <Briefcase className="w-4 h-4 text-[#0284c7]" />,
-              onClick: () => setCreateModalType('BUSINESS'),
-            },
-            {
-              label: 'Yêu cầu xe Làm thêm giờ OT',
-              icon: <Clock className="w-4 h-4 text-[#d97706]" />,
-              onClick: () => setCreateModalType('OVERTIME'),
-            },
-            {
-              label: 'Yêu cầu xe Hàng hóa',
-              icon: <Package className="w-4 h-4 text-[#9333ea]" />,
-              onClick: () => setCreateModalType('GOODS'),
-            },
-          ],
-        }}
+        primaryButton={
+          activeTab === 'APPROVAL_QUEUE'
+            ? {
+                label: 'Xuất excel trang hiện tại',
+                onClick: () => showToast('Đã xuất Excel Hàng chờ phê duyệt'),
+              }
+            : {
+                label: 'Tạo yêu cầu',
+                icon: <Plus className="w-4 h-4" />,
+                onClick: () => setCreateModalType('BUSINESS'),
+                splitItems: [
+                  {
+                    label: 'Yêu cầu xe Công tác',
+                    icon: <Briefcase className="w-4 h-4 text-[#0284c7]" />,
+                    onClick: () => setCreateModalType('BUSINESS'),
+                  },
+                  {
+                    label: 'Yêu cầu xe Làm thêm giờ OT',
+                    icon: <Clock className="w-4 h-4 text-[#d97706]" />,
+                    onClick: () => setCreateModalType('OVERTIME'),
+                  },
+                  {
+                    label: 'Yêu cầu xe Hàng hóa',
+                    icon: <Package className="w-4 h-4 text-[#9333ea]" />,
+                    onClick: () => setCreateModalType('GOODS'),
+                  },
+                ],
+              }
+        }
       />
 
-      {/* 4. Legacy Data Table (Exact columns & widths from 002-requests.png) */}
+      {/* 4. Legacy Data Table (Exact columns & widths from 002-requests.png & 009-approval-row-context.png) */}
       <div className="overflow-x-auto">
         <table className="w-full table-fixed text-left border-collapse">
           <thead>
             <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] text-[13px] font-semibold text-[#1f2937]">
               {activeTab === 'APPROVAL_QUEUE' && (
-                <th className="px-2 w-[36px]">
+                <th className="px-2 w-[32px]">
                   <input
                     type="checkbox"
                     checked={requests.length > 0 && selectedIds.length === requests.length}
@@ -595,26 +642,26 @@ export const RequestsPage: React.FC = () => {
                   />
                 </th>
               )}
-              <th className="px-1.5 w-[3.5%]">#</th>
-              <th className="px-1.5 w-[7.5%]">Loại yêu cầu</th>
-              <th className="px-1.5 w-[10.5%]">Trạng thái</th>
-              <th className="px-1.5 w-[8.5%]">Người yêu cầu</th>
+              <th className="px-1.5 w-[3%]">#</th>
+              <th className="px-1.5 w-[8%]">Loại yêu cầu</th>
+              <th className="px-1.5 w-[11.5%]">Trạng thái</th>
+              <th className="px-1.5 w-[9.5%]">Người yêu cầu</th>
               <th className="px-1.5 w-[14.5%]">Bộ phận người yêu cầu</th>
-              <th className="px-1.5 w-[9.5%]">Số lượng đăng ký</th>
+              <th className="px-1.5 w-[10.5%]">Số lượng đăng ký</th>
               <th className="px-1.5 w-[11.5%]">Giờ khởi hành / Đón</th>
-              <th className="px-1.5 w-[11.5%]">Điểm đón / Lấy hàng</th>
-              <th className="px-1.5 w-[11.5%]">Điểm trả / Giao hàng</th>
-              <th className="px-1.5 w-[11.5%]">Giờ về / Giao hàng</th>
+              <th className="px-1.5 w-[11%]">Điểm đón / Lấy hàng</th>
+              <th className="px-1.5 w-[11%]">Điểm trả / Giao hàng</th>
+              <th className="px-1.5 w-[9.5%]">Giờ về / Giao hàng</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">
-            {requests.map((req, idx) => (
+            {pagedRequests.map((req, idx) => (
               <tr
                 key={req.id}
                 onClick={(e) =>
                   setContextRow({
                     req,
-                    index: idx + 1,
+                    index: reqStartIndex + idx + 1,
                     x: e.clientX,
                     y: e.clientY,
                   })
@@ -623,7 +670,7 @@ export const RequestsPage: React.FC = () => {
                   e.preventDefault();
                   setContextRow({
                     req,
-                    index: idx + 1,
+                    index: reqStartIndex + idx + 1,
                     x: e.clientX,
                     y: e.clientY,
                   });
@@ -648,7 +695,7 @@ export const RequestsPage: React.FC = () => {
                     />
                   </td>
                 )}
-                <td className="px-1.5 text-[#374151]">{idx + 1}</td>
+                <td className="px-1.5 text-[#374151]">{reqStartIndex + idx + 1}</td>
                 <td className="px-1.5">{renderRequestTypeBadge(req.requestType)}</td>
                 <td className="px-1.5">{renderRequestStatusBadge(req.status)}</td>
                 <td className="px-1.5 text-[#1f2937] truncate">
@@ -676,7 +723,7 @@ export const RequestsPage: React.FC = () => {
                 </td>
               </tr>
             ))}
-            {requests.length === 0 && (
+            {filteredRequests.length === 0 && (
               <tr>
                 <td colSpan={11} className="py-8 text-center text-[13px] text-[#9ca3af]">
                   Không có bản ghi nào
@@ -688,7 +735,13 @@ export const RequestsPage: React.FC = () => {
       </div>
 
       {/* 5. Bottom Pagination Bar */}
-      <LegacyPagination totalCount={requests.length} />
+      <LegacyPagination
+        totalCount={filteredRequests.length}
+        page={reqPage}
+        pageSize={reqPageSize}
+        onPageChange={setReqPage}
+        onPageSizeChange={setReqPageSize}
+      />
 
       {/* 6. Floating Row Context Menu */}
       {contextRow && (

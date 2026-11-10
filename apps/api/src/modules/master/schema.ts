@@ -988,13 +988,22 @@ export function registerMasterModule() {
         activeFlag: t.arg.string(),
         search: t.arg.string(),
       },
-      resolve: (query, _root, args) =>
-        prisma.route.findMany({
+      resolve: (query, _root, args) => {
+        let runDaysFilter: string[] | undefined;
+        if (args.runDays) {
+          const rd = args.runDays.trim().toUpperCase();
+          if (rd === 'MON_FRI' || rd === '31') runDaysFilter = ['MON_FRI', '31'];
+          else if (rd === 'MON_SAT' || rd === '63') runDaysFilter = ['MON_SAT', '63'];
+          else if (rd === 'SAT_ONLY' || rd === '32') runDaysFilter = ['SAT_ONLY', '32'];
+          else if (rd === 'MON_SUN' || rd === '127') runDaysFilter = ['MON_SUN', '127'];
+          else runDaysFilter = [args.runDays];
+        }
+        return prisma.route.findMany({
           ...query,
           where: {
             delFlag: 'N',
             ...(args.passengerType ? { passengerType: args.passengerType } : {}),
-            ...(args.runDays ? { runDays: args.runDays } : {}),
+            ...(runDaysFilter ? { runDays: { in: runDaysFilter } } : {}),
             ...(args.activeFlag ? { activeFlag: args.activeFlag } : {}),
             ...(args.search
               ? {
@@ -1006,7 +1015,8 @@ export function registerMasterModule() {
               : {}),
           },
           orderBy: { routeCode: 'asc' },
-        }),
+        });
+      },
     }),
 
     route: t.prismaField({

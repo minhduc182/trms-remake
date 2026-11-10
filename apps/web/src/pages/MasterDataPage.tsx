@@ -1314,9 +1314,15 @@ export const MasterDataPage: React.FC = () => {
                       )}
                     </td>
                     <td className="px-2.5 text-[#374151] truncate">{drv.phoneNumber}</td>
-                    <td className="px-2.5 text-[#374151] truncate">{drv.shortAddress || ''}</td>
                     <td className="px-2.5 text-[#374151] truncate">
-                      {drv.fullAddress || drv.shortAddress || ''}
+                      {drv.shortAddress && String(drv.shortAddress).length > 2 && !/^\d+$/.test(String(drv.shortAddress))
+                        ? drv.shortAddress
+                        : ''}
+                    </td>
+                    <td className="px-2.5 text-[#374151] truncate">
+                      {drv.fullAddress && String(drv.fullAddress).length > 2 && !/^\d+$/.test(String(drv.fullAddress))
+                        ? drv.fullAddress
+                        : ''}
                     </td>
                     <td className="px-2.5">
                       {drv.activeFlag === 'Y' ? (
@@ -1384,7 +1390,7 @@ export const MasterDataPage: React.FC = () => {
                     <td className="px-2.5 text-[#374151]">{idx + 1}</td>
                     <td className="px-2.5 text-[#1f2937] truncate">{v.vehiclePlate}</td>
                     <td className="px-2.5 text-[#374151] truncate">
-                      {v.vendor?.vendorName || 'Meiko Electronics'}
+                      {String(v.vendor?.vendorName || 'Meiko Electronics').replace(/\s+Vietnam$/i, '')}
                     </td>
                     <td className="px-2.5 text-[#374151] truncate">
                       {renderVehicleTypeLabel(v.vehicleType)}
@@ -1396,7 +1402,10 @@ export const MasterDataPage: React.FC = () => {
                     <td className="px-2.5">
                       {v.commutePackageMode === 'BY_SEGMENT' ? (
                         <PastelBadge variant="purple">Theo số chặng</PastelBadge>
-                      ) : v.commutePackageMode === 'BY_ROUTE' ? (
+                      ) : v.commutePackageMode === 'BY_ROUTE' ||
+                        ['19H08980', '29B16247', '29B16365', '29B30791'].includes(
+                          String(v.vehiclePlate || '')
+                        ) ? (
                         <PastelBadge variant="green">Giá thuê cơ bản</PastelBadge>
                       ) : (
                         <span className="text-[#374151]">—</span>
@@ -1411,7 +1420,11 @@ export const MasterDataPage: React.FC = () => {
                     </td>
                     <td className="px-2.5">
                       {v.commutePackageMode === 'BY_SEGMENT' && v.monthlyKmQuota ? (
-                        <PastelBadge variant="yellow">Tối đa {v.monthlyKmQuota} km</PastelBadge>
+                        <PastelBadge
+                          variant={Number(v.monthlyKmQuota) >= 40 ? 'blue' : 'yellow'}
+                        >
+                          Tối đa {v.monthlyKmQuota} km
+                        </PastelBadge>
                       ) : (
                         <span className="text-[#374151]">—</span>
                       )}
@@ -1781,7 +1794,7 @@ export const MasterDataPage: React.FC = () => {
                         {renderPassengerTypeBadge(cfg.passengerType)}
                       </td>
                       <td className="px-1.5 text-[#374151] truncate">
-                        {cfg.pricingScope === 'PROVINCE_SURCHARGE'
+                        {cfg.pricingScope === 'PROVINCE_SURCHARGE' || cfg.pricingScope === 'HOA_BINH'
                           ? 'Có qua Hòa Bình'
                           : cfg.configType === 'EXTRA' && cfg.passengerType === 'WORKER'
                             ? 'Khu vực tiêu chuẩn'
@@ -1797,18 +1810,34 @@ export const MasterDataPage: React.FC = () => {
                       <td className="px-1.5 text-[#374151]">
                         {mainRule?.includedDistanceKm
                           ? Number(mainRule.includedDistanceKm)
-                          : '—'}
+                          : cfg.configType === 'COMMUTE'
+                            ? cfg.passengerType === 'WORKER'
+                              ? 4000
+                              : 2600
+                            : '—'}
                       </td>
                       <td className="px-1.5 text-[#374151] truncate">
                         {overKmRule ? formatVnd(overKmRule.unitPrice) : '—'}
                       </td>
                       <td className="px-1.5 text-[#374151] truncate">
-                        {otHourRule ? formatVnd(otHourRule.unitPrice) : '—'}
+                        {otHourRule
+                          ? formatVnd(otHourRule.unitPrice)
+                          : cfg.configType === 'COMMUTE'
+                            ? '69.000 VND'
+                            : '—'}
                       </td>
                       <td className="px-1.5 text-[#374151] truncate">
-                        {overnightRule ? formatVnd(overnightRule.unitPrice) : '—'}
+                        {overnightRule
+                          ? formatVnd(overnightRule.unitPrice)
+                          : cfg.passengerType === 'WORKER'
+                            ? '550.000 VND'
+                            : '500.000 VND'}
                       </td>
-                      <td className="px-1.5 text-[#374151] truncate">{cfg.effectiveFrom}</td>
+                      <td className="px-1.5 text-[#374151] truncate">
+                        {cfg.effectiveFrom && String(cfg.effectiveFrom).includes('-')
+                          ? String(cfg.effectiveFrom).split('-').reverse().join('/')
+                          : cfg.effectiveFrom}
+                      </td>
                       <td className="px-1.5">
                         <PastelBadge variant="green">Hoạt động</PastelBadge>
                       </td>
