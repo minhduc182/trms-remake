@@ -103,9 +103,9 @@ export const CostReportsPage: React.FC<{
         );
         setVehicleBills(res.vehicleBills || []);
       } else if (activeTab === 'MONTHLY') {
-        const res = await gqlRequest<{ monthlyPayments: any[] }>(
-          `query GetMonthlyPayments($paymentMonth: String) {
-            monthlyPayments(paymentMonth: $paymentMonth) {
+        const res = await gqlRequest<{ monthlyPayments: any[] }>(`
+          query GetAllMonthlyPayments {
+            monthlyPayments {
               id paymentMonth totalBeforeVat totalVatAmount totalAfterVat status
               details {
                 id lineNo lineType driverNameSnapshot vehiclePlateSnapshot routeNameSnapshot
@@ -114,27 +114,9 @@ export const CostReportsPage: React.FC<{
                 totalBeforeVat vatAmount totalAfterVat
               }
             }
-          }`,
-          { paymentMonth: paymentMonth || undefined }
-        );
-        let list = res.monthlyPayments || [];
-        if (list.length === 0 && paymentMonth) {
-          const fallback = await gqlRequest<{ monthlyPayments: any[] }>(`
-            query GetAllMonthlyPayments {
-              monthlyPayments {
-                id paymentMonth totalBeforeVat totalVatAmount totalAfterVat status
-                details {
-                  id lineNo lineType driverNameSnapshot vehiclePlateSnapshot routeNameSnapshot
-                  tripDescription dailyTripCount basicChargeAmount overtimeHours overtimeAmount
-                  totalDistanceKm includedDistanceKm excessKm excessKmAmount extraTripAmount
-                  totalBeforeVat vatAmount totalAfterVat
-                }
-              }
-            }
-          `);
-          list = fallback.monthlyPayments || [];
-        }
-        setMonthlyPayments(list);
+          }
+        `);
+        setMonthlyPayments(res.monthlyPayments || []);
       } else if (activeTab === 'ETP_REPORT') {
         const res = await gqlRequest<{ etpReport: any; routes: any[] }>(
           `query GetEtpReport($passengerType: String) {

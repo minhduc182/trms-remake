@@ -237,6 +237,12 @@ export const RequestsPage: React.FC = () => {
   ).map((d) => ({ value: d, label: d }));
 
   const filteredRequests = requests.filter((r) => {
+    if (
+      activeTab === 'APPROVAL_QUEUE' &&
+      !['PENDING_DEPARTMENT', 'PENDING_GA', 'PENDING_GA_DEPARTMENT'].includes(r.status)
+    ) {
+      return false;
+    }
     const dept = r.departmentName || 'Khối Kỹ thuật EMS';
     if (departmentFilter.trim()) {
       if (!dept.toLowerCase().includes(departmentFilter.trim().toLowerCase())) {

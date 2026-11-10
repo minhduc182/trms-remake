@@ -581,6 +581,63 @@ export function Layout({ currentPath, onNavigate, children }: LayoutProps) {
         {/* Page Content */}
         <main className="flex-1 px-6 pt-4 pb-0 overflow-y-auto overflow-x-hidden bg-white">{children}</main>
       </div>
+
+      {/* Quick Search / Command Palette Modal (Ctrl+K) */}
+      {cmdOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center pt-20 p-4"
+          onClick={() => setCmdOpen(false)}
+        >
+          <div
+            className="bg-white rounded-[10px] shadow-2xl border border-[#e5e7eb] w-full max-w-lg overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2.5 px-4 py-3 border-b border-[#e5e7eb]">
+              <Search className="w-4 h-4 text-[#00897b]" />
+              <input
+                type="text"
+                autoFocus
+                value={cmdQuery}
+                onChange={(e) => setCmdQuery(e.target.value)}
+                placeholder="Tìm nhanh màn hình, chức năng (VD: điều phối, tuyến xe, chi phí, ca làm)..."
+                className="flex-1 text-[13px] text-[#1f2937] focus:outline-none"
+              />
+              <kbd className="px-1.5 py-0.5 text-[10px] bg-gray-100 border border-gray-300 rounded text-gray-500">
+                ESC
+              </kbd>
+            </div>
+            <div className="max-h-80 overflow-y-auto divide-y divide-[#f3f4f6] py-1">
+              {visibleNavItems
+                .filter((item) =>
+                  !cmdQuery.trim()
+                    ? true
+                    : item.label.toLowerCase().includes(cmdQuery.trim().toLowerCase()) ||
+                      item.path.toLowerCase().includes(cmdQuery.trim().toLowerCase())
+                )
+                .map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.path}
+                      type="button"
+                      onClick={() => {
+                        setCmdOpen(false);
+                        onNavigate(item.path);
+                      }}
+                      className="w-full px-4 py-2.5 text-left hover:bg-[#eefbf6] flex items-center justify-between text-[13px] text-[#1f2937] cursor-pointer"
+                    >
+                      <span className="inline-flex items-center gap-2.5 font-medium">
+                        <Icon className="w-4 h-4 text-[#00897b]" />
+                        <span>{item.label}</span>
+                      </span>
+                      <span className="text-[11px] text-[#6b7280] font-mono">{item.path}</span>
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
