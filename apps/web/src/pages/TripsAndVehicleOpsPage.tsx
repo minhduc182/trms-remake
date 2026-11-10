@@ -449,8 +449,8 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
                   <th className="px-2.5 w-[3.5%]"></th>
                   <th className="px-2.5 w-[4%]">#</th>
                   <th className="px-2.5 w-[12%]">Loại chuyến đi</th>
-                  <th className="px-2.5 w-[12%]">Trạng thái</th>
-                  <th className="px-2.5 w-[21%]">Lộ trình / Điểm đón – Điểm trả</th>
+                  <th className="px-2.5 w-[14%]">Trạng thái</th>
+                  <th className="px-2.5 w-[19%]">Lộ trình / Điểm đón – Điểm trả</th>
                   <th className="px-2.5 w-[9%]">Biển số xe</th>
                   <th className="px-2.5 w-[9%]">Loại xe</th>
                   <th className="px-2.5 w-[10.5%]">Tài xế</th>

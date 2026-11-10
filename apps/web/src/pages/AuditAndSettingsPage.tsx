@@ -159,7 +159,7 @@ export const AuditAndSettingsPage: React.FC<{ initialView?: 'AUDIT' | 'SETTINGS'
         const res = await gqlRequest<{ auditLogs: any[] }>(
           `query GetAuditLogs($entityType: String, $actionType: String) {
             auditLogs(entityType: $entityType, actionType: $actionType, limit: 300) {
-              id entityType entityId actionType actorName actorIp changedAt summaryText
+              id entityType entityId actionType actorName changedAt summaryText
             }
           }`,
           {
@@ -172,7 +172,7 @@ export const AuditAndSettingsPage: React.FC<{ initialView?: 'AUDIT' | 'SETTINGS'
         const res = await gqlRequest<{ settings: any[] }>(`
           query GetSettings {
             settings {
-              id varKey varValue description editDate
+              id varKey varValue editDate
             }
           }
         `);
@@ -202,22 +202,21 @@ export const AuditAndSettingsPage: React.FC<{ initialView?: 'AUDIT' | 'SETTINGS'
   const handleSaveAllSettings = async () => {
     try {
       const pairs = [
-        { key: 'TRMS_VAT_RATE', val: vatRate, desc: 'Thuế suất VAT (%)' },
-        { key: 'TRMS_HOLIDAYS', val: holidays, desc: 'Ngày nghỉ lễ' },
-        { key: 'TRMS_MAKEUP_DAYS', val: makeupDays, desc: 'Ngày làm bù' },
-        { key: 'TRMS_OT_TIME_SLOTS', val: otSlots, desc: 'Danh sách khung giờ OT' },
+        { key: 'TRMS_VAT_RATE', val: vatRate },
+        { key: 'TRMS_HOLIDAYS', val: holidays },
+        { key: 'TRMS_MAKEUP_DAYS', val: makeupDays },
+        { key: 'TRMS_OT_TIME_SLOTS', val: otSlots },
       ];
       for (const p of pairs) {
         await gqlRequest(
-          `mutation SaveSetting($varKey: String!, $varValue: String, $description: String) {
-            upsertSetting(varKey: $varKey, varValue: $varValue, description: $description) {
+          `mutation SaveSetting($varKey: String!, $varValue: String!) {
+            upsertSetting(varKey: $varKey, varValue: $varValue) {
               id varKey varValue
             }
           }`,
           {
             varKey: p.key,
             varValue: p.val,
-            description: p.desc,
           }
         );
       }

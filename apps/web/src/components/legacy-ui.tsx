@@ -494,7 +494,8 @@ export function renderTripTypeBadge(dispatchType?: string, isDeadhead?: boolean)
   if (isDeadhead) return <PastelBadge label="Chuyến chạy rỗng" tone="gray" />;
   if (dispatchType === 'FIXED_ROUTE') return <PastelBadge label="Tuyến thường" tone="green" />;
   if (dispatchType === 'SUPPLEMENT') return <PastelBadge label="Tuyến bổ sung" tone="amber" />;
-  if (dispatchType === 'DISPATCH') return <PastelBadge label="Điều chuyến" tone="sky" />;
+  if (dispatchType === 'DISPATCH' || dispatchType === 'AD_HOC' || dispatchType === 'MERGED')
+    return <PastelBadge label="Điều chuyến" tone="sky" />;
   return <PastelBadge label={dispatchType || 'Tuyến thường'} tone="green" />;
 }
 

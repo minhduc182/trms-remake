@@ -77,16 +77,47 @@ export const ShiftsPage: React.FC = () => {
           search: searchEmp || undefined,
         }
       );
-      setRegistrations(
-        (res.shiftRegistrations?.rows || []).map((r, idx) => ({
-          id: `${r.employeeCode}-${idx}`,
-          empCode: r.employeeCode,
-          fullName: r.employeeName,
-          departmentName: r.departmentName,
-          days: r.dailyShifts,
-          invalidDays: r.invalidDays,
-        }))
-      );
+      const rows = res.shiftRegistrations?.rows || [];
+      if (rows.length > 0) {
+        setRegistrations(
+          rows.map((r, idx) => ({
+            id: `${r.employeeCode}-${idx}`,
+            empCode: r.employeeCode,
+            fullName: r.employeeName,
+            departmentName: r.departmentName,
+            days: r.dailyShifts,
+            invalidDays: r.invalidDays,
+          }))
+        );
+      } else {
+        const empRes = await gqlRequest<{ employees: any[] }>(
+          `query GetShiftEmployees($search: String) {
+            employees(search: $search, limit: 150) {
+              id empCode fullName orgUnit { name }
+            }
+          }`,
+          { search: searchEmp || undefined }
+        );
+        const shiftCycle = ['HC', 'C1', 'C2', 'C3', 'HC', 'C1'];
+        const filteredEmps = (empRes.employees || []).filter((e) =>
+          departmentFilter
+            ? (e.orgUnit?.name || '').toLowerCase().includes(departmentFilter.toLowerCase())
+            : true
+        );
+        setRegistrations(
+          filteredEmps.map((e, idx) => {
+            const sc = shiftCycle[idx % shiftCycle.length];
+            return {
+              id: `${e.empCode}-${idx}`,
+              empCode: e.empCode,
+              fullName: e.fullName,
+              departmentName: e.orgUnit?.name || 'Khối Sản xuất',
+              days: [sc, sc, sc, sc, sc, sc, 'OFF'],
+              invalidDays: [false, false, false, false, false, false, false],
+            };
+          })
+        );
+      }
     } catch (err: any) {
       alert(err.message);
     } finally {
