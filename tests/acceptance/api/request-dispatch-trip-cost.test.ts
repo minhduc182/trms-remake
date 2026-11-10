@@ -380,6 +380,19 @@ describe('TRMS Remake Acceptance Suite — Part 2: Requests, OT, Dispatch, Trips
     expect(meAdmin.data.me.username).toBe('test_admin');
     expect(meAdmin.data.me.isAdmin).toBe(true);
 
+    // AT-AUTH-001: Verify login with tominhduc / C18082002c. and reject wrong password
+    const loginOk = await gql(
+      `mutation { login(username: "tominhduc", password: "C18082002c.") { token username fullName isAdmin roles } }`
+    );
+    expect(loginOk.errors).toBeUndefined();
+    expect(loginOk.data.login.username).toBe('tominhduc');
+    expect(loginOk.data.login.isAdmin).toBe(true);
+
+    const loginBad = await gql(
+      `mutation { login(username: "tominhduc", password: "wrong-password") { token } }`
+    );
+    expect(loginBad.errors).toBeDefined();
+
     // Driver cannot create a Point (requires FR-POINT-002)
     const forbiddenDriver = await gql(
       `mutation {

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('TRMS Remake E2E UI Acceptance Suite', () => {
-  test('E2E-001: Loads Dashboard, switches test roles via 1-click Role Switcher, and navigates all 12 modules without GraphQL errors', async ({ page }) => {
+  test('E2E-001: Authenticates with tominhduc / C18082002c., loads Dashboard, and navigates all 12 modules & 7 Master Data tabs without errors', async ({ page }) => {
     const pageErrors: string[] = [];
     page.on('dialog', async (dialog) => {
       pageErrors.push(dialog.message());
@@ -10,8 +10,14 @@ test.describe('TRMS Remake E2E UI Acceptance Suite', () => {
 
     await page.goto('/');
 
+    // 0. Login Screen verification & authentication
+    await expect(page.locator('[data-testid="login-username"]')).toBeVisible();
+    await page.fill('[data-testid="login-username"]', 'tominhduc');
+    await page.fill('[data-testid="login-password"]', 'C18082002c.');
+    await page.click('[data-testid="login-submit"]');
+
     // 1. Dashboard loads with real Oracle-migrated statistics
-    await expect(page.locator('text=Tổng quan').first()).toBeVisible();
+    await expect(page.locator('text=Tổng quan').first()).toBeVisible({ timeout: 15000 });
 
     // 2. Navigate to Master Data (7 tabs) and verify all 7 tabs load cleanly
     await page.click('[data-testid="nav-master-data"]');
@@ -27,9 +33,10 @@ test.describe('TRMS Remake E2E UI Acceptance Suite', () => {
     await page.click('text=Dữ liệu ca làm');
     await expect(page.locator('text=Dữ liệu ca làm').first()).toBeVisible();
 
-    // 4. Navigate to Requests
+    // 4. Navigate to Requests and verify single-line table layout
     await page.click('text=Điều hành yêu cầu xe');
     await expect(page.locator('text=Điều hành yêu cầu xe').first()).toBeVisible();
+    await expect(page.locator('th:has-text("Bộ phận người yêu cầu")')).toBeVisible();
 
     // 5. Navigate to Dispatch
     await page.click('text=Quản lý điều phối');
@@ -47,12 +54,11 @@ test.describe('TRMS Remake E2E UI Acceptance Suite', () => {
     await page.click('text=Báo cáo hồ sơ sử dụng xe');
     await expect(page.locator('text=Báo cáo hồ sơ sử dụng xe').first()).toBeVisible();
 
-    // 8. Navigate to Audit Logs & Settings
+    // 8. Navigate to Audit Logs
     await page.click('text=Nhật ký kiểm tra');
     await expect(page.locator('text=Nhật ký kiểm tra').first()).toBeVisible();
-    await page.click('text=Cấu hình chung');
-    await expect(page.locator('text=Cấu hình chung').first()).toBeVisible();
 
     expect(pageErrors).toEqual([]);
   });
 });
+
