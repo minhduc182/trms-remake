@@ -299,9 +299,55 @@ export function SectionToolbar({
   const [wrapMode, setWrapMode] = useState(() =>
     typeof document !== 'undefined' ? document.body.classList.contains('table-wrap-mode') : false
   );
+  const [colItems, setColItems] = useState<{ index: number; label: string; visible: boolean }[]>([]);
   const splitRef = useRef<HTMLDivElement>(null);
   const customizeRef = useRef<HTMLDivElement>(null);
   const filterRef = useRef<HTMLDivElement>(null);
+
+  const syncTableColumns = () => {
+    const root = customizeRef.current?.closest('main') || document.querySelector('main') || document.body;
+    const table = root.querySelector('table');
+    if (!table) return;
+    const ths = Array.from(table.querySelectorAll('thead th'));
+    const nextCols: { index: number; label: string; visible: boolean }[] = [];
+    ths.forEach((th, idx) => {
+      const text = (th.textContent || '').trim();
+      if (!text || text === '#') return;
+      if (th.querySelector('input[type="checkbox"]')) return;
+      const hidden = (th as HTMLElement).style.display === 'none';
+      nextCols.push({ index: idx, label: text, visible: !hidden });
+    });
+    setColItems(nextCols);
+  };
+
+  const toggleColumnVisible = (colIndex: number, nextVisible: boolean) => {
+    const root = customizeRef.current?.closest('main') || document.querySelector('main') || document.body;
+    const table = root.querySelector('table');
+    if (!table) return;
+    const rows = Array.from(table.querySelectorAll('tr'));
+    rows.forEach((tr) => {
+      const cells = tr.children;
+      if (cells[colIndex]) {
+        (cells[colIndex] as HTMLElement).style.display = nextVisible ? '' : 'none';
+      }
+    });
+    setColItems((prev) =>
+      prev.map((c) => (c.index === colIndex ? { ...c, visible: nextVisible } : c))
+    );
+  };
+
+  const resetColumns = () => {
+    const root = customizeRef.current?.closest('main') || document.querySelector('main') || document.body;
+    const table = root.querySelector('table');
+    if (!table) return;
+    const rows = Array.from(table.querySelectorAll('tr'));
+    rows.forEach((tr) => {
+      Array.from(tr.children).forEach((cell) => {
+        (cell as HTMLElement).style.display = '';
+      });
+    });
+    setColItems((prev) => prev.map((c) => ({ ...c, visible: true })));
+  };
 
   const effectiveSearch = search ?? searchValue ?? '';
   const effectiveShowFilter = showFilter || showFilterButton || Boolean(filterContent);
@@ -394,17 +440,49 @@ export function SectionToolbar({
           <div className="relative inline-flex" ref={customizeRef}>
             <button
               type="button"
-              onClick={() => setCustomizeOpen(!customizeOpen)}
+              onClick={() => {
+                const next = !customizeOpen;
+                if (next) syncTableColumns();
+                setCustomizeOpen(next);
+              }}
               className="inline-flex items-center gap-1.5 h-[34px] px-3 rounded-[6px] border border-[#d1d5db] bg-white hover:bg-[#f9fafb] text-[13px] text-[#374151] cursor-pointer"
             >
               <Settings className="w-3.5 h-3.5 text-[#4b5563]" />
               <span>Tùy chỉnh</span>
             </button>
             {customizeOpen && (
-              <div className="absolute right-0 top-[38px] w-60 bg-white rounded-[8px] shadow-lg border border-[#e5e7eb] py-2 z-50 text-[13px] text-[#1f2937]">
-                <div className="px-3.5 py-1 text-[11px] font-semibold uppercase text-[#6b7280]">
-                  Tùy chỉnh hiển thị bảng
+              <div className="absolute right-0 top-[38px] w-68 bg-white rounded-[8px] shadow-lg border border-[#e5e7eb] py-2 z-50 text-[13px] text-[#1f2937]">
+                <div className="px-3.5 py-1.5 flex items-center justify-between border-b border-[#f3f4f6]">
+                  <span className="text-[12px] font-bold text-[#1f2937]">Hiển thị</span>
+                  <button
+                    type="button"
+                    onClick={resetColumns}
+                    className="text-[12px] font-medium text-[#00897b] hover:underline cursor-pointer"
+                  >
+                    Đặt lại
+                  </button>
                 </div>
+                {colItems.length > 0 && (
+                  <div className="max-h-56 overflow-y-auto py-1 border-b border-[#f3f4f6]">
+                    {colItems.map((col) => (
+                      <label
+                        key={col.index}
+                        className="w-full px-3.5 py-1.5 hover:bg-[#f3f4f6] flex items-center justify-between gap-2 cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={col.visible}
+                            onChange={(e) => toggleColumnVisible(col.index, e.target.checked)}
+                            className="accent-[#00897b] shrink-0"
+                          />
+                          <span className="truncate">{col.label}</span>
+                        </div>
+                        <span className="text-[#9ca3af] text-[11px] select-none">⋮⋮</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={toggleWrapMode}
@@ -577,7 +655,7 @@ export function renderRequestStatusBadge(status: string) {
     case 'PENDING_GA_DEPARTMENT':
       return <PastelBadge label="Chờ GA phê duyệt" tone="sky" />;
     case 'PENDING_DEPARTMENT':
-      return <PastelBadge label="Đang chờ phê duyệt" tone="amber" />;
+      return <PastelBadge label="Chờ trưởng bộ phận phê duyệt" tone="amber" />;
     case 'WAITING_VENDOR_DISPATCH':
       return <PastelBadge label="Chờ điều phối" tone="sky" />;
     case 'WAITING_DRIVER_CONFIRM':
@@ -586,13 +664,14 @@ export function renderRequestStatusBadge(status: string) {
     case 'DRIVER_CONFIRMED':
       return <PastelBadge label="Tài xế đã xác nhận" tone="purple" />;
     case 'IN_PROGRESS':
-      return <PastelBadge label="Đang chạy" tone="sky" />;
+      return <PastelBadge label="Đang xử lý" tone="sky" />;
     case 'WAITING_DISTANCE_INPUT':
-      return <PastelBadge label="Chờ nhập KM" tone="amber" />;
+      return <PastelBadge label="Chờ nhập khoảng cách" tone="amber" />;
     case 'COMPLETED':
       return <PastelBadge label="Hoàn thành" tone="green" />;
     case 'APPROVED_BY_TAXI':
-      return <PastelBadge label="Duyệt đi Taxi" tone="teal" />;
+    case 'TAXI_ARRANGED':
+      return <PastelBadge label="Đi taxi" tone="teal" />;
     case 'RETURNED':
       return <PastelBadge label="Trả về sửa" tone="amber" />;
     case 'REJECTED':
@@ -602,6 +681,10 @@ export function renderRequestStatusBadge(status: string) {
     default:
       return <PastelBadge label={status} tone="gray" />;
   }
+}
+
+export function StatusChip({ status }: { status?: string | null }) {
+  return renderRequestStatusBadge(status || '');
 }
 
 export function renderPassengerTypeBadge(passengerType?: string | null) {
@@ -794,8 +877,15 @@ export function RowContextMenu({
         onClose();
       }
     };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
     document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKeyDown);
+    };
   }, [onClose]);
 
   return (

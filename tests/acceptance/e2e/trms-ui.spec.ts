@@ -135,7 +135,7 @@ test.describe('TRMS Remake E2E UI Acceptance Suite (Full QA Coverage)', () => {
     expect(dialogs).toEqual([]);
   });
 
-  test('E2E-004: Transport Requests — Verifies request list, approval queue tab, and creates a BUSINESS request via UI modal', async ({ page }) => {
+  test('E2E-004: Transport Requests — Verifies request list, column customizer, split menu (Excel import/export), approval queue bulk bar, and creates a BUSINESS request via UI modal', async ({ page }) => {
     const dialogs: string[] = [];
     page.on('dialog', async (d) => {
       dialogs.push(d.message());
@@ -146,11 +146,32 @@ test.describe('TRMS Remake E2E UI Acceptance Suite (Full QA Coverage)', () => {
     await page.click('text=Điều hành yêu cầu xe');
     await expect(page.locator('th:has-text("Bộ phận người yêu cầu")')).toBeVisible();
 
-    // Switch to Approval Queue tab and back
+    // Verify Column Customizer ("Tùy chỉnh") popover
+    await page.click('button:has-text("Tùy chỉnh")');
+    await expect(page.locator('text=Hiển thị')).toBeVisible();
+    await expect(page.locator('button:has-text("Đặt lại")')).toBeVisible();
+    await page.click('button:has-text("Tùy chỉnh")');
+
+    // Verify split menu on "+ Tạo yêu cầu" ("Nhập yêu cầu" & "Xuất excel trang hiện tại")
+    await page.click('button[title="Tùy chọn thêm"]');
+    await expect(page.locator('button:has-text("Nhập yêu cầu")')).toBeVisible();
+    await expect(page.locator('button:has-text("Xuất excel trang hiện tại")')).toBeVisible();
+    await page.click('button:has-text("Nhập yêu cầu")');
+    await expect(page.locator('text=Nhập yêu cầu vận chuyển')).toBeVisible();
+    await page.click('button:has-text("Hủy")');
+
+    // Switch to Approval Queue tab and verify bulk selection bar if rows exist
     await page.click('button:has-text("Hàng chờ phê duyệt")');
+    const firstRowCb = page.locator('tbody tr input[type="checkbox"]').first();
+    if (await firstRowCb.isVisible()) {
+      await firstRowCb.check();
+      await expect(page.locator('button:has-text("Duyệt và yêu cầu ghép đơn")')).toBeVisible();
+      await expect(page.locator('button:has-text("Taxi")')).toBeVisible();
+      await firstRowCb.uncheck();
+    }
     await page.click('button:has-text("Danh sách yêu cầu")');
 
-    // Open Create Request modal and submit a valid BUSINESS request
+    // Open Create Request modal and verify BUSINESS request form
     await page.click('button:has-text("Tạo yêu cầu")');
     const reqForm = page.locator('form', { hasText: 'Tạo yêu cầu vận chuyển' });
     await expect(reqForm).toBeVisible();

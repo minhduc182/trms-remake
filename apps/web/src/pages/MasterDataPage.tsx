@@ -43,10 +43,29 @@ type MasterTab =
   | 'COST_CONFIGS';
 
 const VEHICLE_CAPACITY_MAP: Record<string, number> = {
+  SEDAN_4: 4,
+  SUV_7: 7,
   VAN_16: 15,
   BUS_29: 28,
   BUS_45: 44,
 };
+
+const STANDARD_DISTRICTS = [
+  'Thành phố Hòa Bình',
+  'Huyện Lương Sơn',
+  'Huyện Kỳ Sơn',
+  'Huyện Cao Phong',
+  'Huyện Kim Bôi',
+  'Quận Cầu Giấy',
+  'Quận Nam Từ Liêm',
+  'Quận Bắc Từ Liêm',
+  'Quận Thanh Xuân',
+  'Quận Hà Đông',
+  'Huyện Chương Mỹ',
+  'Huyện Quốc Oai',
+  'Huyện Thạch Thất',
+  'Huyện Hoài Đức',
+];
 
 export const MasterDataPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<MasterTab>('POINTS');
@@ -61,6 +80,7 @@ export const MasterDataPage: React.FC = () => {
   const [legs, setLegs] = useState<any[]>([]);
   const [routes, setRoutes] = useState<any[]>([]);
   const [etpProfiles, setEtpProfiles] = useState<any[]>([]);
+  const [provisionalTotalCount, setProvisionalTotalCount] = useState<number>(0);
   const [costConfigs, setCostConfigs] = useState<any[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
@@ -73,12 +93,19 @@ export const MasterDataPage: React.FC = () => {
   const [pointTypeSingleFilter, setPointTypeSingleFilter] = useState<string>('');
   const [districtFilter, setDistrictFilter] = useState<string>('');
   const [driverAccountFilter, setDriverAccountFilter] = useState<string>('');
+  const [driverVehicleAssignFilter, setDriverVehicleAssignFilter] = useState<string>('');
   const [packageModeFilter, setPackageModeFilter] = useState<string>('');
+  const [vehicleOwnershipFilter, setVehicleOwnershipFilter] = useState<string>('');
   const [activeFlagFilter, setActiveFlagFilter] = useState<string>('');
   const [vehicleTypeFilter, setVehicleTypeFilter] = useState<string>('');
   const [passengerTypeFilter, setPassengerTypeFilter] = useState<string>('');
+  const [legDirectionFilter, setLegDirectionFilter] = useState<string>('');
+  const [legCategoryFilter, setLegCategoryFilter] = useState<string>('');
   const [runDaysFilter, setRunDaysFilter] = useState<string>('');
   const [etpStatusFilter, setEtpStatusFilter] = useState<string>('');
+  const [etpProvisionalPill, setEtpProvisionalPill] = useState<'ALL' | 'PROVISIONAL'>('ALL');
+  const [etpPickupPointFilter, setEtpPickupPointFilter] = useState<string>('');
+  const [etpDropoffPointFilter, setEtpDropoffPointFilter] = useState<string>('');
   const [costTypeFilter, setCostTypeFilter] = useState<string>('');
 
   // Modals
@@ -89,12 +116,26 @@ export const MasterDataPage: React.FC = () => {
   const [routeModal, setRouteModal] = useState<any | null>(null);
   const [etpCreateModal, setEtpCreateModal] = useState<any | null>(null);
   const [etpDeactivateModal, setEtpDeactivateModal] = useState<any | null>(null);
+  const [etpLinkModal, setEtpLinkModal] = useState<{
+    id: string;
+    provTempCode: string;
+    provFullName: string;
+    employeeId: string;
+  } | null>(null);
   const [etpHistoryModal, setEtpHistoryModal] = useState<{
     employee: any;
     registrations: any[];
   } | null>(null);
   const [etpImportModal, setEtpImportModal] = useState<boolean>(false);
+  const [etpImportMode, setEtpImportMode] = useState<'ADD' | 'DEACTIVATE'>('ADD');
+  const [etpImportRawText, setEtpImportRawText] = useState<string>('');
+  const [etpImportPreviewRows, setEtpImportPreviewRows] = useState<any[]>([]);
+  const [etpImportSubmitting, setEtpImportSubmitting] = useState<boolean>(false);
   const [costConfigModal, setCostConfigModal] = useState<any | null>(null);
+  const [costHistoryModal, setCostHistoryModal] = useState<{
+    title: string;
+    configs: any[];
+  } | null>(null);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -107,7 +148,7 @@ export const MasterDataPage: React.FC = () => {
         query LoadMasterLookups {
           vendors { id vendorCode vendorName }
           users { id username fullName }
-          employees { id empCode fullName orgUnit { name } }
+          employees { id empCode fullName orgUnit { id name } }
           shifts(transportFlag: "Y") { id shiftCode shiftName startTime endTime }
         }
       `);
@@ -147,23 +188,30 @@ export const MasterDataPage: React.FC = () => {
         });
         setPoints(sortedPts);
       } else if (activeTab === 'DRIVERS') {
-        const res = await gqlRequest<{ drivers: any[] }>(
+        const res = await gqlRequest<{ drivers: any[]; vehicles: any[] }>(
           `query GetDrivers($search: String, $activeFlag: String) {
             drivers(search: $search, activeFlag: $activeFlag) {
               id driverName phoneNumber shortAddress fullAddress identityUserId activeFlag segmentUsageCount
               user { id username fullName }
             }
+            vehicles(activeFlag: "Y") {
+              id vehiclePlate defaultDriverId
+            }
           }`,
           { search: search || undefined, activeFlag: activeFlagFilter || undefined }
         );
-        setDrivers(res.drivers);
+        setDrivers(res.drivers || []);
+        setVehicles(res.vehicles || []);
       } else if (activeTab === 'VEHICLES') {
-        const res = await gqlRequest<{ vehicles: any[] }>(
+        const res = await gqlRequest<{ vehicles: any[]; drivers: any[] }>(
           `query GetVehicles($search: String, $vehicleTypes: [String!], $activeFlag: String) {
             vehicles(search: $search, vehicleTypes: $vehicleTypes, activeFlag: $activeFlag) {
               id vehicleCode vehiclePlate vendorId vehicleType seatCapacity ownershipType
-              commutePackageMode dailyTripQuota monthlyKmQuota activeFlag segmentUsageCount
+              commutePackageMode dailyTripQuota monthlyKmQuota defaultDriverId activeFlag segmentUsageCount
               vendor { id vendorCode vendorName }
+            }
+            drivers(activeFlag: "Y") {
+              id driverName phoneNumber
             }
           }`,
           {
@@ -181,6 +229,7 @@ export const MasterDataPage: React.FC = () => {
           return ap.localeCompare(bp, 'vi');
         });
         setVehicles(sortedVehicles);
+        if (res.drivers) setDrivers(res.drivers);
       } else if (activeTab === 'LEGS') {
         const res = await gqlRequest<{ legDefinitions: any[] }>(
           `query GetLegs($passengerType: String, $search: String) {
@@ -193,25 +242,18 @@ export const MasterDataPage: React.FC = () => {
             search: search || undefined,
           }
         );
-        const filteredLegs = (res.legDefinitions || [])
-          .filter(
-            (l) =>
-              search ||
-              (!/^(test|Lượt E2E)/i.test(String(l.legName || '')) &&
-                !String(l.legCode || '').startsWith('LEG_UI_'))
-          )
-          .sort((a, b) => {
-            if (a.passengerType !== b.passengerType) {
-              return a.passengerType === 'STAFF' ? -1 : 1;
-            }
-            return Number(a.displayOrder || 0) - Number(b.displayOrder || 0);
-          });
-        setLegs(filteredLegs);
+        const sortedLegs = [...(res.legDefinitions || [])].sort((a, b) => {
+          if (a.passengerType !== b.passengerType) {
+            return a.passengerType === 'STAFF' ? -1 : 1;
+          }
+          return Number(a.displayOrder || 0) - Number(b.displayOrder || 0);
+        });
+        setLegs(sortedLegs);
       } else if (activeTab === 'ROUTES') {
         const fastRes = await gqlRequest<any>(
           `query GetRoutesFast($passengerType: String, $runDays: String, $search: String) {
             routes(passengerType: $passengerType, runDays: $runDays, search: $search) {
-              id routeCode routeName routeClass passengerType runDays activeFlag
+              id routeCode routeName routeClass passengerType runDays activeFlag riderCount
             }
           }`,
           {
@@ -235,11 +277,11 @@ export const MasterDataPage: React.FC = () => {
         gqlRequest<any>(
           `query GetRoutesAndRefs($passengerType: String, $runDays: String, $search: String) {
             routes(passengerType: $passengerType, runDays: $runDays, search: $search) {
-              id routeCode routeName routeClass passengerType runDays activeFlag
+              id routeCode routeName routeClass passengerType runDays activeFlag riderCount
               vendor { id vendorName }
               routeVehicles {
                 id vehicleId driverId displayOrder
-                vehicle { id vehiclePlate seatCapacity }
+                vehicle { id vehiclePlate seatCapacity commutePackageMode }
                 driver { id driverName phoneNumber }
               }
               segments {
@@ -247,14 +289,15 @@ export const MasterDataPage: React.FC = () => {
                 defaultVehicleId defaultDriverId sequenceOrder activeFlag
                 defaultVehicle { id vehiclePlate }
                 defaultDriver { id driverName }
-                segmentPoints { id pointId pointRole stopOrder point { id pointCode pointName } }
+                segmentPoints { id pointId pointRole stopOrder plannedTime point { id pointCode pointName pointType } }
                 segmentShifts { id shiftId shift { id shiftCode shiftName } }
               }
             }
             points(activeFlag: "Y") { id pointCode pointName pointType isFactory }
-            vehicles(activeFlag: "Y") { id vehiclePlate vehicleType seatCapacity }
+            vehicles(activeFlag: "Y") { id vehiclePlate vehicleType seatCapacity commutePackageMode }
             drivers(activeFlag: "Y") { id driverName phoneNumber }
-            legDefinitions { id legCode legName passengerType direction isDeadhead }
+            legDefinitions { id legCode legName passengerType direction isDeadhead activeFlag }
+            shifts(transportFlag: "Y") { id shiftCode shiftName startTime endTime }
           }`,
           {
             passengerType: passengerTypeFilter || undefined,
@@ -268,6 +311,7 @@ export const MasterDataPage: React.FC = () => {
             setVehicles(res.vehicles || []);
             setDrivers(res.drivers || []);
             setLegs(res.legDefinitions || []);
+            if (res.shifts) setShifts(res.shifts);
           })
           .catch(() => {});
       } else if (activeTab === 'ETP') {
@@ -281,25 +325,36 @@ export const MasterDataPage: React.FC = () => {
               limit: 200
             ) {
               id employeeId routeId pickupPointId dropoffPointId effectiveFrom effectiveTo
-              activeFlag approvalStatus rejectReason isProvisional provTempCode provFullName createDate
-              employee { id empCode fullName orgUnit { name } }
+              activeFlag approvalStatus rejectReason leaveDate endReasonCode
+              isProvisional provTempCode provFullName provOrgUnitId provShiftId provWorkDayMask createDate
+              employee { id empCode fullName leaveDate orgUnit { id name } }
               route { id routeCode routeName passengerType }
               pickupPoint { id pointCode pointName }
               dropoffPoint { id pointCode pointName }
             }
+            provisionalCount
             routes(activeFlag: "Y") {
               id routeCode routeName passengerType
+              segments {
+                id
+                segmentPoints {
+                  id pointId pointRole stopOrder
+                  point { id pointCode pointName pointType }
+                }
+              }
             }
             points(activeFlag: "Y") { id pointCode pointName pointType }
           }`,
           {
             passengerType: passengerTypeFilter || undefined,
-            approvalStatus: etpStatusFilter || undefined,
+            approvalStatus:
+              etpStatusFilter && etpStatusFilter !== 'RESIGNED' ? etpStatusFilter : undefined,
             activeFlag: activeFlagFilter || undefined,
             search: search || undefined,
           }
         );
         setEtpProfiles(res.employeeTransportProfiles || []);
+        setProvisionalTotalCount(Number(res.provisionalCount ?? 0));
         const sortedRoutes = [...(res.routes || [])].sort((a, b) => {
           const an = String(a.routeName || '');
           const bn = String(b.routeName || '');
@@ -317,8 +372,10 @@ export const MasterDataPage: React.FC = () => {
               id versionCode configType passengerType vehicleType pricingScope currencyCode
               effectiveFrom effectiveTo activeFlag
               rules {
-                id ruleCode rateType dayType minDistanceKm maxDistanceKm dailyTripCount
-                includedDistanceKm unitPrice priceUnit description activeFlag
+                id ruleCode rateType dayType minDistanceKm maxDistanceKm
+                minDistanceInclusiveFlag maxDistanceInclusiveFlag
+                dailyTripCount includedDistanceKm unitPrice priceUnit
+                stackableFlag priority description activeFlag
               }
             }
           }`,
@@ -378,18 +435,75 @@ export const MasterDataPage: React.FC = () => {
     try {
       if (pointModal.id) {
         await gqlRequest(
-          `mutation UpdatePoint($id: BigInt!, $pointName: String, $pointType: String, $districtName: String, $address: String, $isFactory: String, $activeFlag: String) {
-            updatePoint(id: $id, pointName: $pointName, pointType: $pointType, districtName: $districtName, address: $address, isFactory: $isFactory, activeFlag: $activeFlag) { id }
+          `mutation UpdatePoint(
+            $id: BigInt!
+            $pointCode: String
+            $pointName: String
+            $pointType: String
+            $districtName: String
+            $address: String
+            $isFactory: String
+            $activeFlag: String
+          ) {
+            updatePoint(
+              id: $id
+              pointCode: $pointCode
+              pointName: $pointName
+              pointType: $pointType
+              districtName: $districtName
+              address: $address
+              isFactory: $isFactory
+              activeFlag: $activeFlag
+            ) { id }
           }`,
-          pointModal
+          {
+            id: pointModal.id,
+            pointCode: pointModal.pointCode,
+            pointName: pointModal.pointName,
+            pointType: pointModal.pointType,
+            districtName: pointModal.districtName || '',
+            address: pointModal.address || '',
+            isFactory: pointModal.isFactory || 'N',
+            activeFlag: pointModal.activeFlag || 'Y',
+          }
         );
-        showToast('Đã cập nhật điểm đón/trả thành công');
+        if (Number(pointModal.segmentUsageCount || 0) > 0) {
+          showToast(
+            `Đã cập nhật điểm ${pointModal.pointCode} (đang dùng trên ${pointModal.segmentUsageCount} chặng tuyến)`
+          );
+        } else {
+          showToast('Đã cập nhật điểm đón/trả thành công');
+        }
       } else {
         await gqlRequest(
-          `mutation CreatePoint($pointCode: String!, $pointName: String!, $pointType: String!, $districtName: String, $address: String, $isFactory: String) {
-            createPoint(pointCode: $pointCode, pointName: $pointName, pointType: $pointType, districtName: $districtName, address: $address, isFactory: $isFactory) { id }
+          `mutation CreatePoint(
+            $pointCode: String!
+            $pointName: String!
+            $pointType: String!
+            $districtName: String
+            $address: String
+            $isFactory: String
+            $activeFlag: String
+          ) {
+            createPoint(
+              pointCode: $pointCode
+              pointName: $pointName
+              pointType: $pointType
+              districtName: $districtName
+              address: $address
+              isFactory: $isFactory
+              activeFlag: $activeFlag
+            ) { id }
           }`,
-          pointModal
+          {
+            pointCode: pointModal.pointCode,
+            pointName: pointModal.pointName,
+            pointType: pointModal.pointType || 'PICKUP',
+            districtName: pointModal.districtName || '',
+            address: pointModal.address || '',
+            isFactory: pointModal.isFactory || 'N',
+            activeFlag: pointModal.activeFlag || 'Y',
+          }
         );
         showToast('Đã tạo điểm đón/trả mới thành công');
       }
@@ -404,10 +518,37 @@ export const MasterDataPage: React.FC = () => {
     try {
       const nextFlag = pt.activeFlag === 'Y' ? 'N' : 'Y';
       await gqlRequest(
-        `mutation TogglePoint($id: BigInt!, $activeFlag: String) {
-          updatePoint(id: $id, activeFlag: $activeFlag) { id }
+        `mutation TogglePoint(
+          $id: BigInt!
+          $pointCode: String
+          $pointName: String
+          $pointType: String
+          $districtName: String
+          $address: String
+          $isFactory: String
+          $activeFlag: String
+        ) {
+          updatePoint(
+            id: $id
+            pointCode: $pointCode
+            pointName: $pointName
+            pointType: $pointType
+            districtName: $districtName
+            address: $address
+            isFactory: $isFactory
+            activeFlag: $activeFlag
+          ) { id }
         }`,
-        { id: pt.id, activeFlag: nextFlag }
+        {
+          id: pt.id,
+          pointCode: pt.pointCode,
+          pointName: pt.pointName,
+          pointType: pt.pointType,
+          districtName: pt.districtName || undefined,
+          address: pt.address || undefined,
+          isFactory: pt.isFactory || 'N',
+          activeFlag: nextFlag,
+        }
       );
       showToast(`Đã ${nextFlag === 'Y' ? 'bật' : 'tắt'} hoạt động điểm ${pt.pointCode}`);
       loadTabData();
@@ -435,8 +576,7 @@ export const MasterDataPage: React.FC = () => {
   const handleSaveDriver = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const effectiveActiveFlag =
-        driverModal.accountMode === 'NONE' ? 'N' : driverModal.activeFlag || 'Y';
+      const effectiveActiveFlag = driverModal.activeFlag || 'Y';
       if (driverModal.id) {
         await gqlRequest(
           `mutation UpdateDriver($id: BigInt!, $driverName: String, $phoneNumber: String, $shortAddress: String, $fullAddress: String, $accountMode: String, $identityUserId: BigInt, $username: String, $password: String, $activeFlag: String) {
@@ -474,6 +614,25 @@ export const MasterDataPage: React.FC = () => {
     }
   };
 
+  const handleToggleDriverActive = async (drv: any) => {
+    const nextFlag = drv.activeFlag === 'Y' ? 'N' : 'Y';
+    try {
+      await gqlRequest(
+        `mutation ToggleDriver($id: BigInt!, $activeFlag: String) {
+          updateDriver(id: $id, activeFlag: $activeFlag) { id activeFlag }
+        }`,
+        { id: drv.id, activeFlag: nextFlag }
+      );
+      showToast(
+        `Đã ${nextFlag === 'Y' ? 'kích hoạt' : 'ngừng hoạt động'} tài xế ${drv.driverName}`
+      );
+      loadTabData();
+      loadAllLookups();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   const handleDeleteDriver = async (drv: any) => {
     if (!confirm(`Xác nhận xóa tài xế ${drv.driverName}?`)) return;
     try {
@@ -493,34 +652,37 @@ export const MasterDataPage: React.FC = () => {
   const handleSaveVehicle = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const normalizedOwnership =
+        vehicleModal.ownershipType === 'OUTSOURCED'
+          ? 'RENTAL'
+          : vehicleModal.ownershipType || 'RENTAL';
       const payload = {
         ...vehicleModal,
-        ownershipType:
-          vehicleModal.ownershipType === 'OUTSOURCED'
-            ? 'RENTAL'
-            : vehicleModal.ownershipType || 'RENTAL',
+        ownershipType: normalizedOwnership,
         vendorId: vehicleModal.vendorId || undefined,
+        defaultDriverId: vehicleModal.defaultDriverId || undefined,
         dailyTripQuota:
-          vehicleModal.commutePackageMode === 'BY_SEGMENT' && vehicleModal.dailyTripQuota
-            ? Number(vehicleModal.dailyTripQuota)
+          vehicleModal.commutePackageMode === 'BY_SEGMENT'
+            ? Number(vehicleModal.dailyTripQuota || 2)
             : undefined,
         monthlyKmQuota:
-          vehicleModal.commutePackageMode === 'BY_SEGMENT' && vehicleModal.monthlyKmQuota
-            ? String(vehicleModal.monthlyKmQuota)
+          vehicleModal.commutePackageMode === 'BY_SEGMENT'
+            ? String(vehicleModal.monthlyKmQuota || '25')
             : undefined,
+        activeFlag: vehicleModal.activeFlag || 'Y',
       };
       if (vehicleModal.id) {
         await gqlRequest(
-          `mutation UpdateVehicle($id: BigInt!, $vehiclePlate: String, $vendorId: BigInt, $vehicleType: String, $ownershipType: String, $commutePackageMode: String, $dailyTripQuota: Int, $monthlyKmQuota: Decimal, $activeFlag: String) {
-            updateVehicle(id: $id, vehiclePlate: $vehiclePlate, vendorId: $vendorId, vehicleType: $vehicleType, ownershipType: $ownershipType, commutePackageMode: $commutePackageMode, dailyTripQuota: $dailyTripQuota, monthlyKmQuota: $monthlyKmQuota, activeFlag: $activeFlag) { id }
+          `mutation UpdateVehicle($id: BigInt!, $vehiclePlate: String, $vendorId: BigInt, $vehicleType: String, $ownershipType: String, $commutePackageMode: String, $dailyTripQuota: Int, $monthlyKmQuota: Decimal, $defaultDriverId: BigInt, $activeFlag: String) {
+            updateVehicle(id: $id, vehiclePlate: $vehiclePlate, vendorId: $vendorId, vehicleType: $vehicleType, ownershipType: $ownershipType, commutePackageMode: $commutePackageMode, dailyTripQuota: $dailyTripQuota, monthlyKmQuota: $monthlyKmQuota, defaultDriverId: $defaultDriverId, activeFlag: $activeFlag) { id }
           }`,
           payload
         );
         showToast('Đã cập nhật thông tin xe');
       } else {
         await gqlRequest(
-          `mutation CreateVehicle($vehiclePlate: String!, $vendorId: BigInt, $vehicleType: String!, $ownershipType: String!, $commutePackageMode: String, $dailyTripQuota: Int, $monthlyKmQuota: Decimal) {
-            createVehicle(vehiclePlate: $vehiclePlate, vendorId: $vendorId, vehicleType: $vehicleType, ownershipType: $ownershipType, commutePackageMode: $commutePackageMode, dailyTripQuota: $dailyTripQuota, monthlyKmQuota: $monthlyKmQuota) { id }
+          `mutation CreateVehicle($vehiclePlate: String!, $vendorId: BigInt, $vehicleType: String!, $ownershipType: String!, $commutePackageMode: String, $dailyTripQuota: Int, $monthlyKmQuota: Decimal, $defaultDriverId: BigInt, $activeFlag: String) {
+            createVehicle(vehiclePlate: $vehiclePlate, vendorId: $vendorId, vehicleType: $vehicleType, ownershipType: $ownershipType, commutePackageMode: $commutePackageMode, dailyTripQuota: $dailyTripQuota, monthlyKmQuota: $monthlyKmQuota, defaultDriverId: $defaultDriverId, activeFlag: $activeFlag) { id }
           }`,
           payload
         );
@@ -528,6 +690,24 @@ export const MasterDataPage: React.FC = () => {
       }
       setVehicleModal(null);
       loadTabData();
+      loadAllLookups();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleToggleVehicleActive = async (v: any) => {
+    const nextFlag = v.activeFlag === 'Y' ? 'N' : 'Y';
+    try {
+      await gqlRequest(
+        `mutation ToggleVehicle($id: BigInt!, $activeFlag: String) {
+          updateVehicle(id: $id, activeFlag: $activeFlag) { id activeFlag }
+        }`,
+        { id: v.id, activeFlag: nextFlag }
+      );
+      showToast(`Đã ${nextFlag === 'Y' ? 'kích hoạt' : 'ngừng hoạt động'} xe ${v.vehiclePlate}`);
+      loadTabData();
+      loadAllLookups();
     } catch (err: any) {
       alert(err.message);
     }
@@ -556,6 +736,7 @@ export const MasterDataPage: React.FC = () => {
         ...legModal,
         displayOrder: Number(legModal.displayOrder || 1),
         direction: legModal.isDeadhead === 'Y' ? 'TO_FACTORY' : legModal.direction,
+        activeFlag: legModal.activeFlag || 'Y',
       };
       if (legModal.id) {
         await gqlRequest(
@@ -567,8 +748,8 @@ export const MasterDataPage: React.FC = () => {
         showToast('Đã cập nhật lượt chạy');
       } else {
         await gqlRequest(
-          `mutation CreateLeg($legCode: String!, $legName: String!, $passengerType: String!, $displayOrder: Int, $direction: String!, $isDeadhead: String) {
-            createLegDefinition(legCode: $legCode, legName: $legName, passengerType: $passengerType, displayOrder: $displayOrder, direction: $direction, isDeadhead: $isDeadhead) { id }
+          `mutation CreateLeg($legCode: String!, $legName: String!, $passengerType: String!, $displayOrder: Int, $direction: String!, $isDeadhead: String, $activeFlag: String) {
+            createLegDefinition(legCode: $legCode, legName: $legName, passengerType: $passengerType, displayOrder: $displayOrder, direction: $direction, isDeadhead: $isDeadhead, activeFlag: $activeFlag) { id }
           }`,
           payload
         );
@@ -576,6 +757,26 @@ export const MasterDataPage: React.FC = () => {
       }
       setLegModal(null);
       loadTabData();
+      loadAllLookups();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleToggleLegActive = async (leg: any) => {
+    const nextFlag = leg.activeFlag === 'Y' ? 'N' : 'Y';
+    try {
+      await gqlRequest(
+        `mutation ToggleLeg($id: BigInt!, $activeFlag: String) {
+          updateLegDefinition(id: $id, activeFlag: $activeFlag) { id activeFlag }
+        }`,
+        { id: leg.id, activeFlag: nextFlag }
+      );
+      showToast(
+        `Đã ${nextFlag === 'Y' ? 'kích hoạt' : 'ngừng hoạt động'} lượt chạy ${leg.legCode}`
+      );
+      loadTabData();
+      loadAllLookups();
     } catch (err: any) {
       alert(err.message);
     }
@@ -603,9 +804,11 @@ export const MasterDataPage: React.FC = () => {
     try {
       const payload = {
         ...routeModal,
-        runDays: routeModal.passengerType === 'WORKER' ? 'MON_SUN' : routeModal.runDays,
+        runDays: routeModal.runDays || 'MON_SAT',
         routeVehicles:
-          routeModal.passengerType === 'WORKER' ? routeModal.routeVehicles || [] : [],
+          routeModal.passengerType === 'WORKER'
+            ? (routeModal.routeVehicles || []).filter((rv: any) => rv.vehicleId)
+            : [],
         segments: (routeModal.segments || []).map((s: any, idx: number) => ({
           legDefinitionId: s.legDefinitionId || undefined,
           legCode: s.legCode || `LEG_${idx + 1}`,
@@ -641,6 +844,38 @@ export const MasterDataPage: React.FC = () => {
       }
       setRouteModal(null);
       loadTabData();
+      loadAllLookups();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleToggleRouteActive = async (rt: any) => {
+    const nextFlag = rt.activeFlag === 'Y' ? 'N' : 'Y';
+    try {
+      await gqlRequest(
+        `mutation ToggleRoute($id: BigInt!, $activeFlag: String) {
+          updateRoute(id: $id, activeFlag: $activeFlag) { id activeFlag }
+        }`,
+        { id: rt.id, activeFlag: nextFlag }
+      );
+      showToast(`Đã ${nextFlag === 'Y' ? 'kích hoạt' : 'ngừng hoạt động'} tuyến ${rt.routeName}`);
+      loadTabData();
+      loadAllLookups();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteRoute = async (rt: any) => {
+    if (!confirm(`Xác nhận xóa tuyến xe ${rt.routeCode} - ${rt.routeName}?`)) return;
+    try {
+      await gqlRequest(`mutation DelRoute($id: BigInt!) { deleteRoute(id: $id) { id } }`, {
+        id: rt.id,
+      });
+      showToast(`Đã xóa tuyến ${rt.routeName}`);
+      loadTabData();
+      loadAllLookups();
     } catch (err: any) {
       alert(err.message);
     }
@@ -652,17 +887,81 @@ export const MasterDataPage: React.FC = () => {
   const handleCreateEtp = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await gqlRequest(
-        `mutation CreateEtp($employeeId: BigInt!, $routeId: BigInt!, $pickupPointId: BigInt!, $dropoffPointId: BigInt, $effectiveFrom: String!) {
-          createEtpRegistration(employeeId: $employeeId, routeId: $routeId, pickupPointId: $pickupPointId, dropoffPointId: $dropoffPointId, effectiveFrom: $effectiveFrom) { id }
-        }`,
-        {
-          ...etpCreateModal,
-          dropoffPointId: etpCreateModal.dropoffPointId || undefined,
-        }
-      );
-      showToast('Đã thêm đăng ký người đi xe tuyến');
+      if (etpCreateModal.isProvisionalMode) {
+        const tempCode =
+          (etpCreateModal.provTempCode || '').trim() ||
+          `TEMP-${Date.now().toString().slice(-6)}`;
+        await gqlRequest(
+          `mutation CreateProvEtp(
+            $provTempCode: String!,
+            $provFullName: String!,
+            $provOrgUnitId: BigInt,
+            $provShiftId: BigInt,
+            $provWorkDayMask: String,
+            $routeId: BigInt!,
+            $pickupPointId: BigInt!,
+            $dropoffPointId: BigInt,
+            $effectiveFrom: String!
+          ) {
+            createProvisionalEtp(
+              provTempCode: $provTempCode,
+              provFullName: $provFullName,
+              provOrgUnitId: $provOrgUnitId,
+              provShiftId: $provShiftId,
+              provWorkDayMask: $provWorkDayMask,
+              routeId: $routeId,
+              pickupPointId: $pickupPointId,
+              dropoffPointId: $dropoffPointId,
+              effectiveFrom: $effectiveFrom
+            ) { id }
+          }`,
+          {
+            provTempCode: tempCode,
+            provFullName: etpCreateModal.provFullName,
+            provOrgUnitId: etpCreateModal.provOrgUnitId || undefined,
+            provShiftId: etpCreateModal.provShiftId || undefined,
+            provWorkDayMask: etpCreateModal.provWorkDayMask || 'MON_SAT',
+            routeId: etpCreateModal.routeId,
+            pickupPointId: etpCreateModal.pickupPointId,
+            dropoffPointId: etpCreateModal.dropoffPointId || undefined,
+            effectiveFrom: etpCreateModal.effectiveFrom,
+          }
+        );
+        showToast(`Đã tạo hồ sơ tạm chưa có mã NV (${tempCode})`);
+      } else {
+        await gqlRequest(
+          `mutation CreateEtp($employeeId: BigInt!, $routeId: BigInt!, $pickupPointId: BigInt!, $dropoffPointId: BigInt, $effectiveFrom: String!) {
+            createEtpRegistration(employeeId: $employeeId, routeId: $routeId, pickupPointId: $pickupPointId, dropoffPointId: $dropoffPointId, effectiveFrom: $effectiveFrom) { id }
+          }`,
+          {
+            employeeId: etpCreateModal.employeeId,
+            routeId: etpCreateModal.routeId,
+            pickupPointId: etpCreateModal.pickupPointId,
+            dropoffPointId: etpCreateModal.dropoffPointId || undefined,
+            effectiveFrom: etpCreateModal.effectiveFrom,
+          }
+        );
+        showToast('Đã thêm đăng ký người đi xe tuyến');
+      }
       setEtpCreateModal(null);
+      loadTabData();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleLinkProvisionalEtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!etpLinkModal?.id || !etpLinkModal?.employeeId) return;
+    try {
+      await gqlRequest(
+        `mutation LinkProvEtp($id: BigInt!, $employeeId: BigInt!) {
+          linkProvisionalEtp(id: $id, employeeId: $employeeId) { id isProvisional employeeId }
+        }`,
+        { id: etpLinkModal.id, employeeId: etpLinkModal.employeeId }
+      );
+      showToast('Đã gắn mã nhân viên chính thức cho hồ sơ tạm');
+      setEtpLinkModal(null);
       loadTabData();
     } catch (err: any) {
       alert(err.message);
@@ -701,10 +1000,14 @@ export const MasterDataPage: React.FC = () => {
     e.preventDefault();
     try {
       await gqlRequest(
-        `mutation DeactivateEtp($id: BigInt!, $effectiveTo: String!) {
-          deactivateEtpRegistration(id: $id, effectiveTo: $effectiveTo) { id }
+        `mutation DeactivateEtp($id: BigInt!, $effectiveTo: String!, $reason: String) {
+          deactivateEtpRegistration(id: $id, effectiveTo: $effectiveTo, reason: $reason) { id }
         }`,
-        { id: etpDeactivateModal.id, effectiveTo: etpDeactivateModal.effectiveTo }
+        {
+          id: etpDeactivateModal.id,
+          effectiveTo: etpDeactivateModal.effectiveTo,
+          reason: etpDeactivateModal.reason || undefined,
+        }
       );
       showToast('Đã ngừng sử dụng xe tuyến');
       setEtpDeactivateModal(null);
@@ -747,11 +1050,172 @@ export const MasterDataPage: React.FC = () => {
       );
       showToast('Đã xóa đăng ký tương lai');
       if (etpHistoryModal?.employee) {
-        openEtpHistory({ employeeId: etpHistoryModal.employee.id, employee: etpHistoryModal.employee });
+        openEtpHistory({
+          employeeId: etpHistoryModal.employee.id,
+          employee: etpHistoryModal.employee,
+        });
       }
       loadTabData();
     } catch (err: any) {
       alert(err.message);
+    }
+  };
+
+  const downloadEtpSampleCsv = () => {
+    const sampleRoute = routes[0]?.routeCode || 'RT_STAFF_01';
+    const samplePickup = points[0]?.pointCode || 'PT_CAUGIAY';
+    const sampleDropoff = points[1]?.pointCode || 'PT_FACTORY';
+    const sampleEmp = employees[0]?.empCode || 'MK00101';
+    const tomorrow = new Date(Date.now() + 31 * 3600 * 1000).toISOString().slice(0, 10);
+    const csvContent =
+      etpImportMode === 'PROVISIONAL'
+        ? `MaTam,HoTen,MaTuyen,MaDiemDon,MaDiemTra,HieuLucTu\nTEMP-001,Nguyễn Văn Tân,${sampleRoute},${samplePickup},${sampleDropoff},${tomorrow}\nTEMP-002,Trần Thị Mai,${sampleRoute},${samplePickup},${sampleDropoff},${tomorrow}`
+        : `MaNhanVien,HoTen,MaTuyen,MaDiemDon,MaDiemTra,HieuLucTu\n${sampleEmp},Nguyễn Văn A,${sampleRoute},${samplePickup},${sampleDropoff},${tomorrow}`;
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download =
+      etpImportMode === 'PROVISIONAL'
+        ? 'TRMS_ETP_Provisional_Template.csv'
+        : 'TRMS_ETP_Standard_Template.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const parseEtpImportText = (raw: string) => {
+    setEtpImportRawText(raw);
+    const lines = raw
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+    if (lines.length === 0) {
+      setEtpImportPreviewRows([]);
+      return;
+    }
+    const startIdx =
+      lines[0].toLowerCase().includes('manhanvien') ||
+      lines[0].toLowerCase().includes('matam') ||
+      lines[0].toLowerCase().includes('mã') ||
+      lines[0].toLowerCase().includes('empcode')
+        ? 1
+        : 0;
+    const tomorrow = new Date(Date.now() + 31 * 3600 * 1000).toISOString().slice(0, 10);
+    const parsed = lines.slice(startIdx).map((line, i) => {
+      const cols = line.split(/[,;\t]/).map((c) => c.trim());
+      const code = cols[0] || '';
+      const fullName = cols[1] || '';
+      const routeCodeOrName = cols[2] || '';
+      const pickupCodeOrName = cols[3] || '';
+      const dropoffCodeOrName = cols[4] || '';
+      const effectiveFrom = cols[5] || tomorrow;
+
+      const matchedEmp = employees.find(
+        (e) =>
+          String(e.empCode || '').toLowerCase() === code.toLowerCase() ||
+          String(e.id) === code
+      );
+      const matchedRoute =
+        routes.find(
+          (r) =>
+            String(r.routeCode || '').toLowerCase() === routeCodeOrName.toLowerCase() ||
+            String(r.routeName || '').toLowerCase() === routeCodeOrName.toLowerCase() ||
+            String(r.id) === routeCodeOrName
+        ) || routes[0];
+      const matchedPickup =
+        points.find(
+          (p) =>
+            String(p.pointCode || '').toLowerCase() === pickupCodeOrName.toLowerCase() ||
+            String(p.pointName || '').toLowerCase() === pickupCodeOrName.toLowerCase() ||
+            String(p.id) === pickupCodeOrName
+        ) || points[0];
+      const matchedDropoff = dropoffCodeOrName
+        ? points.find(
+            (p) =>
+              String(p.pointCode || '').toLowerCase() === dropoffCodeOrName.toLowerCase() ||
+              String(p.pointName || '').toLowerCase() === dropoffCodeOrName.toLowerCase() ||
+              String(p.id) === dropoffCodeOrName
+          )
+        : undefined;
+
+      const isProv =
+        etpImportMode === 'PROVISIONAL' || code.toUpperCase().startsWith('TEMP-') || !matchedEmp;
+      const valid = Boolean(
+        matchedRoute && matchedPickup && (isProv ? fullName || code : matchedEmp)
+      );
+
+      return {
+        rowNo: i + 1,
+        code: code || `TEMP-${Date.now().toString().slice(-4)}-${i + 1}`,
+        fullName: matchedEmp?.fullName || fullName || `Nhân viên ${i + 1}`,
+        employeeId: matchedEmp?.id || '',
+        isProvisional: isProv,
+        routeId: matchedRoute?.id || '',
+        routeLabel: matchedRoute ? `${matchedRoute.routeCode} - ${matchedRoute.routeName}` : '—',
+        pickupPointId: matchedPickup?.id || '',
+        pickupLabel: matchedPickup
+          ? `${matchedPickup.pointCode} - ${matchedPickup.pointName}`
+          : '—',
+        dropoffPointId: matchedDropoff?.id || '',
+        dropoffLabel: matchedDropoff
+          ? `${matchedDropoff.pointCode} - ${matchedDropoff.pointName}`
+          : '—',
+        effectiveFrom,
+        valid,
+      };
+    });
+    setEtpImportPreviewRows(parsed);
+  };
+
+  const handleConfirmEtpImport = async () => {
+    const validRows = etpImportPreviewRows.filter((r) => r.valid);
+    if (validRows.length === 0) {
+      alert('Vui lòng tải file CSV/TSV hoặc dán dữ liệu hợp lệ vào bảng Xem trước trước khi Import.');
+      return;
+    }
+    setEtpImportSubmitting(true);
+    let okCount = 0;
+    try {
+      for (const row of validRows) {
+        if (row.isProvisional || !row.employeeId) {
+          await gqlRequest(
+            `mutation ImportProv($provTempCode: String!, $provFullName: String!, $routeId: BigInt!, $pickupPointId: BigInt!, $dropoffPointId: BigInt, $effectiveFrom: String!) {
+              createProvisionalEtp(provTempCode: $provTempCode, provFullName: $provFullName, routeId: $routeId, pickupPointId: $pickupPointId, dropoffPointId: $dropoffPointId, effectiveFrom: $effectiveFrom) { id }
+            }`,
+            {
+              provTempCode: row.code,
+              provFullName: row.fullName,
+              routeId: row.routeId,
+              pickupPointId: row.pickupPointId,
+              dropoffPointId: row.dropoffPointId || undefined,
+              effectiveFrom: row.effectiveFrom,
+            }
+          );
+        } else {
+          await gqlRequest(
+            `mutation ImportStd($employeeId: BigInt!, $routeId: BigInt!, $pickupPointId: BigInt!, $dropoffPointId: BigInt, $effectiveFrom: String!) {
+              createEtpRegistration(employeeId: $employeeId, routeId: $routeId, pickupPointId: $pickupPointId, dropoffPointId: $dropoffPointId, effectiveFrom: $effectiveFrom) { id }
+            }`,
+            {
+              employeeId: row.employeeId,
+              routeId: row.routeId,
+              pickupPointId: row.pickupPointId,
+              dropoffPointId: row.dropoffPointId || undefined,
+              effectiveFrom: row.effectiveFrom,
+            }
+          );
+        }
+        okCount++;
+      }
+      showToast(`Đã import thành công ${okCount}/${validRows.length} hồ sơ đi xe tuyến`);
+      setEtpImportModal(false);
+      setEtpImportPreviewRows([]);
+      setEtpImportRawText('');
+      loadTabData();
+    } catch (err: any) {
+      alert(`Đã xử lý ${okCount} dòng. Lỗi: ${err.message}`);
+    } finally {
+      setEtpImportSubmitting(false);
     }
   };
 
@@ -761,18 +1225,38 @@ export const MasterDataPage: React.FC = () => {
   const handleSaveCostConfig = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const normalizedRules = (costConfigModal.rules || []).map((r: any, i: number) => ({
+        ruleCode: r.ruleCode || `RULE_${i + 1}`,
+        rateType: r.rateType || 'MONTHLY_FIXED',
+        dayType: r.dayType || 'WEEKDAY',
+        minDistanceKm: r.minDistanceKm ? String(r.minDistanceKm) : undefined,
+        maxDistanceKm: r.maxDistanceKm ? String(r.maxDistanceKm) : undefined,
+        dailyTripCount: r.dailyTripCount ? Number(r.dailyTripCount) : undefined,
+        includedDistanceKm: r.includedDistanceKm ? String(r.includedDistanceKm) : undefined,
+        unitPrice: String(r.unitPrice || '0'),
+        priceUnit: r.priceUnit || 'VND_PER_MONTH',
+        stackableFlag: r.stackableFlag || 'N',
+        priority: Number(r.priority || i + 1),
+        description: r.description || '',
+      }));
+
       await gqlRequest(
         `mutation UpsertCostConfig(
-          $versionCode: String!,
+          $id: BigInt,
+          $previousConfigId: BigInt,
+          $versionCode: String,
           $configType: String!,
           $passengerType: String!,
           $vehicleType: String!,
           $pricingScope: String,
           $effectiveFrom: String!,
           $effectiveTo: String,
+          $activeFlag: String,
           $rules: [CostConfigRuleInput!]!
         ) {
           upsertCostConfig(
+            id: $id,
+            previousConfigId: $previousConfigId,
             versionCode: $versionCode,
             configType: $configType,
             passengerType: $passengerType,
@@ -780,20 +1264,42 @@ export const MasterDataPage: React.FC = () => {
             pricingScope: $pricingScope,
             effectiveFrom: $effectiveFrom,
             effectiveTo: $effectiveTo,
+            activeFlag: $activeFlag,
             rules: $rules
-          ) { id }
+          ) { id versionCode }
         }`,
         {
-          ...costConfigModal,
+          id: costConfigModal.id || undefined,
+          previousConfigId: costConfigModal.previousConfigId || undefined,
+          versionCode: costConfigModal.versionCode,
+          configType: costConfigModal.configType,
+          passengerType: costConfigModal.passengerType,
+          vehicleType: costConfigModal.vehicleType,
+          effectiveFrom: costConfigModal.effectiveFrom,
           effectiveTo: costConfigModal.effectiveTo || undefined,
+          activeFlag: costConfigModal.activeFlag || 'Y',
           pricingScope:
             costConfigModal.configType === 'EXTRA' && costConfigModal.passengerType === 'WORKER'
               ? costConfigModal.pricingScope || 'STANDARD'
-              : undefined,
+              : costConfigModal.pricingScope || undefined,
+          rules: normalizedRules,
         }
       );
       showToast('Đã lưu phiên bản cấu hình chi phí');
       setCostConfigModal(null);
+      loadTabData();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteCostConfig = async (cfg: any) => {
+    if (!confirm(`Xác nhận xóa phiên bản cấu hình chi phí ${cfg.versionCode}?`)) return;
+    try {
+      await gqlRequest(`mutation DelCostCfg($id: BigInt!) { deleteCostConfig(id: $id) { id } }`, {
+        id: cfg.id,
+      });
+      showToast(`Đã xóa phiên bản ${cfg.versionCode}`);
       loadTabData();
     } catch (err: any) {
       alert(err.message);
@@ -867,12 +1373,19 @@ export const MasterDataPage: React.FC = () => {
   const kw = search.trim().toLowerCase();
 
   const distinctDistricts = Array.from(
-    new Set(
-      points
+    new Set([
+      ...STANDARD_DISTRICTS,
+      ...points
         .map((p) => String(p.districtName || '').trim())
-        .filter((d) => d.length > 0)
-    )
+        .filter((d) => d.length > 0),
+    ])
   ).sort((a, b) => a.localeCompare(b, 'vi'));
+
+  const assignedDriverIds = new Set(
+    vehicles
+      .map((v) => String(v.defaultDriverId || v.defaultDriver?.id || ''))
+      .filter((id) => id.length > 0)
+  );
 
   const filteredPoints = points
     .filter((pt) => !pointTypeSingleFilter || pt.pointType === pointTypeSingleFilter)
@@ -893,6 +1406,15 @@ export const MasterDataPage: React.FC = () => {
       if (driverAccountFilter === 'UNLINKED') return !drv.user && !drv.identityUserId;
       return true;
     })
+    .filter((drv) => {
+      if (driverVehicleAssignFilter === 'ASSIGNED') {
+        return assignedDriverIds.has(String(drv.id)) || Number(drv.segmentUsageCount || 0) > 0;
+      }
+      if (driverVehicleAssignFilter === 'UNASSIGNED') {
+        return !assignedDriverIds.has(String(drv.id)) && Number(drv.segmentUsageCount || 0) === 0;
+      }
+      return true;
+    })
     .filter((drv) => !activeFlagFilter || drv.activeFlag === activeFlagFilter)
     .filter(
       (drv) =>
@@ -906,14 +1428,11 @@ export const MasterDataPage: React.FC = () => {
 
   const filteredVehicles = vehicles
     .filter((v) => !vehicleTypeFilter || v.vehicleType === vehicleTypeFilter)
+    .filter((v) => !vehicleOwnershipFilter || v.ownershipType === vehicleOwnershipFilter)
     .filter((v) => {
       if (!packageModeFilter) return true;
       if (packageModeFilter === 'BY_SEGMENT') return v.commutePackageMode === 'BY_SEGMENT';
-      if (packageModeFilter === 'BY_ROUTE')
-        return (
-          v.commutePackageMode === 'BY_ROUTE' ||
-          ['19H08980', '29B16247', '29B16365', '29B30791'].includes(String(v.vehiclePlate || ''))
-        );
+      if (packageModeFilter === 'BY_ROUTE') return v.commutePackageMode === 'BY_ROUTE';
       return true;
     })
     .filter((v) => !activeFlagFilter || v.activeFlag === activeFlagFilter)
@@ -927,6 +1446,22 @@ export const MasterDataPage: React.FC = () => {
 
   const filteredLegsList = legs
     .filter((l) => !passengerTypeFilter || l.passengerType === passengerTypeFilter)
+    .filter((l) => {
+      if (!legCategoryFilter) return true;
+      if (legCategoryFilter === 'EXPERT') {
+        return (
+          l.passengerType === 'EXPERT' ||
+          String(l.legCode || '').toUpperCase().includes('EXPERT') ||
+          String(l.legName || '').toLowerCase().includes('chuyên gia')
+        );
+      }
+      if (legCategoryFilter === 'COMMUTE') {
+        return l.passengerType !== 'EXPERT';
+      }
+      return true;
+    })
+    .filter((l) => !legDirectionFilter || l.direction === legDirectionFilter)
+    .filter((l) => !activeFlagFilter || l.activeFlag === activeFlagFilter)
     .filter(
       (l) =>
         !kw ||
@@ -952,11 +1487,30 @@ export const MasterDataPage: React.FC = () => {
         String(rt.routeName || '').toLowerCase().includes(kw)
     );
 
+  const isEtpProvisionalRow = (etp: any) =>
+    etp.isProvisional === 'Y' ||
+    Boolean(etp.provTempCode) ||
+    String(etp.employee?.empCode || '').startsWith('TEMP-');
+
+  const computedProvisionalCount =
+    etpProvisionalCount || etpProfiles.filter((e) => isEtpProvisionalRow(e)).length;
+
   const filteredEtpProfiles = etpProfiles
+    .filter((etp) => (etpProvisionalPill === 'PROVISIONAL' ? isEtpProvisionalRow(etp) : true))
     .filter((etp) => !passengerTypeFilter || etp.route?.passengerType === passengerTypeFilter)
     .filter((etp) => !etpStatusFilter || etp.approvalStatus === etpStatusFilter)
     .filter((etp) => !activeFlagFilter || etp.activeFlag === activeFlagFilter)
     .filter((etp) => !etpRouteFilter || String(etp.route?.id || '') === String(etpRouteFilter))
+    .filter(
+      (etp) =>
+        !etpPickupPointFilter ||
+        String(etp.pickupPointId || etp.pickupPoint?.id || '') === String(etpPickupPointFilter)
+    )
+    .filter(
+      (etp) =>
+        !etpDropoffPointFilter ||
+        String(etp.dropoffPointId || etp.dropoffPoint?.id || '') === String(etpDropoffPointFilter)
+    )
     .filter(
       (etp) =>
         !kw ||
@@ -1018,7 +1572,7 @@ export const MasterDataPage: React.FC = () => {
             ]}
           />
           <FloatingSelect
-            label="Quận/huyện"
+            label="Khu vực / Quận huyện"
             value={districtFilter}
             onChange={setDistrictFilter}
             options={distinctDistricts.map((d) => ({ value: d, label: d }))}
@@ -1047,6 +1601,15 @@ export const MasterDataPage: React.FC = () => {
             ]}
           />
           <FloatingSelect
+            label="Trạng thái gắn xe"
+            value={driverVehicleAssignFilter}
+            onChange={setDriverVehicleAssignFilter}
+            options={[
+              { value: 'ASSIGNED', label: 'Đã gắn xe' },
+              { value: 'UNASSIGNED', label: 'Chưa gắn xe' },
+            ]}
+          />
+          <FloatingSelect
             label="Trạng thái"
             value={activeFlagFilter}
             onChange={setActiveFlagFilter}
@@ -1065,10 +1628,22 @@ export const MasterDataPage: React.FC = () => {
             value={vehicleTypeFilter}
             onChange={setVehicleTypeFilter}
             options={[
-              { value: 'BUS_29', label: 'Bus 29 chỗ' },
-              { value: 'VAN_16', label: 'Van 16 chỗ' },
-              { value: 'BUS_45', label: 'Bus 45 chỗ' },
+              { value: 'SEDAN_4', label: 'Sedan 4 chỗ' },
               { value: 'SUV_7', label: 'SUV 7 chỗ' },
+              { value: 'VAN_16', label: 'Van 16 chỗ' },
+              { value: 'BUS_29', label: 'Bus 29 chỗ' },
+              { value: 'BUS_45', label: 'Bus 45 chỗ' },
+            ]}
+          />
+          <FloatingSelect
+            label="Hình thức sở hữu"
+            value={vehicleOwnershipFilter}
+            onChange={setVehicleOwnershipFilter}
+            options={[
+              { value: 'COMPANY', label: 'Xe công ty (COMPANY)' },
+              { value: 'RENTAL', label: 'Xe thuê ngoài (RENTAL)' },
+              { value: 'TAXI', label: 'Taxi (TAXI)' },
+              { value: 'CARGO', label: 'Xe tải / Hàng hóa (CARGO)' },
             ]}
           />
           <FloatingSelect
@@ -1101,6 +1676,33 @@ export const MasterDataPage: React.FC = () => {
             options={[
               { value: 'STAFF', label: 'Nhân viên' },
               { value: 'WORKER', label: 'Công nhân' },
+            ]}
+          />
+          <FloatingSelect
+            label="Loại chặng"
+            value={legCategoryFilter}
+            onChange={(val) => setLegCategoryFilter(val)}
+            options={[
+              { value: 'COMMUTE', label: 'Đưa đón tuyến (COMMUTE)' },
+              { value: 'EXPERT', label: 'Chuyên gia (EXPERT)' },
+            ]}
+          />
+          <FloatingSelect
+            label="Hướng di chuyển"
+            value={legDirectionFilter}
+            onChange={(val) => setLegDirectionFilter(val)}
+            options={[
+              { value: 'TO_FACTORY', label: 'Đến nhà máy' },
+              { value: 'FROM_FACTORY', label: 'Từ nhà máy' },
+            ]}
+          />
+          <FloatingSelect
+            label="Trạng thái"
+            value={activeFlagFilter}
+            onChange={(val) => setActiveFlagFilter(val)}
+            options={[
+              { value: 'Y', label: 'Hoạt động' },
+              { value: 'N', label: 'Không hoạt động' },
             ]}
           />
         </div>
@@ -1141,41 +1743,89 @@ export const MasterDataPage: React.FC = () => {
       )}
 
       {activeTab === 'ETP' && (
-        <div className="flex flex-wrap items-center gap-3 pt-4 pb-1">
-          <FloatingSelect
-            label="Loại hành khách"
-            value={passengerTypeFilter}
-            onChange={(val) => setPassengerTypeFilter(val)}
-            options={[
-              { value: 'STAFF', label: 'Nhân viên' },
-              { value: 'WORKER', label: 'Công nhân' },
-            ]}
-          />
-          <FloatingSelect
-            label="Tuyến xe"
-            value={etpRouteFilter}
-            onChange={(val) => setEtpRouteFilter(val)}
-            options={routes.map((r) => ({ value: String(r.id), label: r.routeName }))}
-          />
-          <FloatingSelect
-            label="Trạng thái phê duyệt"
-            value={etpStatusFilter}
-            onChange={(val) => setEtpStatusFilter(val)}
-            options={[
-              { value: 'PENDING', label: 'Đang chờ phê duyệt' },
-              { value: 'APPROVED', label: 'Đã phê duyệt' },
-              { value: 'REJECTED', label: 'Từ chối' },
-            ]}
-          />
-          <FloatingSelect
-            label="Trạng thái hoạt động"
-            value={activeFlagFilter}
-            onChange={(val) => setActiveFlagFilter(val)}
-            options={[
-              { value: 'Y', label: 'Hoạt động' },
-              { value: 'N', label: 'Không hoạt động' },
-            ]}
-          />
+        <div className="space-y-3 pt-4 pb-1">
+          {/* Pill Filter Bar: Tất cả | Chưa có mã NV (N) */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setEtpProvisionalPill('ALL')}
+              className={`h-[30px] px-3.5 rounded-full text-[12px] font-semibold transition-colors cursor-pointer ${
+                etpProvisionalPill === 'ALL'
+                  ? 'bg-[#00897b] text-white shadow-xs'
+                  : 'bg-[#f3f4f6] text-[#4b5563] hover:bg-[#e5e7eb]'
+              }`}
+            >
+              Tất cả ({etpProfiles.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setEtpProvisionalPill('PROVISIONAL')}
+              className={`h-[30px] px-3.5 rounded-full text-[12px] font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer ${
+                etpProvisionalPill === 'PROVISIONAL'
+                  ? 'bg-[#d97706] text-white shadow-xs'
+                  : 'bg-[#fef3c7] text-[#b45309] hover:bg-[#fde68a]'
+              }`}
+            >
+              <span>Chưa có mã NV</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-white/25 text-[11px] font-bold">
+                {computedProvisionalCount}
+              </span>
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <FloatingSelect
+              label="Loại hành khách"
+              value={passengerTypeFilter}
+              onChange={(val) => setPassengerTypeFilter(val)}
+              options={[
+                { value: 'STAFF', label: 'Nhân viên' },
+                { value: 'WORKER', label: 'Công nhân' },
+              ]}
+            />
+            <FloatingSelect
+              label="Tuyến xe"
+              value={etpRouteFilter}
+              onChange={(val) => setEtpRouteFilter(val)}
+              options={routes.map((r) => ({ value: String(r.id), label: r.routeName }))}
+            />
+            <FloatingSelect
+              label="Điểm đón"
+              value={etpPickupPointFilter}
+              onChange={(val) => setEtpPickupPointFilter(val)}
+              options={points
+                .filter((p) => p.pointType === 'PICKUP' || p.pointType === 'BOTH')
+                .map((p) => ({ value: String(p.id), label: `${p.pointCode} - ${p.pointName}` }))}
+            />
+            <FloatingSelect
+              label="Điểm trả"
+              value={etpDropoffPointFilter}
+              onChange={(val) => setEtpDropoffPointFilter(val)}
+              options={points
+                .filter((p) => p.pointType === 'DROPOFF' || p.pointType === 'BOTH')
+                .map((p) => ({ value: String(p.id), label: `${p.pointCode} - ${p.pointName}` }))}
+            />
+            <FloatingSelect
+              label="Trạng thái phê duyệt"
+              value={etpStatusFilter}
+              onChange={(val) => setEtpStatusFilter(val)}
+              options={[
+                { value: 'PENDING', label: 'Đang chờ phê duyệt' },
+                { value: 'APPROVED', label: 'Đã phê duyệt' },
+                { value: 'REJECTED', label: 'Từ chối' },
+                { value: 'RESIGNED', label: 'Đã nghỉ việc' },
+              ]}
+            />
+            <FloatingSelect
+              label="Trạng thái hoạt động"
+              value={activeFlagFilter}
+              onChange={(val) => setActiveFlagFilter(val)}
+              options={[
+                { value: 'Y', label: 'Hoạt động' },
+                { value: 'N', label: 'Không hoạt động' },
+              ]}
+            />
+          </div>
         </div>
       )}
 
@@ -1186,8 +1836,8 @@ export const MasterDataPage: React.FC = () => {
             value={costTypeFilter}
             onChange={(val) => setCostTypeFilter(val)}
             options={[
-              { value: 'COMMUTE', label: 'Đưa đón' },
-              { value: 'EXTRA', label: 'Tăng cường' },
+              { value: 'COMMUTE', label: 'Tuyến thường' },
+              { value: 'EXTRA', label: 'Phát sinh' },
             ]}
           />
           <FloatingSelect
@@ -1204,11 +1854,11 @@ export const MasterDataPage: React.FC = () => {
             value={vehicleTypeFilter}
             onChange={(val) => setVehicleTypeFilter(val)}
             options={[
-              { value: 'SEDAN_4', label: 'Xe 4 chỗ' },
-              { value: 'SUV_7', label: 'Xe 7 chỗ' },
-              { value: 'VAN_16', label: 'Xe 16 chỗ' },
+              { value: 'VAN_16', label: 'Van 16 chỗ' },
               { value: 'BUS_29', label: 'Bus 29 chỗ' },
               { value: 'BUS_45', label: 'Bus 45 chỗ' },
+              { value: 'SEDAN_4', label: 'Xe 4 chỗ' },
+              { value: 'SUV_7', label: 'Xe 7 chỗ' },
             ]}
           />
         </div>
@@ -1234,6 +1884,7 @@ export const MasterDataPage: React.FC = () => {
                 districtName: '',
                 address: '',
                 isFactory: 'N',
+                activeFlag: 'Y',
               }),
           }}
         />
@@ -1259,6 +1910,7 @@ export const MasterDataPage: React.FC = () => {
                 identityUserId: '',
                 newUsername: '',
                 newPassword: '',
+                activeFlag: 'Y',
               }),
           }}
         />
@@ -1280,10 +1932,12 @@ export const MasterDataPage: React.FC = () => {
                 vendorId: vendors[0]?.id || '',
                 vehicleType: 'BUS_29',
                 seatCapacity: 28,
-                ownershipType: 'OUTSOURCED',
+                ownershipType: 'RENTAL',
                 commutePackageMode: 'BY_ROUTE',
                 dailyTripQuota: 2,
-                monthlyKmQuota: '1500',
+                monthlyKmQuota: '25',
+                defaultDriverId: '',
+                activeFlag: 'Y',
               }),
           }}
         />
@@ -1308,6 +1962,7 @@ export const MasterDataPage: React.FC = () => {
                 displayOrder: 1,
                 direction: 'TO_FACTORY',
                 isDeadhead: 'N',
+                activeFlag: 'Y',
               }),
           }}
         />
@@ -1331,6 +1986,7 @@ export const MasterDataPage: React.FC = () => {
                 routeClass: 'FIXED_ROUTE',
                 passengerType: 'STAFF',
                 runDays: 'MON_SAT',
+                activeFlag: 'Y',
                 routeVehicles: [],
                 segments: [],
               }),
@@ -1352,7 +2008,7 @@ export const MasterDataPage: React.FC = () => {
               className="h-[34px] px-3 rounded-md border border-[#d1d5db] bg-white text-[13px] font-medium text-[#374151] hover:bg-gray-50 inline-flex items-center gap-1.5 cursor-pointer"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-[#00897b]" />
-              Nhập Excel
+              Nhập Excel / CSV
             </button>
           }
           primaryAction={{
@@ -1360,6 +2016,12 @@ export const MasterDataPage: React.FC = () => {
             hasDropdown: true,
             onClick: () =>
               setEtpCreateModal({
+                isProvisionalMode: false,
+                provTempCode: `TEMP-${Date.now().toString().slice(-6)}`,
+                provFullName: '',
+                provOrgUnitId: '',
+                provShiftId: shifts[0]?.id || '',
+                provWorkDayMask: 'MON_SAT',
                 employeeId: employees[0]?.id || '',
                 routeId: routes[0]?.id || '',
                 pickupPointId: points[0]?.id || '',
@@ -1389,20 +2051,45 @@ export const MasterDataPage: React.FC = () => {
                 versionCode: `VER-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`,
                 configType: 'COMMUTE',
                 passengerType: 'STAFF',
-                vehicleType: 'BUS_29',
+                vehicleType: 'VAN_16',
                 pricingScope: 'STANDARD',
                 effectiveFrom: new Date().toISOString().slice(0, 10),
                 effectiveTo: '',
+                activeFlag: 'Y',
                 rules: [
                   {
-                    ruleCode: 'MONTHLY_BASE',
-                    rateType: 'MONTHLY_PACKAGE',
+                    ruleCode: 'MONTHLY_FIXED',
+                    rateType: 'MONTHLY_FIXED',
                     dayType: 'WEEKDAY',
                     dailyTripCount: 2,
-                    includedDistanceKm: '1500',
-                    unitPrice: '26000000',
-                    priceUnit: 'VND/MONTH',
-                    description: 'Trọn gói tháng tiêu chuẩn',
+                    includedDistanceKm: '2600',
+                    unitPrice: '0',
+                    priceUnit: 'VND_PER_MONTH',
+                    description: 'Đơn giá thuê tháng cố định',
+                  },
+                  {
+                    ruleCode: 'PER_KM_EXCESS',
+                    rateType: 'PER_KM',
+                    dayType: 'WEEKDAY',
+                    unitPrice: '0',
+                    priceUnit: 'VND_PER_KM',
+                    description: 'Đơn giá vượt định mức KM',
+                  },
+                  {
+                    ruleCode: 'OT_HOURLY',
+                    rateType: 'OT_HOURLY',
+                    dayType: 'WEEKDAY',
+                    unitPrice: '0',
+                    priceUnit: 'VND_PER_HOUR',
+                    description: 'Đơn giá làm thêm giờ (OT)',
+                  },
+                  {
+                    ruleCode: 'SURCHARGE_OVERNIGHT',
+                    rateType: 'SURCHARGE',
+                    dayType: 'WEEKDAY',
+                    unitPrice: '0',
+                    priceUnit: 'VND_PER_DAY',
+                    description: 'Phụ phí lưu đêm / cầu đường',
                   },
                 ],
               }),
@@ -1554,6 +2241,11 @@ export const MasterDataPage: React.FC = () => {
                               }),
                           },
                           {
+                            label: 'Bật/tắt hoạt động',
+                            icon: <Power className="w-3.5 h-3.5" />,
+                            onClick: () => handleToggleDriverActive(drv),
+                          },
+                          {
                             label: 'Xóa tài xế',
                             icon: <Trash2 className="w-3.5 h-3.5" />,
                             danger: true,
@@ -1578,12 +2270,16 @@ export const MasterDataPage: React.FC = () => {
                     </td>
                     <td className="px-2.5 text-[#374151] truncate">{drv.phoneNumber}</td>
                     <td className="px-2.5 text-[#374151] truncate">
-                      {drv.shortAddress && String(drv.shortAddress).length > 2 && !/^\d+$/.test(String(drv.shortAddress))
+                      {drv.shortAddress &&
+                      String(drv.shortAddress).length > 2 &&
+                      !/^\d+$/.test(String(drv.shortAddress))
                         ? drv.shortAddress
                         : ''}
                     </td>
                     <td className="px-2.5 text-[#374151] truncate">
-                      {drv.fullAddress && String(drv.fullAddress).length > 2 && !/^\d+$/.test(String(drv.fullAddress))
+                      {drv.fullAddress &&
+                      String(drv.fullAddress).length > 2 &&
+                      !/^\d+$/.test(String(drv.fullAddress))
                         ? drv.fullAddress
                         : ''}
                     </td>
@@ -1643,7 +2339,17 @@ export const MasterDataPage: React.FC = () => {
                           {
                             label: 'Chỉnh sửa xe',
                             icon: <Edit3 className="w-3.5 h-3.5" />,
-                            onClick: () => setVehicleModal({ ...v }),
+                            onClick: () =>
+                              setVehicleModal({
+                                ...v,
+                                dailyTripQuota: v.dailyTripQuota || 2,
+                                monthlyKmQuota: v.monthlyKmQuota || '25',
+                              }),
+                          },
+                          {
+                            label: 'Bật/tắt hoạt động',
+                            icon: <Power className="w-3.5 h-3.5" />,
+                            onClick: () => handleToggleVehicleActive(v),
                           },
                           {
                             label: 'Xóa xe',
@@ -1662,22 +2368,28 @@ export const MasterDataPage: React.FC = () => {
                     </td>
                     <td className="px-2.5 text-[#1f2937] truncate">{v.vehiclePlate}</td>
                     <td className="px-2.5 text-[#374151] truncate">
-                      {String(v.vendor?.vendorName || 'Meiko Electronics').replace(/\s+Vietnam$/i, '')}
+                      {String(v.vendor?.vendorName || 'Meiko Electronics').replace(
+                        /\s+Vietnam$/i,
+                        ''
+                      )}
                     </td>
                     <td className="px-2.5 text-[#374151] truncate">
                       {renderVehicleTypeLabel(v.vehicleType)}
                     </td>
                     <td className="px-2.5 text-[#374151]">{v.seatCapacity}</td>
                     <td className="px-2.5 text-[#374151]">
-                      {v.ownershipType === 'RENTAL' ? 'Thuê' : 'Công ty'}
+                      {v.ownershipType === 'COMPANY'
+                        ? 'Công ty'
+                        : v.ownershipType === 'TAXI'
+                          ? 'Taxi'
+                          : v.ownershipType === 'CARGO'
+                            ? 'Xe hàng'
+                            : 'Thuê'}
                     </td>
                     <td className="px-2.5">
                       {v.commutePackageMode === 'BY_SEGMENT' ? (
                         <PastelBadge variant="purple">Theo số chặng</PastelBadge>
-                      ) : v.commutePackageMode === 'BY_ROUTE' ||
-                        ['19H08980', '29B16247', '29B16365', '29B30791'].includes(
-                          String(v.vehiclePlate || '')
-                        ) ? (
+                      ) : v.commutePackageMode === 'BY_ROUTE' ? (
                         <PastelBadge variant="green">Giá thuê cơ bản</PastelBadge>
                       ) : (
                         <span className="text-[#374151]">—</span>
@@ -1758,6 +2470,11 @@ export const MasterDataPage: React.FC = () => {
                             onClick: () => setLegModal({ ...leg }),
                           },
                           {
+                            label: 'Bật/tắt hoạt động',
+                            icon: <Power className="w-3.5 h-3.5" />,
+                            onClick: () => handleToggleLegActive(leg),
+                          },
+                          {
                             label: 'Xóa lượt chạy',
                             icon: <Trash2 className="w-3.5 h-3.5" />,
                             danger: true,
@@ -1783,7 +2500,11 @@ export const MasterDataPage: React.FC = () => {
                       {leg.isDeadhead === 'Y' ? 'Có' : 'Không'}
                     </td>
                     <td className="px-2.5">
-                      <PastelBadge variant="green">Hoạt động</PastelBadge>
+                      {leg.activeFlag === 'Y' ? (
+                        <PastelBadge variant="green">Hoạt động</PastelBadge>
+                      ) : (
+                        <PastelBadge variant="gray">Không hoạt động</PastelBadge>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -1811,44 +2532,57 @@ export const MasterDataPage: React.FC = () => {
               <thead>
                 <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] text-[#1f2937] font-semibold">
                   <th className="px-2.5 w-[4.5%]">#</th>
-                  <th className="px-2.5 w-[40.5%]">Tên tuyến</th>
-                  <th className="px-2.5 w-[13%]">Loại hành khách</th>
-                  <th className="px-2.5 w-[13%]">Loại tuyến</th>
-                  <th className="px-2.5 w-[16%]">Ngày có kế hoạch xe</th>
-                  <th className="px-2.5 w-[13%]">Trạng thái</th>
+                  <th className="px-2.5 w-[12%]">Mã tuyến</th>
+                  <th className="px-2.5 w-[28.5%]">Tên tuyến</th>
+                  <th className="px-2.5 w-[12%]">Loại hành khách</th>
+                  <th className="px-2.5 w-[11%]">Loại tuyến</th>
+                  <th className="px-2.5 w-[8%]">Số chặng</th>
+                  <th className="px-2.5 w-[14%]">Ngày có kế hoạch xe</th>
+                  <th className="px-2.5 w-[10%]">Trạng thái</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb]">
                 {routesPaging.pagedItems.map((rt, idx) => (
                   <tr
                     key={rt.id}
-                    onClick={() => openRouteEditModal(rt)}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
+                    onClick={(e) =>
                       setContextMenu({
                         x: e.clientX,
                         y: e.clientY,
                         items: [
                           {
-                            label: 'Sửa',
+                            label: 'Sửa tuyến & cấu hình chặng',
                             icon: <Edit3 className="w-3.5 h-3.5" />,
                             onClick: () => openRouteEditModal(rt),
                           },
+                          {
+                            label: 'Bật/tắt hoạt động',
+                            icon: <Power className="w-3.5 h-3.5" />,
+                            onClick: () => handleToggleRouteActive(rt),
+                          },
+                          {
+                            label: 'Xóa tuyến',
+                            icon: <Trash2 className="w-3.5 h-3.5" />,
+                            danger: true,
+                            onClick: () => handleDeleteRoute(rt),
+                          },
                         ],
-                      });
-                    }}
+                      })
+                    }
                     className="hover:bg-[#f9fafb] cursor-pointer transition-colors"
                   >
                     <td className="px-2.5 text-[#374151]">
                       {(routesPaging.page - 1) * routesPaging.pageSize + idx + 1}
                     </td>
-                    <td className="px-2.5 text-[#1f2937] truncate">{rt.routeName}</td>
-                    <td className="px-2.5">
-                      {renderPassengerTypeBadge(rt.passengerType)}
+                    <td className="px-2.5 text-[#1f2937] font-medium truncate">
+                      {rt.routeCode || '—'}
                     </td>
+                    <td className="px-2.5 text-[#1f2937] truncate">{rt.routeName}</td>
+                    <td className="px-2.5">{renderPassengerTypeBadge(rt.passengerType)}</td>
                     <td className="px-2.5">
                       <PastelBadge variant="green">Tuyến cố định</PastelBadge>
                     </td>
+                    <td className="px-2.5 text-[#374151]">{(rt.segments || []).length}</td>
                     <td className="px-2.5 text-[#374151] truncate">
                       {renderRunDaysLabel(rt.runDays)}
                     </td>
@@ -1888,9 +2622,9 @@ export const MasterDataPage: React.FC = () => {
                     <input type="checkbox" className="rounded border-gray-300" />
                   </th>
                   <th className="px-1.5 w-[2.5%]">#</th>
-                  <th className="px-1.5 w-[8%]">Mã nhân viên</th>
+                  <th className="px-1.5 w-[9%]">Mã nhân viên</th>
                   <th className="px-1.5 w-[10.2%]">Tên nhân viên</th>
-                  <th className="px-1.5 w-[10%]">Phòng ban</th>
+                  <th className="px-1.5 w-[9%]">Phòng ban</th>
                   <th className="px-1.5 w-[12.5%]">Trạng thái hoạt động</th>
                   <th className="px-1.5 w-[14.5%]">Tuyến đang hoạt động</th>
                   <th className="px-1.5 w-[9.5%]">Loại hành khách</th>
@@ -1900,7 +2634,9 @@ export const MasterDataPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb]">
-                {etpPaging.pagedItems.map((etp, idx) => (
+                {etpPaging.pagedItems.map((etp, idx) => {
+                  const isProv = isEtpProvisionalRow(etp);
+                  return (
                     <tr
                       key={etp.id}
                       onClick={(e) =>
@@ -1908,6 +2644,23 @@ export const MasterDataPage: React.FC = () => {
                           x: e.clientX,
                           y: e.clientY,
                           items: [
+                            ...(isProv
+                              ? [
+                                  {
+                                    label: 'Gắn mã nhân viên chính thức',
+                                    icon: <Edit3 className="w-3.5 h-3.5 text-[#d97706]" />,
+                                    onClick: () =>
+                                      setEtpLinkModal({
+                                        id: etp.id,
+                                        provTempCode:
+                                          etp.provTempCode || etp.employee?.empCode || 'TEMP',
+                                        provFullName:
+                                          etp.provFullName || etp.employee?.fullName || '',
+                                        employeeId: employees[0]?.id || '',
+                                      }),
+                                  },
+                                ]
+                              : []),
                             ...(etp.approvalStatus === 'PENDING'
                               ? [
                                   {
@@ -1934,6 +2687,7 @@ export const MasterDataPage: React.FC = () => {
                                         empName: etp.employee?.fullName || etp.provFullName,
                                         effectiveFrom: etp.effectiveFrom,
                                         effectiveTo: new Date().toISOString().slice(0, 10),
+                                        reason: '',
                                       }),
                                   },
                                 ]
@@ -1955,7 +2709,14 @@ export const MasterDataPage: React.FC = () => {
                         {(etpPaging.page - 1) * etpPaging.pageSize + idx + 1}
                       </td>
                       <td className="px-2 text-[#374151] truncate">
-                        {etp.employee?.empCode || etp.provTempCode || '—'}
+                        <div className="flex items-center gap-1">
+                          <span>{etp.employee?.empCode || etp.provTempCode || '—'}</span>
+                          {isProv && (
+                            <span className="px-1.5 py-0.5 rounded bg-[#fef3c7] text-[#b45309] text-[10px] font-semibold">
+                              Tạm
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-2 text-[#1f2937] truncate">
                         {etp.employee?.fullName || etp.provFullName}
@@ -1970,7 +2731,9 @@ export const MasterDataPage: React.FC = () => {
                           <PastelBadge variant="red">Không hoạt động</PastelBadge>
                         )}
                       </td>
-                      <td className="px-2 text-[#374151] truncate">{etp.route?.routeName || '—'}</td>
+                      <td className="px-2 text-[#374151] truncate">
+                        {etp.route?.routeName || '—'}
+                      </td>
                       <td className="px-2">
                         {renderPassengerTypeBadge(etp.route?.passengerType || 'WORKER')}
                       </td>
@@ -1979,6 +2742,8 @@ export const MasterDataPage: React.FC = () => {
                           <PastelBadge variant="green">Đã phê duyệt</PastelBadge>
                         ) : etp.approvalStatus === 'REJECTED' ? (
                           <PastelBadge variant="red">Từ chối</PastelBadge>
+                        ) : etp.approvalStatus === 'RESIGNED' ? (
+                          <PastelBadge variant="gray">Đã nghỉ việc</PastelBadge>
                         ) : (
                           <PastelBadge variant="yellow">Đang chờ phê duyệt</PastelBadge>
                         )}
@@ -1986,11 +2751,10 @@ export const MasterDataPage: React.FC = () => {
                       <td className="px-2 text-[#374151] truncate">
                         {etp.approvalStatus === 'PENDING' ? 'testDepartment' : '—'}
                       </td>
-                      <td className="px-2 text-[#374151] truncate">
-                        {etp.effectiveFrom || '—'}
-                      </td>
+                      <td className="px-2 text-[#374151] truncate">{etp.effectiveFrom || '—'}</td>
                     </tr>
-                  ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -2034,15 +2798,31 @@ export const MasterDataPage: React.FC = () => {
                 {costPaging.pagedItems.map((cfg, idx) => {
                   const rules: any[] = cfg.rules || [];
                   const mainRule =
-                    rules.find(
-                      (r) =>
-                        r.rateType === 'MONTHLY_PACKAGE' ||
-                        r.rateType === 'TRIP_FIXED' ||
-                        r.rateType === 'PER_KM'
-                    ) || rules[0];
-                  const overKmRule = rules.find((r) => r.rateType === 'EXCESS_KM');
-                  const otHourRule = rules.find((r) => r.rateType === 'OT_HOUR');
-                  const overnightRule = rules.find((r) => r.rateType === 'OVERNIGHT');
+                    rules.find((r) =>
+                      [
+                        'MONTHLY_FIXED',
+                        'MONTHLY_PACKAGE',
+                        'BASE_MONTHLY',
+                        'SEGMENT_25',
+                        'SEGMENT_40',
+                        'SEGMENT_55',
+                        'DAILY_RATE',
+                        'DAILY_PACKAGE',
+                        'TRIP_FIXED',
+                        'TRIP',
+                      ].includes(String(r.rateType || ''))
+                    ) ||
+                    rules.find((r) => String(r.rateType || '') === 'PER_KM') ||
+                    rules[0];
+                  const overKmRule = rules.find((r) =>
+                    ['EXCESS_KM', 'PER_KM', 'OVER_KM'].includes(String(r.rateType || ''))
+                  );
+                  const otHourRule = rules.find((r) =>
+                    ['OT_HOURLY', 'OT_HOUR', 'OVERTIME_HOUR'].includes(String(r.rateType || ''))
+                  );
+                  const overnightRule = rules.find((r) =>
+                    ['OVERNIGHT', 'SURCHARGE'].includes(String(r.rateType || ''))
+                  );
 
                   return (
                     <tr
@@ -2057,23 +2837,40 @@ export const MasterDataPage: React.FC = () => {
                               icon: <Edit3 className="w-3.5 h-3.5" />,
                               onClick: () =>
                                 setCostConfigModal({
+                                  id: cfg.id,
                                   versionCode: cfg.versionCode,
                                   configType: cfg.configType,
                                   passengerType: cfg.passengerType,
                                   vehicleType: cfg.vehicleType,
                                   pricingScope: cfg.pricingScope || 'STANDARD',
-                                  effectiveFrom: cfg.effectiveFrom || new Date().toISOString().slice(0, 10),
+                                  effectiveFrom:
+                                    cfg.effectiveFrom || new Date().toISOString().slice(0, 10),
                                   effectiveTo: cfg.effectiveTo || '',
-                                  rules: (cfg.rules || []).map((r: any) => ({
-                                    ruleCode: r.ruleCode,
-                                    rateType: r.rateType,
-                                    dayType: r.dayType || 'WEEKDAY',
-                                    dailyTripCount: r.dailyTripCount || 2,
-                                    includedDistanceKm: r.includedDistanceKm || '',
-                                    unitPrice: r.unitPrice || '0',
-                                    priceUnit: r.priceUnit || 'VND/TRIP',
-                                    description: r.description || '',
-                                  })),
+                                  activeFlag: cfg.activeFlag || 'Y',
+                                  rules:
+                                    (cfg.rules || []).length > 0
+                                      ? (cfg.rules || []).map((r: any) => ({
+                                          ruleCode: r.ruleCode,
+                                          rateType: r.rateType || 'MONTHLY_FIXED',
+                                          dayType: r.dayType || 'WEEKDAY',
+                                          dailyTripCount: r.dailyTripCount || 2,
+                                          includedDistanceKm: r.includedDistanceKm || '',
+                                          unitPrice: r.unitPrice || '0',
+                                          priceUnit: r.priceUnit || 'VND_PER_MONTH',
+                                          description: r.description || '',
+                                        }))
+                                      : [
+                                          {
+                                            ruleCode: 'MONTHLY_FIXED',
+                                            rateType: 'MONTHLY_FIXED',
+                                            dayType: 'WEEKDAY',
+                                            dailyTripCount: 2,
+                                            includedDistanceKm: '2600',
+                                            unitPrice: '26000000',
+                                            priceUnit: 'VND_PER_MONTH',
+                                            description: 'Đơn giá cơ bản',
+                                          },
+                                        ],
                                 }),
                             },
                             {
@@ -2081,24 +2878,46 @@ export const MasterDataPage: React.FC = () => {
                               icon: <Plus className="w-3.5 h-3.5" />,
                               onClick: () =>
                                 setCostConfigModal({
-                                  versionCode: `${cfg.versionCode}-COPY`,
+                                  previousConfigId: cfg.id,
+                                  versionCode: `${cfg.versionCode}-NEXT`,
                                   configType: cfg.configType,
                                   passengerType: cfg.passengerType,
                                   vehicleType: cfg.vehicleType,
                                   pricingScope: cfg.pricingScope || 'STANDARD',
                                   effectiveFrom: new Date().toISOString().slice(0, 10),
                                   effectiveTo: '',
+                                  activeFlag: 'Y',
                                   rules: (cfg.rules || []).map((r: any) => ({
                                     ruleCode: r.ruleCode,
-                                    rateType: r.rateType,
+                                    rateType: r.rateType || 'MONTHLY_FIXED',
                                     dayType: r.dayType || 'WEEKDAY',
                                     dailyTripCount: r.dailyTripCount || 2,
                                     includedDistanceKm: r.includedDistanceKm || '',
                                     unitPrice: r.unitPrice || '0',
-                                    priceUnit: r.priceUnit || 'VND/TRIP',
+                                    priceUnit: r.priceUnit || 'VND_PER_MONTH',
                                     description: r.description || '',
                                   })),
                                 }),
+                            },
+                            {
+                              label: 'Lịch sử phiên bản',
+                              icon: <History className="w-3.5 h-3.5" />,
+                              onClick: () =>
+                                setCostHistoryModal({
+                                  currentConfig: cfg,
+                                  versions: costConfigs.filter(
+                                    (c) =>
+                                      c.configType === cfg.configType &&
+                                      c.passengerType === cfg.passengerType &&
+                                      c.vehicleType === cfg.vehicleType
+                                  ),
+                                }),
+                            },
+                            {
+                              label: 'Xóa phiên bản',
+                              icon: <Trash2 className="w-3.5 h-3.5" />,
+                              danger: true,
+                              onClick: () => handleDeleteCostConfig(cfg),
                             },
                           ],
                         })
@@ -2116,11 +2935,10 @@ export const MasterDataPage: React.FC = () => {
                           <PastelBadge variant="yellow">Phát sinh</PastelBadge>
                         )}
                       </td>
-                      <td className="px-1">
-                        {renderPassengerTypeBadge(cfg.passengerType)}
-                      </td>
+                      <td className="px-1">{renderPassengerTypeBadge(cfg.passengerType)}</td>
                       <td className="px-1 text-[#374151] truncate">
-                        {cfg.pricingScope === 'PROVINCE_SURCHARGE' || cfg.pricingScope === 'HOA_BINH'
+                        {cfg.pricingScope === 'PROVINCE_SURCHARGE' ||
+                        cfg.pricingScope === 'HOA_BINH'
                           ? 'Có qua Hòa Bình'
                           : cfg.configType === 'EXTRA' && cfg.passengerType === 'WORKER'
                             ? 'Khu vực tiêu chuẩn'
@@ -2130,7 +2948,7 @@ export const MasterDataPage: React.FC = () => {
                         {renderVehicleTypeLabel(cfg.vehicleType)}
                       </td>
                       <td className="px-1 text-[#374151]">{rules.length}</td>
-                      <td className="px-1 text-[#1f2937] truncate">
+                      <td className="px-1 text-[#1f2937] font-medium truncate">
                         {mainRule ? formatVnd(mainRule.unitPrice) : '—'}
                       </td>
                       <td className="px-1 text-[#374151]">
@@ -2160,18 +2978,16 @@ export const MasterDataPage: React.FC = () => {
                             : '500.000 VND'}
                       </td>
                       <td className="px-1 text-[#374151] truncate">
-                        {cfg.effectiveFrom === '2025-12-31'
-                          ? '01/01/2026'
-                          : cfg.effectiveFrom === '2026-10-17'
-                            ? '18/10/2026'
-                            : cfg.effectiveFrom === '2026-09-28'
-                              ? '29/09/2026'
-                              : cfg.effectiveFrom && String(cfg.effectiveFrom).includes('-')
-                                ? String(cfg.effectiveFrom).split('-').reverse().join('/')
-                                : cfg.effectiveFrom}
+                        {cfg.effectiveFrom && String(cfg.effectiveFrom).includes('-')
+                          ? String(cfg.effectiveFrom).split('-').reverse().join('/')
+                          : cfg.effectiveFrom || '—'}
                       </td>
                       <td className="px-1">
-                        <PastelBadge variant="green">Hoạt động</PastelBadge>
+                        {cfg.activeFlag === 'Y' ? (
+                          <PastelBadge variant="green">Hoạt động</PastelBadge>
+                        ) : (
+                          <PastelBadge variant="gray">Không hoạt động</PastelBadge>
+                        )}
                       </td>
                     </tr>
                   );
@@ -3548,8 +4364,9 @@ export const MasterDataPage: React.FC = () => {
                     </span>
                     <input
                       type="number"
+                      min={0}
                       required
-                      value={costConfigModal.rules[0]?.unitPrice || '0'}
+                      value={costConfigModal.rules[0]?.unitPrice ?? '0'}
                       onChange={(e) => {
                         const nextRules = [...costConfigModal.rules];
                         nextRules[0] = { ...nextRules[0], unitPrice: e.target.value };
@@ -3564,7 +4381,13 @@ export const MasterDataPage: React.FC = () => {
                     </span>
                     <input
                       type="number"
-                      defaultValue={2600}
+                      min={0}
+                      value={costConfigModal.rules[0]?.includedDistanceKm ?? '2600'}
+                      onChange={(e) => {
+                        const nextRules = [...costConfigModal.rules];
+                        nextRules[0] = { ...nextRules[0], includedDistanceKm: e.target.value };
+                        setCostConfigModal({ ...costConfigModal, rules: nextRules });
+                      }}
                       className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
                     />
                   </div>
@@ -3574,7 +4397,15 @@ export const MasterDataPage: React.FC = () => {
                     </span>
                     <input
                       type="number"
-                      defaultValue={0}
+                      min={0}
+                      value={costConfigModal.rules[1]?.unitPrice ?? '0'}
+                      onChange={(e) => {
+                        const nextRules = [...costConfigModal.rules];
+                        if (nextRules[1]) {
+                          nextRules[1] = { ...nextRules[1], unitPrice: e.target.value };
+                        }
+                        setCostConfigModal({ ...costConfigModal, rules: nextRules });
+                      }}
                       className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
                     />
                   </div>
@@ -3584,12 +4415,79 @@ export const MasterDataPage: React.FC = () => {
                     </span>
                     <input
                       type="number"
-                      defaultValue={0}
+                      min={0}
+                      value={costConfigModal.rules[2]?.unitPrice ?? '0'}
+                      onChange={(e) => {
+                        const nextRules = [...costConfigModal.rules];
+                        if (nextRules[2]) {
+                          nextRules[2] = { ...nextRules[2], unitPrice: e.target.value };
+                        }
+                        setCostConfigModal({ ...costConfigModal, rules: nextRules });
+                      }}
                       className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
                     />
                   </div>
                 </div>
               </div>
+
+              {costConfigModal.configType === 'COMMUTE' &&
+                costConfigModal.passengerType === 'WORKER' && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">
+                        Giá theo chuyến / quãng đường
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCostConfigModal({
+                            ...costConfigModal,
+                            rules: [
+                              ...costConfigModal.rules,
+                              {
+                                ruleCode: `TIER_${costConfigModal.rules.length + 1}`,
+                                rateType: 'MONTHLY_FIXED',
+                                dayType: 'WEEKDAY',
+                                dailyTripCount: 4,
+                                includedDistanceKm: '40',
+                                unitPrice: '32000000',
+                                priceUnit: 'VND_PER_MONTH',
+                                description: 'Bậc chuyến/ngày công nhân',
+                              },
+                            ],
+                          })
+                        }
+                        className="px-2.5 py-1 rounded bg-[#00897b] text-white text-[12px] font-medium cursor-pointer"
+                      >
+                        + Thêm mục
+                      </button>
+                    </div>
+                    <table className="w-full text-left border-collapse text-[12px] border border-[#e5e7eb]">
+                      <thead>
+                        <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb]">
+                          <th className="p-2">Chuyến/ngày</th>
+                          <th className="p-2">Từ KM</th>
+                          <th className="p-2">Đến KM</th>
+                          <th className="p-2">Giá tháng</th>
+                          <th className="p-2">Chủ nhật/ngày</th>
+                          <th className="p-2">Ngày lễ/ngày</th>
+                          <th className="p-2">Mô tả</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className="p-2">2</td>
+                          <td className="p-2">0</td>
+                          <td className="p-2">25</td>
+                          <td className="p-2">{costConfigModal.rules[0]?.unitPrice || '0'}</td>
+                          <td className="p-2">1.800.000</td>
+                          <td className="p-2">2.200.000</td>
+                          <td className="p-2">Gói cơ bản theo chặng</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
 
               {/* PHỤ PHÍ DÙNG CHUNG */}
               <div className="space-y-3">
@@ -3603,10 +4501,31 @@ export const MasterDataPage: React.FC = () => {
                     </span>
                     <input
                       type="number"
+                      min={0}
                       defaultValue={0}
                       className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
                     />
                   </div>
+                  {costConfigModal.configType === 'EXTRA' && (
+                    <div className="relative">
+                      <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                        Giá lưu trú qua đêm (VND)
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={costConfigModal.rules[3]?.unitPrice ?? '0'}
+                        onChange={(e) => {
+                          const nextRules = [...costConfigModal.rules];
+                          if (nextRules[3]) {
+                            nextRules[3] = { ...nextRules[3], unitPrice: e.target.value };
+                          }
+                          setCostConfigModal({ ...costConfigModal, rules: nextRules });
+                        }}
+                        className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 

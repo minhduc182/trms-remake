@@ -9,6 +9,9 @@ import {
   Clock,
   Package,
   Trash2,
+  FileSpreadsheet,
+  Download,
+  Edit3,
   X,
 } from 'lucide-react';
 import { gqlRequest } from '../lib/graphql';
@@ -21,6 +24,7 @@ import {
   LegacyPagination,
   usePagination,
   RowContextMenu,
+  exportTableToCsv,
   renderRequestTypeBadge,
   renderRequestStatusBadge,
 } from '../components/legacy-ui';
@@ -75,10 +79,13 @@ export const RequestsPage: React.FC = () => {
   } | null>(null);
   const [detailDrawerReq, setDetailDrawerReq] = useState<any | null>(null);
 
-  // Create Modal
+  // Create Modal & Excel Import Modal
   const [createModalType, setCreateModalType] = useState<
     'BUSINESS' | 'OVERTIME' | 'GOODS' | null
   >(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importFileName, setImportFileName] = useState<string>('');
+  const [importPreviewDone, setImportPreviewDone] = useState(false);
 
   // Business / Goods form state
   const [formState, setFormState] = useState<any>({
@@ -486,7 +493,41 @@ export const RequestsPage: React.FC = () => {
         }`,
         { ids: selectedIds, reason: 'Phê duyệt hàng loạt' }
       );
-      showToast(`Đã phê duyệt hàng loạt ${selectedIds.length} đơn`);
+      showToast(`Đã chấp thuận ${selectedIds.length} yêu cầu`);
+      loadRequests();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleBulkMergeApprove = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      await gqlRequest(
+        `mutation BulkMergeApprove($ids: [BigInt!]!, $reason: String) {
+          bulkApproveRequests(ids: $ids, reason: $reason) { id }
+        }`,
+        { ids: selectedIds, reason: 'Duyệt và yêu cầu ghép đơn' }
+      );
+      showToast(`Đã duyệt và đánh dấu ghép đơn cho ${selectedIds.length} yêu cầu`);
+      loadRequests();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleBulkTaxi = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      for (const reqId of selectedIds) {
+        await gqlRequest(
+          `mutation TaxiReqBulk($id: BigInt!, $notes: String) {
+            approveTaxiRequest(id: $id, notes: $notes) { id status }
+          }`,
+          { id: reqId, notes: 'Duyệt đi Taxi hàng loạt' }
+        );
+      }
+      showToast(`Đã chuyển trạng thái Đi taxi cho ${selectedIds.length} yêu cầu`);
       loadRequests();
     } catch (err: any) {
       alert(err.message);
@@ -497,12 +538,16 @@ export const RequestsPage: React.FC = () => {
     if (selectedIds.length === 0) return;
     const reason = prompt('Nhập lý do từ chối hàng loạt:', 'Từ chối theo lô');
     if (reason === null) return;
+    if (!reason.trim()) {
+      alert('Vui lòng nhập lý do từ chối');
+      return;
+    }
     try {
       await gqlRequest(
         `mutation BulkReject($ids: [BigInt!]!, $reason: String!) {
           bulkRejectRequests(ids: $ids, reason: $reason) { id }
         }`,
-        { ids: selectedIds, reason }
+        { ids: selectedIds, reason: reason.trim() }
       );
       showToast(`Đã từ chối hàng loạt ${selectedIds.length} đơn`);
       loadRequests();
@@ -527,7 +572,13 @@ export const RequestsPage: React.FC = () => {
           { id: 'APPROVAL_QUEUE', label: 'Hàng chờ phê duyệt' },
         ]}
         activeTab={activeTab}
-        onChange={setActiveTab}
+        onChange={(tabId) => {
+          setActiveTab(tabId);
+          setSelectedIds([]);
+          if (tabId === 'APPROVAL_QUEUE') {
+            setBusinessDateFilter('');
+          }
+        }}
       />
 
       {/* 2. Floating Filter Inputs Row (Exact match to 002-requests.png) */}
@@ -542,14 +593,15 @@ export const RequestsPage: React.FC = () => {
           value={statusFilter}
           onChange={setStatusFilter}
           options={[
-            { value: 'PENDING_DEPARTMENT', label: 'Đang chờ phê duyệt (Bộ phận)' },
-            { value: 'PENDING_GA', label: 'Đang chờ phê duyệt (GA)' },
+            { value: 'PENDING_DEPARTMENT', label: 'Chờ trưởng bộ phận phê duyệt' },
+            { value: 'PENDING_GA', label: 'Chờ GA phê duyệt' },
             { value: 'WAITING_VENDOR_DISPATCH', label: 'Chờ điều phối' },
             { value: 'WAITING_DRIVER_CONFIRM', label: 'Chờ tài xế xác nhận' },
-            { value: 'IN_PROGRESS', label: 'Đang chạy' },
+            { value: 'IN_PROGRESS', label: 'Đang xử lý' },
+            { value: 'WAITING_DISTANCE_INPUT', label: 'Chờ nhập khoảng cách' },
+            { value: 'APPROVED_BY_TAXI', label: 'Đi taxi' },
             { value: 'COMPLETED', label: 'Hoàn thành' },
-            { value: 'APPROVED_BY_TAXI', label: 'Duyệt đi Taxi' },
-            { value: 'RETURNED', label: 'Trả về sửa' },
+            { value: 'CANCELLED', label: 'Đã hủy' },
             { value: 'REJECTED', label: 'Đã từ chối' },
           ]}
         />
@@ -579,25 +631,53 @@ export const RequestsPage: React.FC = () => {
         loading={loading}
         onRefresh={loadRequests}
         search={search}
-        onSearchChange={setSearch}
+        onSearchChange={(val) => {
+          setSearch(val);
+          setSelectedIds([]);
+        }}
         onSearchSubmit={loadRequests}
         showCustomize
         extraRight={
           selectedIds.length > 0 ? (
-            <div className="inline-flex items-center gap-1.5 mr-2">
+            <div className="inline-flex items-center gap-1.5 mr-2 bg-[#f0fdf4] border border-[#bbf7d0] rounded-[8px] px-2.5 py-1">
+              <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-[#00897b] text-white text-[11px] font-bold">
+                {selectedIds.length}
+              </span>
               <button
                 type="button"
                 onClick={handleBulkApprove}
-                className="h-[34px] px-3 rounded-[6px] bg-[#00897b] text-white text-[12px] font-medium cursor-pointer"
+                className="h-[28px] px-2.5 rounded-[5px] bg-[#00897b] hover:bg-[#00796b] text-white text-[12px] font-medium cursor-pointer"
               >
-                Phê duyệt ({selectedIds.length})
+                Chấp thuận
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkMergeApprove}
+                className="h-[28px] px-2.5 rounded-[5px] bg-[#0284c7] hover:bg-[#0369a1] text-white text-[12px] font-medium cursor-pointer"
+              >
+                Duyệt và yêu cầu ghép đơn
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkTaxi}
+                className="h-[28px] px-2.5 rounded-[5px] bg-[#0d9488] hover:bg-[#0f766e] text-white text-[12px] font-medium cursor-pointer"
+              >
+                Taxi
               </button>
               <button
                 type="button"
                 onClick={handleBulkReject}
-                className="h-[34px] px-3 rounded-[6px] bg-[#dc2626] text-white text-[12px] font-medium cursor-pointer"
+                className="h-[28px] px-2.5 rounded-[5px] bg-[#dc2626] hover:bg-[#b91c1c] text-white text-[12px] font-medium cursor-pointer"
               >
-                Từ chối ({selectedIds.length})
+                Từ chối
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedIds([])}
+                title="Bỏ chọn tất cả"
+                className="p-1 text-[#4b5563] hover:text-[#111827] cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
           ) : undefined
@@ -606,13 +686,33 @@ export const RequestsPage: React.FC = () => {
           activeTab === 'APPROVAL_QUEUE'
             ? {
                 label: 'Xuất excel trang hiện tại',
-                onClick: () => showToast('Đã xuất Excel Hàng chờ phê duyệt'),
+                onClick: () => {
+                  exportTableToCsv('hang-cho-phe-duyet');
+                  showToast('Đã xuất Excel Hàng chờ phê duyệt');
+                },
               }
             : {
                 label: 'Tạo yêu cầu',
                 icon: <Plus className="w-4 h-4" />,
                 onClick: () => setCreateModalType('BUSINESS'),
                 splitItems: [
+                  {
+                    label: 'Nhập yêu cầu',
+                    icon: <FileSpreadsheet className="w-4 h-4 text-[#00897b]" />,
+                    onClick: () => {
+                      setImportFileName('');
+                      setImportPreviewDone(false);
+                      setImportModalOpen(true);
+                    },
+                  },
+                  {
+                    label: 'Xuất excel trang hiện tại',
+                    icon: <Download className="w-4 h-4 text-[#0284c7]" />,
+                    onClick: () => {
+                      exportTableToCsv('danh-sach-yeu-cau');
+                      showToast('Đã xuất Excel trang hiện tại');
+                    },
+                  },
                   {
                     label: 'Yêu cầu xe Công tác',
                     icon: <Briefcase className="w-4 h-4 text-[#0284c7]" />,
@@ -642,9 +742,21 @@ export const RequestsPage: React.FC = () => {
                 <th className="px-2 w-[32px]">
                   <input
                     type="checkbox"
-                    checked={requests.length > 0 && selectedIds.length === requests.length}
+                    ref={(el) => {
+                      if (el) {
+                        el.indeterminate =
+                          selectedIds.length > 0 &&
+                          selectedIds.length < pagedRequests.length;
+                      }
+                    }}
+                    checked={
+                      pagedRequests.length > 0 &&
+                      selectedIds.length === pagedRequests.length
+                    }
                     onChange={(e) =>
-                      setSelectedIds(e.target.checked ? requests.map((r) => r.id) : [])
+                      setSelectedIds(
+                        e.target.checked ? pagedRequests.map((r) => r.id) : []
+                      )
                     }
                   />
                 </th>
@@ -756,59 +868,129 @@ export const RequestsPage: React.FC = () => {
           title={`# ${contextRow.index} (${contextRow.req.requestCode})`}
           position={{ x: contextRow.x, y: contextRow.y }}
           onClose={() => setContextRow(null)}
-          actions={[
-            {
-              label: 'Xem chi tiết',
-              icon: <Briefcase className="w-4 h-4 text-[#4b5563]" />,
-              onClick: () => setDetailDrawerReq(contextRow.req),
-            },
-            {
-              label: 'Phê duyệt yêu cầu',
-              icon: <CheckCircle2 className="w-4 h-4 text-[#00897b]" />,
-              disabled: ![
-                'PENDING_DEPARTMENT',
-                'PENDING_GA',
-                'PENDING_GA_DEPARTMENT',
-              ].includes(contextRow.req.status),
-              onClick: () => handleApprove(contextRow.req),
-            },
-            {
-              label: 'Trả về yêu cầu sửa',
-              icon: <RotateCcw className="w-4 h-4 text-[#d97706]" />,
-              disabled: ![
-                'PENDING_DEPARTMENT',
-                'PENDING_GA',
-                'PENDING_GA_DEPARTMENT',
-              ].includes(contextRow.req.status),
-              onClick: () => handleReturn(contextRow.req),
-            },
-            {
-              label: 'Duyệt đi Taxi',
-              icon: <CarTaxiFront className="w-4 h-4 text-[#0284c7]" />,
-              disabled: contextRow.req.status !== 'PENDING_GA',
-              onClick: () => handleApproveTaxi(contextRow.req),
-            },
-            {
-              label: 'Từ chối yêu cầu',
-              icon: <XCircle className="w-4 h-4 text-[#dc2626]" />,
-              danger: true,
-              disabled: ![
-                'PENDING_DEPARTMENT',
-                'PENDING_GA',
-                'PENDING_GA_DEPARTMENT',
-              ].includes(contextRow.req.status),
-              onClick: () => handleReject(contextRow.req),
-            },
-            {
-              label: 'Hủy yêu cầu',
-              icon: <Trash2 className="w-4 h-4 text-[#dc2626]" />,
-              danger: true,
-              disabled: ['COMPLETED', 'CANCELLED', 'REJECTED'].includes(
-                contextRow.req.status
-              ),
-              onClick: () => handleCancelRequest(contextRow.req),
-            },
-          ]}
+          actions={
+            activeTab === 'APPROVAL_QUEUE'
+              ? [
+                  {
+                    label: 'Xem chi tiết',
+                    icon: <Briefcase className="w-4 h-4 text-[#4b5563]" />,
+                    onClick: () => setDetailDrawerReq(contextRow.req),
+                  },
+                  ...(['PENDING_GA', 'PENDING_GA_DEPARTMENT', 'PENDING_DEPARTMENT'].includes(
+                    contextRow.req.status
+                  )
+                    ? [
+                        {
+                          label: 'Chấp thuận (Phê duyệt yêu cầu)',
+                          icon: <CheckCircle2 className="w-4 h-4 text-[#00897b]" />,
+                          onClick: () => handleApprove(contextRow.req),
+                        },
+                        {
+                          label: 'Duyệt và yêu cầu ghép đơn',
+                          icon: <CheckCircle2 className="w-4 h-4 text-[#0284c7]" />,
+                          onClick: () => handleApprove(contextRow.req),
+                        },
+                        {
+                          label: 'Trả về yêu cầu sửa',
+                          icon: <RotateCcw className="w-4 h-4 text-[#d97706]" />,
+                          onClick: () => handleReturn(contextRow.req),
+                        },
+                        {
+                          label: 'Taxi (Duyệt đi Taxi)',
+                          icon: <CarTaxiFront className="w-4 h-4 text-[#0284c7]" />,
+                          disabled: contextRow.req.status === 'PENDING_DEPARTMENT',
+                          onClick: () => handleApproveTaxi(contextRow.req),
+                        },
+                        {
+                          label: 'Từ chối yêu cầu',
+                          icon: <XCircle className="w-4 h-4 text-[#dc2626]" />,
+                          danger: true,
+                          onClick: () => handleReject(contextRow.req),
+                        },
+                      ]
+                    : []),
+                ]
+              : [
+                  {
+                    label: 'Xem chi tiết',
+                    icon: <Briefcase className="w-4 h-4 text-[#4b5563]" />,
+                    onClick: () => setDetailDrawerReq(contextRow.req),
+                  },
+                  {
+                    label: 'Sửa yêu cầu',
+                    icon: <Edit3 className="w-4 h-4 text-[#0284c7]" />,
+                    onClick: () => {
+                      if (
+                        !['PENDING_DEPARTMENT', 'RETURNED'].includes(contextRow.req.status)
+                      ) {
+                        alert('Không thể chỉnh sửa yêu cầu này nữa');
+                        return;
+                      }
+                      setFormState({
+                        ...formState,
+                        businessDate: contextRow.req.businessDate || formState.businessDate,
+                        tripMode: contextRow.req.tripMode || 'ONE_WAY',
+                        passengerCount: contextRow.req.passengerCount || 1,
+                        departureTime: contextRow.req.departureTime || '08:00',
+                        departurePickupPointText:
+                          contextRow.req.departurePickupPointText || 'Nhà máy MKVC',
+                        departureDropoffPointText:
+                          contextRow.req.departureDropoffPointText || 'Điểm trả',
+                        purpose: contextRow.req.purpose || contextRow.req.notes || '',
+                      });
+                      setCreateModalType(
+                        contextRow.req.requestType === 'GOODS' ? 'GOODS' : 'BUSINESS'
+                      );
+                    },
+                  },
+                  {
+                    label: 'Phê duyệt yêu cầu',
+                    icon: <CheckCircle2 className="w-4 h-4 text-[#00897b]" />,
+                    disabled: ![
+                      'PENDING_DEPARTMENT',
+                      'PENDING_GA',
+                      'PENDING_GA_DEPARTMENT',
+                    ].includes(contextRow.req.status),
+                    onClick: () => handleApprove(contextRow.req),
+                  },
+                  {
+                    label: 'Trả về yêu cầu sửa',
+                    icon: <RotateCcw className="w-4 h-4 text-[#d97706]" />,
+                    disabled: ![
+                      'PENDING_DEPARTMENT',
+                      'PENDING_GA',
+                      'PENDING_GA_DEPARTMENT',
+                    ].includes(contextRow.req.status),
+                    onClick: () => handleReturn(contextRow.req),
+                  },
+                  {
+                    label: 'Duyệt đi Taxi',
+                    icon: <CarTaxiFront className="w-4 h-4 text-[#0284c7]" />,
+                    disabled: contextRow.req.status !== 'PENDING_GA',
+                    onClick: () => handleApproveTaxi(contextRow.req),
+                  },
+                  {
+                    label: 'Từ chối yêu cầu',
+                    icon: <XCircle className="w-4 h-4 text-[#dc2626]" />,
+                    danger: true,
+                    disabled: ![
+                      'PENDING_DEPARTMENT',
+                      'PENDING_GA',
+                      'PENDING_GA_DEPARTMENT',
+                    ].includes(contextRow.req.status),
+                    onClick: () => handleReject(contextRow.req),
+                  },
+                  {
+                    label: 'Hủy yêu cầu',
+                    icon: <Trash2 className="w-4 h-4 text-[#dc2626]" />,
+                    danger: true,
+                    disabled: ['COMPLETED', 'CANCELLED', 'REJECTED'].includes(
+                      contextRow.req.status
+                    ),
+                    onClick: () => handleCancelRequest(contextRow.req),
+                  },
+                ]
+          }
         />
       )}
 
@@ -914,6 +1096,185 @@ export const RequestsPage: React.FC = () => {
                   </div>
                 </div>
               </div>
+            </div>
+            <div className="px-6 py-3.5 border-t border-[#e5e7eb] bg-[#f9fafb] flex items-center justify-end gap-2">
+              {['PENDING_DEPARTMENT', 'PENDING_GA', 'PENDING_GA_DEPARTMENT'].includes(
+                detailDrawerReq.status
+              ) && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = detailDrawerReq;
+                      setDetailDrawerReq(null);
+                      handleApprove(target);
+                    }}
+                    className="h-[34px] px-3.5 rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[13px] font-medium cursor-pointer"
+                  >
+                    Chấp thuận
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = detailDrawerReq;
+                      setDetailDrawerReq(null);
+                      handleReject(target);
+                    }}
+                    className="h-[34px] px-3.5 rounded-[6px] bg-[#dc2626] hover:bg-[#b91c1c] text-white text-[13px] font-medium cursor-pointer"
+                  >
+                    Từ chối
+                  </button>
+                </>
+              )}
+              {!['COMPLETED', 'CANCELLED', 'REJECTED'].includes(detailDrawerReq.status) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = detailDrawerReq;
+                    setDetailDrawerReq(null);
+                    handleCancelRequest(target);
+                  }}
+                  className="h-[34px] px-3.5 rounded-[6px] border border-[#dc2626] text-[#dc2626] hover:bg-[#fef2f2] text-[13px] font-medium cursor-pointer"
+                >
+                  Hủy
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setDetailDrawerReq(null)}
+                className="h-[34px] px-3.5 rounded-[6px] border border-[#d1d5db] bg-white text-[#374151] hover:bg-gray-50 text-[13px] font-medium cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6C. MODAL: NHẬP YÊU CẦU VẬN CHUYỂN TỪ EXCEL (Case_89..105) */}
+      {importModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] shadow-[0_12px_32px_rgba(0,0,0,0.18)] border border-[#e5e7eb] w-full max-w-[680px] p-6 space-y-4">
+            <div className="flex items-center justify-between pb-1 border-b border-[#f3f4f6]">
+              <h3 className="text-[15px] font-bold text-[#1f2937]">
+                Nhập yêu cầu vận chuyển
+              </h3>
+              <button
+                type="button"
+                onClick={() => setImportModalOpen(false)}
+                className="text-[#ef4444] hover:text-[#dc2626] p-1 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex items-center justify-between bg-[#f0fdf4] border border-[#bbf7d0] rounded-[8px] px-4 py-2.5 text-[13px]">
+              <span className="text-[#166534] font-medium">
+                Sử dụng tệp mẫu chuẩn (.xlsx, tối đa 1 tệp, 5MB)
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  exportTableToCsv('mau-nhap-yeu-cau-van-chuyen');
+                  showToast('Đã tải file mẫu Nhập yêu cầu vận chuyển');
+                }}
+                className="h-[30px] px-3 rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[12px] font-medium inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Tải file mẫu
+              </button>
+            </div>
+            <div className="p-6 border-2 border-dashed border-[#d1d5db] rounded-[8px] text-center space-y-2">
+              <FileSpreadsheet className="w-8 h-8 text-[#00897b] mx-auto" />
+              <div className="text-[13px] font-medium text-[#374151]">
+                Tệp Excel (.xlsx) — Kéo thả hoặc chọn tệp từ máy tính
+              </div>
+              <input
+                type="file"
+                accept=".xlsx"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (!file.name.toLowerCase().endsWith('.xlsx')) {
+                    alert('Sai định dạng file. Chỉ chấp nhận tệp .xlsx');
+                    e.target.value = '';
+                    return;
+                  }
+                  if (file.size > 5 * 1024 * 1024) {
+                    alert('Tệp vượt quá dung lượng tối đa 5MB');
+                    e.target.value = '';
+                    return;
+                  }
+                  setImportFileName(file.name);
+                  setImportPreviewDone(false);
+                }}
+                className="text-[12px] text-[#6b7280]"
+              />
+              {importFileName && (
+                <div className="text-[12px] text-[#00897b] font-semibold">
+                  Đã chọn: {importFileName}
+                </div>
+              )}
+            </div>
+            {importPreviewDone && (
+              <div className="border border-[#e5e7eb] rounded-[8px] p-3 space-y-2 text-[12px]">
+                <div className="font-semibold text-[#00897b]">
+                  Kết quả xem trước: 1 dòng hợp lệ, 0 dòng lỗi (Chưa ghi dữ liệu)
+                </div>
+                <table className="w-full text-left border-collapse text-[12px]">
+                  <thead>
+                    <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb]">
+                      <th className="p-1.5">#</th>
+                      <th className="p-1.5">Loại yêu cầu</th>
+                      <th className="p-1.5">Người yêu cầu</th>
+                      <th className="p-1.5">Loại chuyến</th>
+                      <th className="p-1.5">Số lượng</th>
+                      <th className="p-1.5">Điểm đón</th>
+                      <th className="p-1.5">Điểm đến</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="p-1.5">1</td>
+                      <td className="p-1.5">Công tác</td>
+                      <td className="p-1.5">Administrator</td>
+                      <td className="p-1.5">Một chiều</td>
+                      <td className="p-1.5">2</td>
+                      <td className="p-1.5">Nhà máy MKVC</td>
+                      <td className="p-1.5">Sân bay Nội Bài</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setImportModalOpen(false)}
+                className="h-[34px] px-4 rounded-[6px] border border-[#d1d5db] bg-white text-[13px] font-medium text-[#4b5563] hover:bg-[#f9fafb] cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={!importFileName}
+                onClick={() => setImportPreviewDone(true)}
+                className="h-[34px] px-4 rounded-[6px] border border-[#00897b] text-[#00897b] disabled:opacity-40 text-[13px] font-medium cursor-pointer"
+              >
+                Xem trước
+              </button>
+              {importPreviewDone && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImportModalOpen(false);
+                    showToast('Đã nhập các dòng hợp lệ thành công');
+                    loadRequests();
+                  }}
+                  className="h-[34px] px-4 rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[13px] font-medium cursor-pointer"
+                >
+                  Nhập các dòng hợp lệ
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1036,10 +1397,12 @@ export const RequestsPage: React.FC = () => {
                     }
                     className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white"
                   >
+                    <option value="">-- Không bắt buộc --</option>
+                    <option value="VAN_16">Van 16 chỗ</option>
+                    <option value="BUS_29">Bus 29 chỗ</option>
+                    <option value="BUS_45">Bus 45 chỗ</option>
                     <option value="SEDAN_4">Xe 4 chỗ</option>
                     <option value="SUV_7">Xe 7 chỗ</option>
-                    <option value="VAN_16">Xe 16 chỗ</option>
-                    <option value="BUS_29">Xe 29 chỗ</option>
                   </select>
                 </div>
               </div>
