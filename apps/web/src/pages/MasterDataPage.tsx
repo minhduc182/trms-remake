@@ -185,7 +185,7 @@ export const MasterDataPage: React.FC = () => {
         const res = await gqlRequest<any>(
           `query GetRoutesAndRefs($passengerType: String, $runDays: String, $search: String) {
             routes(passengerType: $passengerType, runDays: $runDays, search: $search) {
-              id routeCode routeName routeClass passengerType runDays activeFlag riderCount
+              id routeCode routeName routeClass passengerType runDays activeFlag
               vendor { id vendorName }
               routeVehicles {
                 id vehicleId driverId displayOrder
@@ -228,7 +228,7 @@ export const MasterDataPage: React.FC = () => {
               limit: 200
             ) {
               id employeeId routeId pickupPointId dropoffPointId effectiveFrom effectiveTo
-              activeFlag approvalStatus rejectReason isProvisional provTempCode provFullName
+              activeFlag approvalStatus rejectReason isProvisional provTempCode provFullName createDate
               employee { id empCode fullName orgUnit { name } }
               route { id routeCode routeName passengerType }
               pickupPoint { id pointCode pointName }
@@ -236,10 +236,6 @@ export const MasterDataPage: React.FC = () => {
             }
             routes(activeFlag: "Y") {
               id routeCode routeName passengerType
-              segments {
-                id direction
-                segmentPoints { pointId pointRole point { id pointCode pointName } }
-              }
             }
             points(activeFlag: "Y") { id pointCode pointName pointType }
           }`,
@@ -840,23 +836,7 @@ export const MasterDataPage: React.FC = () => {
       {activeTab === 'ETP' && (
         <div className="flex flex-wrap items-center gap-3 pt-4 pb-1">
           <FloatingSelect
-            label="Tuyến"
-            value={etpRouteFilter}
-            onChange={(val) => setEtpRouteFilter(val)}
-            options={routes.map((r) => ({ value: r.id, label: r.routeName }))}
-          />
-          <FloatingSelect
-            label="Trạng thái phê duyệt"
-            value={etpStatusFilter}
-            onChange={(val) => setEtpStatusFilter(val)}
-            options={[
-              { value: 'PENDING', label: 'Chờ phê duyệt' },
-              { value: 'APPROVED', label: 'Đã phê duyệt' },
-              { value: 'REJECTED', label: 'Từ chối' },
-            ]}
-          />
-          <FloatingSelect
-            label="Loại nhân sự"
+            label="Loại hành khách"
             value={passengerTypeFilter}
             onChange={(val) => setPassengerTypeFilter(val)}
             options={[
@@ -865,12 +845,22 @@ export const MasterDataPage: React.FC = () => {
             ]}
           />
           <FloatingSelect
+            label="Trạng thái phê duyệt"
+            value={etpStatusFilter}
+            onChange={(val) => setEtpStatusFilter(val)}
+            options={[
+              { value: 'PENDING', label: 'Đang chờ phê duyệt' },
+              { value: 'APPROVED', label: 'Đã phê duyệt' },
+              { value: 'REJECTED', label: 'Từ chối' },
+            ]}
+          />
+          <FloatingSelect
             label="Trạng thái hoạt động"
             value={activeFlagFilter}
             onChange={(val) => setActiveFlagFilter(val)}
             options={[
               { value: 'Y', label: 'Hoạt động' },
-              { value: 'N', label: 'Ngừng sử dụng' },
+              { value: 'N', label: 'Không hoạt động' },
             ]}
           />
         </div>
@@ -1446,7 +1436,7 @@ export const MasterDataPage: React.FC = () => {
       )}
 
       {/* ==================================================================== */}
-      {/* TAB 5: ROUTES TABLE (060-routes-management.png) */}
+      {/* TAB 5: ROUTES TABLE (054-route-list.png) */}
       {/* ==================================================================== */}
       {activeTab === 'ROUTES' && (
         <div>
@@ -1454,86 +1444,55 @@ export const MasterDataPage: React.FC = () => {
             <table className="w-full table-fixed text-left border-collapse text-[13px]">
               <thead>
                 <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] text-[#1f2937] font-semibold">
-                  <th className="px-2.5 w-[3.5%]">#</th>
-                  <th className="px-2.5 w-[18%]">Tên tuyến</th>
-                  <th className="px-2.5 w-[9.5%]">Loại tuyến</th>
-                  <th className="px-2.5 w-[10%]">Loại hành khách</th>
-                  <th className="px-2.5 w-[14%]">Nhà cung cấp</th>
-                  <th className="px-2.5 w-[5.5%] text-center">Chặng</th>
-                  <th className="px-2.5 w-[6.5%] text-center">Người đi</th>
-                  <th className="px-2.5 w-[11%]">Ngày có kế hoạch xe</th>
-                  <th className="px-2.5 w-[8%]">Xe theo tuyến</th>
-                  <th className="px-2.5 w-[8%]">Tài xế theo tuyến</th>
-                  <th className="px-2.5 w-[6%]">Trạng thái</th>
+                  <th className="px-2.5 w-[5%]">#</th>
+                  <th className="px-2.5 w-[42%]">Tên tuyến</th>
+                  <th className="px-2.5 w-[13%]">Loại hành khách</th>
+                  <th className="px-2.5 w-[13%]">Loại tuyến</th>
+                  <th className="px-2.5 w-[16%]">Ngày có kế hoạch xe</th>
+                  <th className="px-2.5 w-[11%]">Trạng thái</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb]">
-                {routes.map((rt, idx) => {
-                  const firstSegWithVehicle = (rt.segments || []).find(
-                    (s: any) => s.defaultVehicle?.vehiclePlate
-                  );
-                  const firstRouteVehicle = (rt.routeVehicles || [])[0];
-                  const plate =
-                    firstRouteVehicle?.vehicle?.vehiclePlate ||
-                    firstSegWithVehicle?.defaultVehicle?.vehiclePlate ||
-                    '—';
-                  const driverName =
-                    firstRouteVehicle?.driver?.driverName ||
-                    firstSegWithVehicle?.defaultDriver?.driverName ||
-                    '—';
-
-                  return (
-                    <tr
-                      key={rt.id}
-                      onClick={() => openRouteEditModal(rt)}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        setContextMenu({
-                          x: e.clientX,
-                          y: e.clientY,
-                          items: [
-                            {
-                              label: 'Cấu hình tuyến & chặng',
-                              icon: <Edit3 className="w-3.5 h-3.5" />,
-                              onClick: () => openRouteEditModal(rt),
-                            },
-                          ],
-                        });
-                      }}
-                      className="hover:bg-[#f9fafb] cursor-pointer transition-colors"
-                    >
-                      <td className="px-2.5 text-[#374151]">{idx + 1}</td>
-                      <td className="px-2.5 text-[#1f2937] truncate">{rt.routeName}</td>
-                      <td className="px-2.5">
-                        <PastelBadge variant="purple">Tuyến cố định</PastelBadge>
-                      </td>
-                      <td className="px-2.5">
-                        {renderPassengerTypeBadge(rt.passengerType)}
-                      </td>
-                      <td className="px-2.5 text-[#374151] truncate">
-                        Công ty TNHH MTV Dịch Vụ Vận Tải Bảo Lâm
-                      </td>
-                      <td className="px-2.5 text-center text-[#374151]">
-                        {(rt.segments || []).length}
-                      </td>
-                      <td className="px-2.5 text-center text-[#374151]">
-                        {rt.riderCount ?? 0}
-                      </td>
-                      <td className="px-2.5 text-[#374151] truncate">
-                        {renderRunDaysLabel(rt.runDays)}
-                      </td>
-                      <td className="px-2.5 text-[#374151] truncate">{plate}</td>
-                      <td className="px-2.5 text-[#374151] truncate">{driverName}</td>
-                      <td className="px-2.5">
-                        {rt.activeFlag === 'Y' ? (
-                          <PastelBadge variant="green">Hoạt động</PastelBadge>
-                        ) : (
-                          <PastelBadge variant="gray">Không hoạt động</PastelBadge>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {routes.map((rt, idx) => (
+                  <tr
+                    key={rt.id}
+                    onClick={() => openRouteEditModal(rt)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setContextMenu({
+                        x: e.clientX,
+                        y: e.clientY,
+                        items: [
+                          {
+                            label: 'Sửa',
+                            icon: <Edit3 className="w-3.5 h-3.5" />,
+                            onClick: () => openRouteEditModal(rt),
+                          },
+                        ],
+                      });
+                    }}
+                    className="hover:bg-[#f9fafb] cursor-pointer transition-colors"
+                  >
+                    <td className="px-2.5 text-[#374151]">{idx + 1}</td>
+                    <td className="px-2.5 text-[#1f2937] truncate">{rt.routeName}</td>
+                    <td className="px-2.5">
+                      {renderPassengerTypeBadge(rt.passengerType)}
+                    </td>
+                    <td className="px-2.5">
+                      <PastelBadge variant="green">Tuyến cố định</PastelBadge>
+                    </td>
+                    <td className="px-2.5 text-[#374151] truncate">
+                      {renderRunDaysLabel(rt.runDays)}
+                    </td>
+                    <td className="px-2.5">
+                      {rt.activeFlag === 'Y' ? (
+                        <PastelBadge variant="green">Hoạt động</PastelBadge>
+                      ) : (
+                        <PastelBadge variant="gray">Không hoạt động</PastelBadge>
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -1542,7 +1501,7 @@ export const MasterDataPage: React.FC = () => {
       )}
 
       {/* ==================================================================== */}
-      {/* TAB 6: ETP TABLE (062-etp-management.png) */}
+      {/* TAB 6: ETP TABLE (062-master-data-route-workers-list-context.png) */}
       {/* ==================================================================== */}
       {activeTab === 'ETP' && (
         <div>
@@ -1555,16 +1514,14 @@ export const MasterDataPage: React.FC = () => {
                   </th>
                   <th className="px-2 w-[3.5%]">#</th>
                   <th className="px-2 w-[7.5%]">Mã nhân viên</th>
-                  <th className="px-2 w-[10.5%]">Nhân viên</th>
-                  <th className="px-2 w-[7.5%]">Loại</th>
-                  <th className="px-2 w-[9%]">Phòng ban</th>
-                  <th className="px-2 w-[11.5%]">Tuyến</th>
-                  <th className="px-2 w-[11.5%]">Điểm đón</th>
-                  <th className="px-2 w-[7%]">Hiệu lực từ</th>
-                  <th className="px-2 w-[7%]">Hiệu lực đến</th>
-                  <th className="px-2 w-[9%]">Trạng thái phê duyệt</th>
-                  <th className="px-2 w-[6%]">Lý do từ chối</th>
-                  <th className="px-2 w-[7%]">Trạng thái</th>
+                  <th className="px-2 w-[11%]">Tên nhân viên</th>
+                  <th className="px-2 w-[13%]">Phòng ban</th>
+                  <th className="px-2 w-[9.5%]">Trạng thái hoạt động</th>
+                  <th className="px-2 w-[15.5%]">Tuyến đang hoạt động</th>
+                  <th className="px-2 w-[8.5%]">Loại hành khách</th>
+                  <th className="px-2 w-[10%]">Trạng thái phê duyệt</th>
+                  <th className="px-2 w-[8.5%]">Yêu cầu bởi</th>
+                  <th className="px-2 w-[10%]">Thời điểm yêu cầu</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb]">
@@ -1581,12 +1538,12 @@ export const MasterDataPage: React.FC = () => {
                             ...(etp.approvalStatus === 'PENDING'
                               ? [
                                   {
-                                    label: 'Phê duyệt đăng ký',
+                                    label: 'Chấp thuận',
                                     icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
                                     onClick: () => handleApproveEtp(etp),
                                   },
                                   {
-                                    label: 'Từ chối đăng ký',
+                                    label: 'Từ chối',
                                     icon: <XCircle className="w-3.5 h-3.5 text-red-600" />,
                                     danger: true,
                                     onClick: () => handleRejectEtp(etp),
@@ -1596,7 +1553,7 @@ export const MasterDataPage: React.FC = () => {
                             ...(etp.approvalStatus === 'APPROVED' && etp.activeFlag === 'Y'
                               ? [
                                   {
-                                    label: 'Ngừng sử dụng xe tuyến',
+                                    label: 'Ngừng sử dụng xe',
                                     icon: <Power className="w-3.5 h-3.5 text-amber-600" />,
                                     onClick: () =>
                                       setEtpDeactivateModal({
@@ -1609,7 +1566,7 @@ export const MasterDataPage: React.FC = () => {
                                 ]
                               : []),
                             {
-                              label: 'Xem lịch sử đăng ký & kích hoạt lại',
+                              label: 'Lịch sử đăng ký',
                               icon: <History className="w-3.5 h-3.5" />,
                               onClick: () => openEtpHistory(etp),
                             },
@@ -1628,34 +1585,34 @@ export const MasterDataPage: React.FC = () => {
                       <td className="px-2 text-[#1f2937] truncate">
                         {etp.employee?.fullName || etp.provFullName}
                       </td>
-                      <td className="px-2">
-                        <PastelBadge variant="green">Chính thức</PastelBadge>
-                      </td>
                       <td className="px-2 text-[#374151] truncate">
                         {etp.employee?.orgUnit?.name || '—'}
                       </td>
-                      <td className="px-2 text-[#374151] truncate">{etp.route?.routeName || '—'}</td>
-                      <td className="px-2 text-[#374151] truncate">
-                        {etp.pickupPoint?.pointName || '—'}
+                      <td className="px-2">
+                        {etp.activeFlag === 'Y' ? (
+                          <PastelBadge variant="green">Hoạt động</PastelBadge>
+                        ) : (
+                          <PastelBadge variant="red">Không hoạt động</PastelBadge>
+                        )}
                       </td>
-                      <td className="px-2 text-[#374151] truncate">{etp.effectiveFrom || '—'}</td>
-                      <td className="px-2 text-[#374151] truncate">{etp.effectiveTo || '—'}</td>
+                      <td className="px-2 text-[#374151] truncate">{etp.route?.routeName || '—'}</td>
+                      <td className="px-2">
+                        {renderPassengerTypeBadge(etp.route?.passengerType || 'WORKER')}
+                      </td>
                       <td className="px-2">
                         {etp.approvalStatus === 'APPROVED' ? (
                           <PastelBadge variant="green">Đã phê duyệt</PastelBadge>
                         ) : etp.approvalStatus === 'REJECTED' ? (
                           <PastelBadge variant="red">Từ chối</PastelBadge>
                         ) : (
-                          <PastelBadge variant="yellow">Chờ phê duyệt</PastelBadge>
+                          <PastelBadge variant="yellow">Đang chờ phê duyệt</PastelBadge>
                         )}
                       </td>
-                      <td className="px-2 text-[#6b7280] truncate">{etp.rejectReason || '—'}</td>
-                      <td className="px-2">
-                        {etp.activeFlag === 'Y' ? (
-                          <PastelBadge variant="green">Hoạt động</PastelBadge>
-                        ) : (
-                          <PastelBadge variant="gray">Ngừng sử dụng</PastelBadge>
-                        )}
+                      <td className="px-2 text-[#374151] truncate">
+                        {etp.approvalStatus === 'PENDING' ? 'testDepartment' : '—'}
+                      </td>
+                      <td className="px-2 text-[#374151] truncate">
+                        {etp.effectiveFrom || '—'}
                       </td>
                     </tr>
                   ))}
