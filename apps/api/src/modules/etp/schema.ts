@@ -219,7 +219,7 @@ builder.queryFields((t) => ({
         },
         include: {
           ...(query as { include?: Record<string, unknown> }).include,
-          employee: true,
+          employee: { include: { orgUnit: true } },
           route: true,
         },
         orderBy: [{ effectiveFrom: 'desc' }, { id: 'desc' }],
@@ -299,11 +299,13 @@ builder.queryFields((t) => ({
         REJECTED: 3,
       };
       representatives.sort((a, b) => {
+        const nameA = (a.employee?.fullName ?? a.provFullName ?? '').trim();
+        const nameB = (b.employee?.fullName ?? b.provFullName ?? '').trim();
+        if (!nameA && nameB) return 1;
+        if (nameA && !nameB) return -1;
         const sA = statusOrder[a.approvalStatus] ?? 9;
         const sB = statusOrder[b.approvalStatus] ?? 9;
         if (sA !== sB) return sA - sB;
-        const nameA = a.employee?.fullName ?? a.provFullName ?? '';
-        const nameB = b.employee?.fullName ?? b.provFullName ?? '';
         return nameA.localeCompare(nameB, 'vi');
       });
 

@@ -212,7 +212,15 @@ export const MasterDataPage: React.FC = () => {
             search: search || undefined,
           }
         );
-        setRoutes(res.routes || []);
+        const sortedRoutes = [...(res.routes || [])].sort((a, b) => {
+          const an = String(a.routeName || '');
+          const bn = String(b.routeName || '');
+          const aReal = an.startsWith('Tuyến ') ? 0 : 1;
+          const bReal = bn.startsWith('Tuyến ') ? 0 : 1;
+          if (aReal !== bReal) return aReal - bReal;
+          return an.localeCompare(bn, 'vi');
+        });
+        setRoutes(sortedRoutes);
         setPoints(res.points || []);
         setVehicles(res.vehicles || []);
         setDrivers(res.drivers || []);
@@ -247,7 +255,15 @@ export const MasterDataPage: React.FC = () => {
           }
         );
         setEtpProfiles(res.employeeTransportProfiles || []);
-        setRoutes(res.routes || []);
+        const sortedRoutes = [...(res.routes || [])].sort((a, b) => {
+          const an = String(a.routeName || '');
+          const bn = String(b.routeName || '');
+          const aReal = an.startsWith('Tuyến ') ? 0 : 1;
+          const bReal = bn.startsWith('Tuyến ') ? 0 : 1;
+          if (aReal !== bReal) return aReal - bReal;
+          return an.localeCompare(bn, 'vi');
+        });
+        setRoutes(sortedRoutes);
         setPoints(res.points || []);
       } else if (activeTab === 'COST_CONFIGS') {
         const res = await gqlRequest<{ costConfigs: any[] }>(
@@ -358,6 +374,8 @@ export const MasterDataPage: React.FC = () => {
   const handleSaveDriver = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const effectiveActiveFlag =
+        driverModal.accountMode === 'NONE' ? 'N' : driverModal.activeFlag || 'Y';
       if (driverModal.id) {
         await gqlRequest(
           `mutation UpdateDriver($id: BigInt!, $driverName: String, $phoneNumber: String, $shortAddress: String, $fullAddress: String, $accountMode: String, $identityUserId: BigInt, $username: String, $password: String, $activeFlag: String) {
@@ -368,19 +386,21 @@ export const MasterDataPage: React.FC = () => {
             identityUserId: driverModal.identityUserId || undefined,
             username: driverModal.newUsername || driverModal.username || undefined,
             password: driverModal.newPassword || driverModal.password || undefined,
+            activeFlag: effectiveActiveFlag,
           }
         );
         showToast('Đã cập nhật thông tin tài xế');
       } else {
         await gqlRequest(
-          `mutation CreateDriver($driverName: String!, $phoneNumber: String!, $shortAddress: String, $fullAddress: String, $accountMode: String, $identityUserId: BigInt, $username: String, $password: String) {
-            createDriver(driverName: $driverName, phoneNumber: $phoneNumber, shortAddress: $shortAddress, fullAddress: $fullAddress, accountMode: $accountMode, identityUserId: $identityUserId, username: $username, password: $password) { id }
+          `mutation CreateDriver($driverName: String!, $phoneNumber: String!, $shortAddress: String, $fullAddress: String, $accountMode: String, $identityUserId: BigInt, $username: String, $password: String, $activeFlag: String) {
+            createDriver(driverName: $driverName, phoneNumber: $phoneNumber, shortAddress: $shortAddress, fullAddress: $fullAddress, accountMode: $accountMode, identityUserId: $identityUserId, username: $username, password: $password, activeFlag: $activeFlag) { id }
           }`,
           {
             ...driverModal,
             identityUserId: driverModal.identityUserId || undefined,
             username: driverModal.newUsername || driverModal.username || undefined,
             password: driverModal.newPassword || driverModal.password || undefined,
+            activeFlag: effectiveActiveFlag,
           }
         );
         showToast('Đã thêm tài xế mới');
@@ -414,6 +434,10 @@ export const MasterDataPage: React.FC = () => {
     try {
       const payload = {
         ...vehicleModal,
+        ownershipType:
+          vehicleModal.ownershipType === 'OUTSOURCED'
+            ? 'RENTAL'
+            : vehicleModal.ownershipType || 'RENTAL',
         vendorId: vehicleModal.vendorId || undefined,
         dailyTripQuota:
           vehicleModal.commutePackageMode === 'BY_SEGMENT' && vehicleModal.dailyTripQuota
@@ -568,13 +592,12 @@ export const MasterDataPage: React.FC = () => {
     e.preventDefault();
     try {
       await gqlRequest(
-        `mutation CreateEtp($employeeId: BigInt!, $routeId: BigInt!, $pickupPointId: BigInt!, $dropoffPointId: BigInt, $effectiveFrom: String!, $effectiveTo: String) {
-          createEtpRegistration(employeeId: $employeeId, routeId: $routeId, pickupPointId: $pickupPointId, dropoffPointId: $dropoffPointId, effectiveFrom: $effectiveFrom, effectiveTo: $effectiveTo) { id }
+        `mutation CreateEtp($employeeId: BigInt!, $routeId: BigInt!, $pickupPointId: BigInt!, $dropoffPointId: BigInt, $effectiveFrom: String!) {
+          createEtpRegistration(employeeId: $employeeId, routeId: $routeId, pickupPointId: $pickupPointId, dropoffPointId: $dropoffPointId, effectiveFrom: $effectiveFrom) { id }
         }`,
         {
           ...etpCreateModal,
           dropoffPointId: etpCreateModal.dropoffPointId || undefined,
-          effectiveTo: etpCreateModal.effectiveTo || undefined,
         }
       );
       showToast('Đã thêm đăng ký người đi xe tuyến');
@@ -948,7 +971,7 @@ export const MasterDataPage: React.FC = () => {
                 phoneNumber: '',
                 shortAddress: '',
                 fullAddress: '',
-                accountMode: 'NONE',
+                accountMode: 'CREATE_NEW',
                 identityUserId: '',
                 newUsername: '',
                 newPassword: '',
@@ -1518,16 +1541,16 @@ export const MasterDataPage: React.FC = () => {
                   <th className="px-2 w-[3%] text-center">
                     <input type="checkbox" className="rounded border-gray-300" />
                   </th>
-                  <th className="px-2 w-[3.5%]">#</th>
-                  <th className="px-2 w-[7.5%]">Mã nhân viên</th>
-                  <th className="px-2 w-[11%]">Tên nhân viên</th>
-                  <th className="px-2 w-[13%]">Phòng ban</th>
-                  <th className="px-2 w-[9.5%]">Trạng thái hoạt động</th>
-                  <th className="px-2 w-[15.5%]">Tuyến đang hoạt động</th>
-                  <th className="px-2 w-[8.5%]">Loại hành khách</th>
-                  <th className="px-2 w-[10%]">Trạng thái phê duyệt</th>
-                  <th className="px-2 w-[8.5%]">Yêu cầu bởi</th>
-                  <th className="px-2 w-[10%]">Thời điểm yêu cầu</th>
+                  <th className="px-2 w-[3%]">#</th>
+                  <th className="px-2 w-[8.5%]">Mã nhân viên</th>
+                  <th className="px-2 w-[11.5%]">Tên nhân viên</th>
+                  <th className="px-2 w-[12.5%]">Phòng ban</th>
+                  <th className="px-2 w-[11%]">Trạng thái hoạt động</th>
+                  <th className="px-2 w-[15%]">Tuyến đang hoạt động</th>
+                  <th className="px-2 w-[9.5%]">Loại hành khách</th>
+                  <th className="px-2 w-[11%]">Trạng thái phê duyệt</th>
+                  <th className="px-2 w-[7%]">Yêu cầu bởi</th>
+                  <th className="px-2 w-[8%]">Thời điểm yêu cầu</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb]">
