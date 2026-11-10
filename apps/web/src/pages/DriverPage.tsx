@@ -254,15 +254,15 @@ export const DriverPage: React.FC = () => {
         <table className="w-full table-fixed text-left border-collapse">
           <thead>
             <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] text-[13px] font-semibold text-[#1f2937]">
-              <th className="px-2.5 w-[3.5%]">#</th>
-              <th className="px-2.5 w-[12%]">Loại chuyến đi</th>
-              <th className="px-2.5 w-[13%]">Trạng thái</th>
-              <th className="px-2.5 w-[11.5%]">Tài xế</th>
-              <th className="px-2.5 w-[9%]">Xe</th>
-              <th className="px-2.5 w-[17.5%]">Tuyến</th>
-              <th className="px-2.5 w-[13.5%]">Khung giờ</th>
-              <th className="px-2.5 w-[8.5%]">Quãng đường</th>
-              <th className="px-2.5 w-[11.5%]">Chế độ xác nhận</th>
+              <th className="px-2 w-[3.5%]">#</th>
+              <th className="px-2 w-[12%]">Loại chuyến đi</th>
+              <th className="px-2 w-[13%]">Trạng thái</th>
+              <th className="px-2 w-[11.5%]">Tài xế</th>
+              <th className="px-2 w-[9%]">Xe</th>
+              <th className="px-2 w-[16.5%]">Tuyến</th>
+              <th className="px-1.5 w-[14.5%]">Khung giờ</th>
+              <th className="px-2 w-[8.5%]">Quãng đường</th>
+              <th className="px-2 w-[11.5%]">Chế độ xác nhận</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">

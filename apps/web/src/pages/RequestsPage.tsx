@@ -66,13 +66,14 @@ export const RequestsPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  // Row Context Menu
+  // Row Context Menu & Detail Drawer
   const [contextRow, setContextRow] = useState<{
     req: any;
     index: number;
     x: number;
     y: number;
   } | null>(null);
+  const [detailDrawerReq, setDetailDrawerReq] = useState<any | null>(null);
 
   // Create Modal
   const [createModalType, setCreateModalType] = useState<
@@ -649,15 +650,15 @@ export const RequestsPage: React.FC = () => {
                 </th>
               )}
               <th className="px-1.5 w-[2.5%]">#</th>
-              <th className="px-1.5 w-[7.5%]">Loại yêu cầu</th>
-              <th className="px-1.5 w-[12.5%]">Trạng thái</th>
-              <th className="px-1.5 w-[9%]">Người yêu cầu</th>
+              <th className="px-1.5 w-[7.2%]">Loại yêu cầu</th>
+              <th className="px-1.5 w-[12.3%]">Trạng thái</th>
+              <th className="px-1.5 w-[8.5%]">Người yêu cầu</th>
               <th className="px-1.5 w-[13%]">Bộ phận người yêu cầu</th>
-              <th className="px-1.5 w-[10%]">Số lượng đăng ký</th>
-              <th className="px-1.5 w-[11.5%]">Giờ khởi hành / Đón</th>
-              <th className="px-1.5 w-[11.5%]">Điểm đón / Lấy hàng</th>
-              <th className="px-1.5 w-[11.5%]">Điểm trả / Giao hàng</th>
-              <th className="px-1.5 w-[11%]">Giờ về / Giao hàng</th>
+              <th className="px-1.5 w-[10.5%]">Số lượng đăng ký</th>
+              <th className="px-1.5 w-[11%]">Giờ khởi hành / Đón</th>
+              <th className="px-1.5 w-[12.2%]">Điểm đón / Lấy hàng</th>
+              <th className="px-1.5 w-[12.2%]">Điểm trả / Giao hàng</th>
+              <th className="px-1.5 w-[10.6%]">Giờ về / Giao hàng</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">
@@ -749,7 +750,7 @@ export const RequestsPage: React.FC = () => {
         onPageSizeChange={setReqPageSize}
       />
 
-      {/* 6. Floating Row Context Menu */}
+      {/* 6. Floating Row Context Menu (Legacy 009-approval-row-context.png) */}
       {contextRow && (
         <RowContextMenu
           title={`# ${contextRow.index} (${contextRow.req.requestCode})`}
@@ -757,7 +758,12 @@ export const RequestsPage: React.FC = () => {
           onClose={() => setContextRow(null)}
           actions={[
             {
-              label: 'Chấp thuận / Phê duyệt',
+              label: 'Xem chi tiết',
+              icon: <Briefcase className="w-4 h-4 text-[#4b5563]" />,
+              onClick: () => setDetailDrawerReq(contextRow.req),
+            },
+            {
+              label: 'Phê duyệt yêu cầu',
               icon: <CheckCircle2 className="w-4 h-4 text-[#00897b]" />,
               disabled: ![
                 'PENDING_DEPARTMENT',
@@ -806,110 +812,342 @@ export const RequestsPage: React.FC = () => {
         />
       )}
 
+      {/* 6B. Right-Side Request Detail Drawer (Legacy 010-approval-request-detail.png) */}
+      {detailDrawerReq && (
+        <div className="fixed inset-0 z-50 bg-black/30 flex justify-end">
+          <div className="bg-white w-full max-w-[600px] h-full shadow-2xl border-l border-[#e5e7eb] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e7eb]">
+              <h3 className="text-[15px] font-bold text-[#1f2937]">
+                {detailDrawerReq.requestCode} - Thông tin chi tiết
+              </h3>
+              <button
+                type="button"
+                onClick={() => setDetailDrawerReq(null)}
+                className="text-[#4b5563] hover:text-[#1f2937] p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 text-[13px]">
+              <div>
+                <h4 className="text-[14px] font-bold text-[#1f2937] mb-3">Yêu cầu</h4>
+                <div className="space-y-3 border-t border-[#f3f4f6] pt-3">
+                  <div className="grid grid-cols-12 gap-2">
+                    <span className="col-span-4 text-[#6b7280] font-medium">Hành khách</span>
+                    <span className="col-span-8 text-[#1f2937]">
+                      {detailDrawerReq.passengers?.[0]?.passengerName ||
+                        detailDrawerReq.contactName ||
+                        detailDrawerReq.requesterName ||
+                        'Administrator'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2">
+                    <span className="col-span-4 text-[#6b7280] font-medium">Phòng ban hành khách</span>
+                    <span className="col-span-8 text-[#1f2937]">
+                      {detailDrawerReq.departmentName || 'Khối Kỹ thuật EMS'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2">
+                    <span className="col-span-4 text-[#6b7280] font-medium">Người yêu cầu</span>
+                    <span className="col-span-8 text-[#1f2937]">
+                      {detailDrawerReq.requesterName || 'Administrator'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2 items-center">
+                    <span className="col-span-4 text-[#6b7280] font-medium">Loại yêu cầu</span>
+                    <span className="col-span-8">
+                      {renderRequestTypeBadge(detailDrawerReq.requestType)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2">
+                    <span className="col-span-4 text-[#6b7280] font-medium">Chế độ chuyến</span>
+                    <span className="col-span-8 text-[#1f2937]">
+                      {detailDrawerReq.tripMode === 'ROUND_TRIP' ? 'Khứ hồi' : 'Một chiều'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2">
+                    <span className="col-span-4 text-[#6b7280] font-medium">Lộ trình chuyến</span>
+                    <div className="col-span-8 text-[#1f2937] space-y-0.5">
+                      <div>
+                        {detailDrawerReq.departurePickupPointText || 'MKVC'} →{' '}
+                        {detailDrawerReq.departureDropoffPointText || 'Điểm trả'}
+                      </div>
+                      <div className="text-[#4b5563]">
+                        {formatLegacyReqDateTime(
+                          detailDrawerReq.businessDate,
+                          detailDrawerReq.departureTime
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2 items-center">
+                    <span className="col-span-4 text-[#6b7280] font-medium">Trạng thái</span>
+                    <span className="col-span-8">
+                      {renderRequestStatusBadge(detailDrawerReq.status)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2">
+                    <span className="col-span-4 text-[#6b7280] font-medium">Ghi chú</span>
+                    <span className="col-span-8 text-[#1f2937]">
+                      {detailDrawerReq.purpose || detailDrawerReq.notes || '—'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-[14px] font-bold text-[#1f2937] mb-3">Tóm tắt lịch sử</h4>
+                <div className="border-t border-[#f3f4f6] pt-3 space-y-2">
+                  <div className="text-[11px] text-[#6b7280]">
+                    {detailDrawerReq.businessDate
+                      ? detailDrawerReq.businessDate.split('-').reverse().join('/')
+                      : ''}
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#10b981] mt-1 shrink-0" />
+                    <div>
+                      <div className="font-semibold text-[#1f2937]">Nhập yêu cầu</div>
+                      <div className="text-[12px] text-[#4b5563]">
+                        Người thay đổi: {detailDrawerReq.requesterName || 'Administrator'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ==================================================================== */}
-      {/* MODAL: CREATE BUSINESS OR GOODS REQUEST */}
+      {/* MODAL: CREATE BUSINESS OR GOODS REQUEST (Legacy 003-request-create-form.png) */}
       {/* ==================================================================== */}
       {(createModalType === 'BUSINESS' || createModalType === 'GOODS') && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center p-4 overflow-y-auto">
           <form
             onSubmit={handleCreateSingleRequest}
-            className="bg-white rounded-[10px] shadow-xl border border-[#e5e7eb] w-full max-w-2xl p-5 space-y-4 my-8"
+            className="bg-white rounded-[12px] shadow-[0_12px_32px_rgba(0,0,0,0.18)] border border-[#e5e7eb] w-full max-w-[920px] p-6 space-y-5 my-8"
           >
-            <div className="flex items-center justify-between border-b border-[#f3f4f6] pb-3">
-              <h3 className="text-[15px] font-bold text-[#111827]">
-                {createModalType === 'BUSINESS'
-                  ? 'Tạo yêu cầu xe Công tác'
-                  : 'Tạo yêu cầu xe Vận chuyển hàng hóa'}
+            <div className="flex items-center justify-between">
+              <h3 className="text-[15px] font-bold text-[#1f2937]">
+                Tạo yêu cầu vận chuyển
               </h3>
               <button
                 type="button"
                 onClick={() => setCreateModalType(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-[#ef4444] hover:text-[#dc2626] p-1 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">Ngày sử dụng *</label>
-                <input
-                  type="date"
-                  required
-                  value={formState.businessDate}
-                  onChange={(e) => setFormState({ ...formState, businessDate: e.target.value })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2"
-                />
+            {/* THÔNG TIN YÊU CẦU */}
+            <div className="space-y-3.5 text-[13px]">
+              <div className="text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">
+                THÔNG TIN YÊU CẦU
               </div>
-              {createModalType === 'BUSINESS' && (
-                <div>
-                  <label className="block font-semibold text-gray-700 mb-1">Loại hành trình</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Người yêu cầu <span className="text-[#ef4444]">*</span>
+                  </span>
+                  <input
+                    type="text"
+                    readOnly
+                    value="Administrator"
+                    className="w-full h-[38px] border border-[#e5e7eb] bg-[#f9fafb] rounded-[6px] px-3 text-[13px] text-[#374151]"
+                  />
+                </div>
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Phòng ban
+                  </span>
+                  <input
+                    type="text"
+                    readOnly
+                    value="Khối Kỹ thuật EMS (H00000)"
+                    className="w-full h-[38px] border border-[#e5e7eb] bg-[#f9fafb] rounded-[6px] px-3 text-[13px] text-[#374151]"
+                  />
+                </div>
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Loại yêu cầu <span className="text-[#ef4444]">*</span>
+                  </span>
+                  <select
+                    value={createModalType}
+                    onChange={(e) => setCreateModalType(e.target.value as any)}
+                    className="w-full h-[38px] border border-[#00897b] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white focus:outline-none"
+                  >
+                    <option value="BUSINESS">Công tác</option>
+                    <option value="OVERTIME">Làm thêm giờ OT</option>
+                    <option value="GOODS">Hàng hóa</option>
+                  </select>
+                </div>
+                {createModalType === 'BUSINESS' ? (
+                  <div className="relative">
+                    <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                      Số lượng đăng ký <span className="text-[#ef4444]">*</span>
+                    </span>
+                    <input
+                      type="number"
+                      min={1}
+                      required
+                      value={formState.passengerCount}
+                      onChange={(e) =>
+                        setFormState({ ...formState, passengerCount: Number(e.target.value) })
+                      }
+                      className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937]"
+                    />
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                      Thông tin Người gửi hàng <span className="text-[#ef4444]">*</span>
+                    </span>
+                    <input
+                      type="text"
+                      required
+                      value={formState.senderInfo}
+                      onChange={(e) => setFormState({ ...formState, senderInfo: e.target.value })}
+                      className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937]"
+                    />
+                  </div>
+                )}
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Số điện thoại liên hệ <span className="text-[#ef4444]">*</span>
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    value={formState.contactPhone}
+                    onChange={(e) => setFormState({ ...formState, contactPhone: e.target.value })}
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937]"
+                  />
+                </div>
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Loại xe yêu cầu
+                  </span>
+                  <select
+                    value={formState.requestedVehicleType}
+                    onChange={(e) =>
+                      setFormState({ ...formState, requestedVehicleType: e.target.value })
+                    }
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white"
+                  >
+                    <option value="SEDAN_4">Xe 4 chỗ</option>
+                    <option value="SUV_7">Xe 7 chỗ</option>
+                    <option value="VAN_16">Xe 16 chỗ</option>
+                    <option value="BUS_29">Xe 29 chỗ</option>
+                  </select>
+                </div>
+              </div>
+
+              {createModalType === 'GOODS' ? (
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Thông tin Người nhận hàng <span className="text-[#ef4444]">*</span>
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    value={formState.receiverInfo}
+                    onChange={(e) => setFormState({ ...formState, receiverInfo: e.target.value })}
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937]"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="text-[12px] font-semibold text-[#374151]">Tên hành khách</div>
+                  <input
+                    type="text"
+                    required
+                    value={formState.contactName}
+                    onChange={(e) => setFormState({ ...formState, contactName: e.target.value })}
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937]"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* HƯỚNG DI CHUYỂN */}
+            <div className="space-y-3.5 text-[13px]">
+              <div className="flex items-center justify-between">
+                <div className="text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">
+                  HƯỚNG DI CHUYỂN — Lộ trình chuyến
+                </div>
+                {createModalType === 'BUSINESS' && (
                   <select
                     value={formState.tripMode}
                     onChange={(e) => setFormState({ ...formState, tripMode: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    className="h-[30px] border border-[#d1d5db] rounded-[6px] px-2.5 text-[12px] text-[#1f2937] bg-white"
                   >
-                    <option value="ONE_WAY">Một chiều (ONE_WAY)</option>
-                    <option value="ROUND_TRIP">Khứ hồi 2 chiều (ROUND_TRIP)</option>
+                    <option value="ONE_WAY">Một chiều</option>
+                    <option value="ROUND_TRIP">Khứ hồi 2 chiều</option>
                   </select>
-                </div>
-              )}
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">Loại xe đề xuất</label>
-                <select
-                  value={formState.requestedVehicleType}
-                  onChange={(e) =>
-                    setFormState({ ...formState, requestedVehicleType: e.target.value })
-                  }
-                  className="w-full border border-gray-300 rounded-md px-3 py-2"
-                >
-                  <option value="SEDAN_4">Xe 4 chỗ (SEDAN_4)</option>
-                  <option value="SUV_7">Xe 7 chỗ (SUV_7)</option>
-                  <option value="VAN_16">Xe 16 chỗ (VAN_16)</option>
-                  <option value="BUS_29">Xe 29 chỗ (BUS_29)</option>
-                </select>
+                )}
               </div>
-            </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">Giờ xuất phát *</label>
-                <input
-                  type="text"
-                  required
-                  value={formState.departureTime}
-                  onChange={(e) => setFormState({ ...formState, departureTime: e.target.value })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 font-mono"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Ngày đi <span className="text-[#ef4444]">*</span>
+                  </span>
+                  <input
+                    type="date"
+                    required
+                    value={formState.businessDate}
+                    onChange={(e) => setFormState({ ...formState, businessDate: e.target.value })}
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937]"
+                  />
+                </div>
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Giờ đi <span className="text-[#ef4444]">*</span>
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    value={formState.departureTime}
+                    onChange={(e) => setFormState({ ...formState, departureTime: e.target.value })}
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937]"
+                  />
+                </div>
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Giờ đến dự kiến <span className="text-[#ef4444]">*</span>
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    value={formState.expectedArrivalTime}
+                    onChange={(e) =>
+                      setFormState({ ...formState, expectedArrivalTime: e.target.value })
+                    }
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937]"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">Giờ đến dự kiến *</label>
-                <input
-                  type="text"
-                  required
-                  value={formState.expectedArrivalTime}
-                  onChange={(e) =>
-                    setFormState({ ...formState, expectedArrivalTime: e.target.value })
-                  }
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 font-mono"
-                />
-              </div>
+
               {createModalType === 'BUSINESS' && formState.tripMode === 'ROUND_TRIP' && (
-                <>
-                  <div>
-                    <label className="block font-semibold text-[#00897b] mb-1">Giờ về *</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  <div className="relative">
+                    <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#00897b] leading-none">
+                      Giờ về <span className="text-[#ef4444]">*</span>
+                    </span>
                     <input
                       type="text"
                       required
                       value={formState.returnTime}
                       onChange={(e) => setFormState({ ...formState, returnTime: e.target.value })}
-                      className="w-full border border-[#00897b] rounded-md px-3 py-2 font-mono"
+                      className="w-full h-[38px] border border-[#00897b] rounded-[6px] px-3 text-[13px] text-[#1f2937]"
                     />
                   </div>
-                  <div>
-                    <label className="block font-semibold text-[#00897b] mb-1">
-                      Giờ về đến dự kiến *
-                    </label>
+                  <div className="relative">
+                    <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#00897b] leading-none">
+                      Giờ về đến dự kiến <span className="text-[#ef4444]">*</span>
+                    </span>
                     <input
                       type="text"
                       required
@@ -917,140 +1155,84 @@ export const RequestsPage: React.FC = () => {
                       onChange={(e) =>
                         setFormState({ ...formState, returnExpectedArrivalTime: e.target.value })
                       }
-                      className="w-full border border-[#00897b] rounded-md px-3 py-2 font-mono"
+                      className="w-full h-[38px] border border-[#00897b] rounded-[6px] px-3 text-[13px] text-[#1f2937]"
                     />
                   </div>
-                </>
+                </div>
               )}
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">Điểm đón *</label>
-                <input
-                  list="points-datalist"
-                  required
-                  value={formState.departurePickupPointText}
-                  onChange={(e) =>
-                    setFormState({ ...formState, departurePickupPointText: e.target.value })
-                  }
-                  className="w-full border border-gray-300 rounded-md px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">Điểm đến / trả *</label>
-                <input
-                  list="points-datalist"
-                  required
-                  value={formState.departureDropoffPointText}
-                  onChange={(e) =>
-                    setFormState({ ...formState, departureDropoffPointText: e.target.value })
-                  }
-                  className="w-full border border-gray-300 rounded-md px-3 py-2"
-                />
-              </div>
-              <datalist id="points-datalist">
-                {points.map((p) => (
-                  <option key={p.id} value={p.pointName}>
-                    [{p.pointType}] {p.pointCode} - {p.pointName}
-                  </option>
-                ))}
-              </datalist>
-            </div>
-
-            {createModalType === 'GOODS' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-md bg-amber-50 border border-amber-200 text-xs">
-                <div>
-                  <label className="block font-semibold text-amber-900 mb-1">
-                    Thông tin Người gửi hàng *
-                  </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Điểm đón <span className="text-[#ef4444]">*</span>
+                  </span>
                   <input
-                    type="text"
+                    list="points-datalist"
                     required
-                    value={formState.senderInfo}
-                    onChange={(e) => setFormState({ ...formState, senderInfo: e.target.value })}
-                    className="w-full border border-amber-300 rounded-md px-3 py-2 bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-amber-900 mb-1">
-                    Thông tin Người nhận hàng *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formState.receiverInfo}
-                    onChange={(e) => setFormState({ ...formState, receiverInfo: e.target.value })}
-                    className="w-full border border-amber-300 rounded-md px-3 py-2 bg-white"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                <div>
-                  <label className="block font-semibold text-gray-700 mb-1">
-                    Số lượng hành khách *
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    required
-                    value={formState.passengerCount}
+                    value={formState.departurePickupPointText}
                     onChange={(e) =>
-                      setFormState({ ...formState, passengerCount: Number(e.target.value) })
+                      setFormState({ ...formState, departurePickupPointText: e.target.value })
                     }
-                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937]"
                   />
                 </div>
-                <div>
-                  <label className="block font-semibold text-gray-700 mb-1">
-                    Người liên hệ đoàn *
-                  </label>
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Điểm trả <span className="text-[#ef4444]">*</span>
+                  </span>
                   <input
-                    type="text"
+                    list="points-datalist"
                     required
-                    value={formState.contactName}
-                    onChange={(e) => setFormState({ ...formState, contactName: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    value={formState.departureDropoffPointText}
+                    onChange={(e) =>
+                      setFormState({ ...formState, departureDropoffPointText: e.target.value })
+                    }
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937]"
                   />
                 </div>
-                <div>
-                  <label className="block font-semibold text-gray-700 mb-1">SĐT liên hệ *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formState.contactPhone}
-                    onChange={(e) => setFormState({ ...formState, contactPhone: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 font-mono"
-                  />
-                </div>
+                <datalist id="points-datalist">
+                  {points.map((p) => (
+                    <option key={p.id} value={p.pointName}>
+                      [{p.pointType}] {p.pointCode} - {p.pointName}
+                    </option>
+                  ))}
+                </datalist>
               </div>
-            )}
-
-            <div className="text-xs">
-              <label className="block font-semibold text-gray-700 mb-1">Mục đích chi tiết *</label>
-              <input
-                type="text"
-                required
-                value={formState.purpose}
-                onChange={(e) => setFormState({ ...formState, purpose: e.target.value })}
-                className="w-full border border-gray-300 rounded-md px-3 py-2"
-              />
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
+            {/* CHI TIẾT TÙY CHỌN */}
+            <div className="space-y-2.5 text-[13px]">
+              <div className="text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">
+                CHI TIẾT TÙY CHỌN
+              </div>
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Ghi chú / Mục đích <span className="text-[#ef4444]">*</span>
+                </span>
+                <input
+                  type="text"
+                  required
+                  value={formState.purpose}
+                  onChange={(e) => setFormState({ ...formState, purpose: e.target.value })}
+                  className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937]"
+                  placeholder="Ghi chú"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setCreateModalType(null)}
-                className="px-3.5 py-1.5 rounded-md border border-gray-300 text-xs font-medium text-gray-700"
+                className="h-[34px] px-4 rounded-[6px] border border-[#d1d5db] bg-white text-[13px] font-medium text-[#4b5563] hover:bg-[#f9fafb] cursor-pointer"
               >
                 Hủy
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 rounded-md bg-[#00897b] text-white text-xs font-semibold hover:bg-[#00796b] cursor-pointer"
+                className="h-[34px] px-4 rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[13px] font-medium cursor-pointer"
               >
-                Gửi yêu cầu
+                Lưu yêu cầu
               </button>
             </div>
           </form>

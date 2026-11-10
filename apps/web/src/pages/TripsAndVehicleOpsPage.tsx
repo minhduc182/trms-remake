@@ -561,16 +561,16 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
             <table className="w-full table-fixed text-left border-collapse">
               <thead>
                 <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] text-[13px] font-semibold text-[#1f2937]">
-                  <th className="px-2.5 w-[3%]"></th>
-                  <th className="px-2.5 w-[3.5%]">#</th>
-                  <th className="px-2.5 w-[11.5%]">Loại chuyến đi</th>
-                  <th className="px-2.5 w-[13.5%]">Trạng thái</th>
-                  <th className="px-2.5 w-[19%]">Lộ trình / Điểm đón – Điểm trả</th>
-                  <th className="px-2.5 w-[8.5%]">Biển số xe</th>
-                  <th className="px-2.5 w-[8.5%]">Loại xe</th>
-                  <th className="px-2.5 w-[11%]">Tài xế</th>
-                  <th className="px-2.5 w-[13.5%]">Khung giờ</th>
-                  <th className="px-2.5 w-[8%]">Hành khách</th>
+                  <th className="px-2 w-[3%]"></th>
+                  <th className="px-2 w-[3.5%]">#</th>
+                  <th className="px-2 w-[11.5%]">Loại chuyến đi</th>
+                  <th className="px-2 w-[13.5%]">Trạng thái</th>
+                  <th className="px-2 w-[18.5%]">Lộ trình / Điểm đón – Điểm trả</th>
+                  <th className="px-2 w-[8.5%]">Biển số xe</th>
+                  <th className="px-2 w-[8.5%]">Loại xe</th>
+                  <th className="px-2 w-[11%]">Tài xế</th>
+                  <th className="px-1.5 w-[14.5%]">Khung giờ</th>
+                  <th className="px-2 w-[7.5%]">Hành khách</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">
@@ -643,7 +643,7 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
                       <td className="px-2.5 text-[#1f2937]">
                         {trip.driverNameSnapshot || '—'}
                       </td>
-                      <td className="px-2.5 text-[#1f2937]">
+                      <td className="px-1.5 text-[#1f2937]">
                         {formatTripTimeWindow(
                           trip.plannedDepartureAt,
                           trip.plannedArrivalAt,
@@ -811,16 +811,16 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
             <table className="w-full table-fixed text-left border-collapse">
               <thead>
                 <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] text-[13px] font-semibold text-[#1f2937]">
-                  <th className="px-2.5 w-[3%]"></th>
-                  <th className="px-2.5 w-[3.5%]">#</th>
-                  <th className="px-2.5 w-[9%]">Biển số</th>
-                  <th className="px-2.5 w-[9%]">Loại xe</th>
-                  <th className="px-2.5 w-[13%]">Trạng thái</th>
-                  <th className="px-2.5 w-[11.5%]">Tài xế</th>
-                  <th className="px-2.5 w-[12.5%]">Điểm bắt đầu</th>
-                  <th className="px-2.5 w-[14.5%]">Điểm kết thúc</th>
-                  <th className="px-2.5 w-[13.5%]">Khung giờ</th>
-                  <th className="px-2.5 w-[10.5%]">Mã chuyến</th>
+                  <th className="px-2 w-[3%]"></th>
+                  <th className="px-2 w-[3%]">#</th>
+                  <th className="px-2 w-[8.5%]">Biển số</th>
+                  <th className="px-2 w-[8.5%]">Loại xe</th>
+                  <th className="px-2 w-[13%]">Trạng thái</th>
+                  <th className="px-2 w-[11%]">Tài xế</th>
+                  <th className="px-2 w-[11.5%]">Điểm bắt đầu</th>
+                  <th className="px-2 w-[14.5%]">Điểm kết thúc</th>
+                  <th className="px-1.5 w-[14.5%]">Khung giờ</th>
+                  <th className="px-1.5 w-[12.5%]">Mã chuyến</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">
@@ -884,7 +884,7 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
                       <td className="px-2.5 text-[#374151]">
                         {fo ? fo.end : isAvailable ? '-' : (vs.latestTrip?.departureDropoffPointText || '-')}
                       </td>
-                      <td className="px-2.5 text-[#1f2937]">
+                      <td className="px-1.5 text-[#1f2937]">
                         {fo
                           ? fo.window
                           : isAvailable
@@ -897,7 +897,7 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
                                 )
                               : '-'}
                       </td>
-                      <td className="px-2.5 text-[#374151]">
+                      <td className="px-1.5 text-[#374151]">
                         {fo
                           ? fo.tripCode
                           : isAvailable

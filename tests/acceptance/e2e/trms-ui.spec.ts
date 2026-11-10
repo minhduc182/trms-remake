@@ -152,7 +152,7 @@ test.describe('TRMS Remake E2E UI Acceptance Suite (Full QA Coverage)', () => {
 
     // Open Create Request modal and submit a valid BUSINESS request
     await page.click('button:has-text("Tạo yêu cầu")');
-    const reqForm = page.locator('form', { hasText: 'Gửi yêu cầu' });
+    const reqForm = page.locator('form', { hasText: 'Tạo yêu cầu vận chuyển' });
     await expect(reqForm).toBeVisible();
     await reqForm.locator('input[type="text"]').last().fill('Kiểm thử tạo yêu cầu E2E trên UI');
     await reqForm.locator('button:has-text("Hủy")').click();

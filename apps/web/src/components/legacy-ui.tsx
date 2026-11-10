@@ -372,7 +372,7 @@ export function SectionToolbar({
               onChange={(e) => onSearchChange(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && onSearchSubmit?.()}
               placeholder={searchPlaceholder}
-              className="h-[34px] w-[200px] pl-8 pr-7 rounded-[17px] border border-[#d1d5db] bg-white text-[13px] text-[#374151] placeholder:text-[#6b7280] focus:outline-none focus:border-[#00897b]"
+              className="h-[34px] w-[215px] pl-8 pr-3 rounded-[17px] border border-[#d1d5db] bg-white text-[13px] text-[#374151] placeholder:text-[#6b7280] focus:outline-none focus:border-[#00897b]"
             />
             {effectiveSearch && (
               <button
