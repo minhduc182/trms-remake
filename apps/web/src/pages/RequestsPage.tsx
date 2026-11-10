@@ -309,15 +309,22 @@ export const RequestsPage: React.FC = () => {
     e.preventDefault();
     try {
       await gqlRequest(
-        `mutation CreateBulkOt($businessDate: String!, $otShiftCode: String!, $rows: [BulkOtRowInput!]!) {
-          createBulkOtRequests(businessDate: $businessDate, otShiftCode: $otShiftCode, rows: $rows) {
+        `mutation CreateBulkOt($items: [BulkOtItemInput!]!) {
+          createBulkOtRequests(items: $items) {
             id requestCode
           }
         }`,
         {
-          businessDate: otDate,
-          otShiftCode,
-          rows: otRows,
+          items: otRows.map((r: any) => ({
+            empCode: r.empCode,
+            passengerName: r.passengerName,
+            otDate,
+            otShiftCode,
+            direction: r.direction || 'FROM_FACTORY',
+            pickupPointText: r.pickupPointText || undefined,
+            dropoffPointText: r.dropoffPointText || undefined,
+            note: r.note || undefined,
+          })),
         }
       );
       showToast(`Đã tạo ${otRows.length} đơn đăng ký xe OT theo ca`);
@@ -388,10 +395,10 @@ export const RequestsPage: React.FC = () => {
     if (reason === null) return;
     try {
       await gqlRequest(
-        `mutation TaxiReq($id: BigInt!, $reason: String) {
-          approveTaxiRequest(id: $id, reason: $reason) { id status }
+        `mutation TaxiReq($id: BigInt!, $notes: String) {
+          approveTaxiRequest(id: $id, notes: $notes) { id status }
         }`,
-        { id: req.id, reason }
+        { id: req.id, notes: reason }
       );
       showToast(`Đã duyệt đi Taxi cho đơn ${req.requestCode}`);
       loadRequests();
