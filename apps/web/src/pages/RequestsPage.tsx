@@ -649,16 +649,16 @@ export const RequestsPage: React.FC = () => {
                   />
                 </th>
               )}
-              <th className="px-1.5 w-[2.5%]">#</th>
-              <th className="px-1.5 w-[7.2%]">Loại yêu cầu</th>
-              <th className="px-1.5 w-[11.5%]">Trạng thái</th>
-              <th className="px-1.5 w-[8.2%]">Người yêu cầu</th>
-              <th className="px-1.5 w-[14.2%]">Bộ phận người yêu cầu</th>
-              <th className="px-1.5 w-[10.4%]">Số lượng đăng ký</th>
-              <th className="px-1.5 w-[12.2%]">Giờ khởi hành / Đón</th>
-              <th className="px-1.5 w-[11.8%]">Điểm đón / Lấy hàng</th>
-              <th className="px-1.5 w-[11.5%]">Điểm trả / Giao hàng</th>
-              <th className="px-1.5 w-[10.5%]">Giờ về / Giao hàng</th>
+              <th className="px-1 w-[2.3%]">#</th>
+              <th className="px-1 w-[6.8%]">Loại yêu cầu</th>
+              <th className="px-1 w-[10.5%]">Trạng thái</th>
+              <th className="px-1 w-[9.0%]">Người yêu cầu</th>
+              <th className="px-1 w-[14.2%]">Bộ phận người yêu cầu</th>
+              <th className="px-1 w-[10.1%]">Số lượng đăng ký</th>
+              <th className="px-1 w-[12.1%]">Giờ khởi hành / Đón</th>
+              <th className="px-1 w-[12.2%]">Điểm đón / Lấy hàng</th>
+              <th className="px-1 w-[12.1%]">Điểm trả / Giao hàng</th>
+              <th className="px-1 w-[10.7%]">Giờ về / Giao hàng</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">

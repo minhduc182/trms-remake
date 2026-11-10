@@ -208,7 +208,31 @@ export const MasterDataPage: React.FC = () => {
           });
         setLegs(filteredLegs);
       } else if (activeTab === 'ROUTES') {
-        const res = await gqlRequest<any>(
+        const fastRes = await gqlRequest<any>(
+          `query GetRoutesFast($passengerType: String, $runDays: String, $search: String) {
+            routes(passengerType: $passengerType, runDays: $runDays, search: $search) {
+              id routeCode routeName routeClass passengerType runDays activeFlag
+            }
+          }`,
+          {
+            passengerType: passengerTypeFilter || undefined,
+            runDays: runDaysFilter || undefined,
+            search: search || undefined,
+          }
+        );
+        const sortRouteList = (list: any[]) =>
+          [...(list || [])].sort((a, b) => {
+            const an = String(a.routeName || '');
+            const bn = String(b.routeName || '');
+            const aReal = an.startsWith('Tuyến ') ? 0 : 1;
+            const bReal = bn.startsWith('Tuyến ') ? 0 : 1;
+            if (aReal !== bReal) return aReal - bReal;
+            return an.localeCompare(bn, 'vi');
+          });
+        setRoutes(sortRouteList(fastRes.routes));
+        setLoading(false);
+
+        gqlRequest<any>(
           `query GetRoutesAndRefs($passengerType: String, $runDays: String, $search: String) {
             routes(passengerType: $passengerType, runDays: $runDays, search: $search) {
               id routeCode routeName routeClass passengerType runDays activeFlag
@@ -237,20 +261,15 @@ export const MasterDataPage: React.FC = () => {
             runDays: runDaysFilter || undefined,
             search: search || undefined,
           }
-        );
-        const sortedRoutes = [...(res.routes || [])].sort((a, b) => {
-          const an = String(a.routeName || '');
-          const bn = String(b.routeName || '');
-          const aReal = an.startsWith('Tuyến ') ? 0 : 1;
-          const bReal = bn.startsWith('Tuyến ') ? 0 : 1;
-          if (aReal !== bReal) return aReal - bReal;
-          return an.localeCompare(bn, 'vi');
-        });
-        setRoutes(sortedRoutes);
-        setPoints(res.points || []);
-        setVehicles(res.vehicles || []);
-        setDrivers(res.drivers || []);
-        setLegs(res.legDefinitions || []);
+        )
+          .then((res) => {
+            setRoutes(sortRouteList(res.routes));
+            setPoints(res.points || []);
+            setVehicles(res.vehicles || []);
+            setDrivers(res.drivers || []);
+            setLegs(res.legDefinitions || []);
+          })
+          .catch(() => {});
       } else if (activeTab === 'ETP') {
         const res = await gqlRequest<any>(
           `query GetEtpList($passengerType: String, $approvalStatus: String, $activeFlag: String, $search: String) {
@@ -1995,20 +2014,20 @@ export const MasterDataPage: React.FC = () => {
             <table className="w-full table-fixed text-left border-collapse text-[12.5px]">
               <thead>
                 <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] text-[#1f2937] font-semibold">
-                  <th className="px-1 w-[2.2%]">#</th>
-                  <th className="px-1 w-[6.3%]">Phiên bản</th>
-                  <th className="px-1 w-[7.2%]">Loại</th>
-                  <th className="px-1 w-[6.5%]">Hành khách</th>
-                  <th className="px-1 w-[9.8%]">Phạm vi tính giá</th>
+                  <th className="px-1 w-[2.1%]">#</th>
+                  <th className="px-1 w-[5.9%]">Phiên bản</th>
+                  <th className="px-1 w-[6.8%]">Loại</th>
+                  <th className="px-1 w-[7.2%]">Hành khách</th>
+                  <th className="px-1 w-[9.6%]">Phạm vi tính giá</th>
                   <th className="px-1 w-[6.2%]">Xe</th>
                   <th className="px-1 w-[4.8%]">Quy tắc</th>
-                  <th className="px-1 w-[9.0%]">Giá chính</th>
-                  <th className="px-1 w-[11.2%]">Hạn mức KM / tháng</th>
-                  <th className="px-1 w-[9.8%]">Đơn giá KM vượt</th>
+                  <th className="px-1 w-[8.2%]">Giá chính</th>
+                  <th className="px-1 w-[11.8%]">Hạn mức KM / tháng</th>
+                  <th className="px-1 w-[9.7%]">Đơn giá KM vượt</th>
                   <th className="px-1 w-[7.2%]">Giá OT / giờ</th>
-                  <th className="px-1 w-[7.5%]">Giá lưu đêm</th>
+                  <th className="px-1 w-[7.2%]">Giá lưu đêm</th>
                   <th className="px-1 w-[6.5%]">Áp dụng từ</th>
-                  <th className="px-1 w-[5.8%]">Trạng thái</th>
+                  <th className="px-1 w-[6.8%]">Trạng thái</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb]">
