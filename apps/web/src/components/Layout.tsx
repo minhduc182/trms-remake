@@ -164,7 +164,14 @@ export function Layout({ currentPath, onNavigate, children }: LayoutProps) {
   const [profile, setProfile] = useState<TestRoleProfile>(() => getActiveProfile());
   const [serverFeatures, setServerFeatures] = useState<string[] | null>(null);
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
+  const [lang, setLang] = useState<'vi' | 'en' | 'ja'>('vi');
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const [cmdQuery, setCmdQuery] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const langRef = useRef<HTMLDivElement>(null);
 
   const effectiveFeatures = serverFeatures ?? profile.defaultFeatures;
 
@@ -173,9 +180,27 @@ export function Layout({ currentPath, onNavigate, children }: LayoutProps) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setRoleDropdownOpen(false);
       }
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+      if (langRef.current && !langRef.current.contains(e.target as Node)) {
+        setLangOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCmdOpen((prev) => !prev);
+      } else if (e.key === 'Escape') {
+        setCmdOpen(false);
+      }
     };
     document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKeyDown);
+    };
   }, []);
 
   useEffect(() => {
@@ -351,6 +376,10 @@ export function Layout({ currentPath, onNavigate, children }: LayoutProps) {
             {/* Search Pill */}
             <button
               type="button"
+              onClick={() => {
+                setCmdQuery('');
+                setCmdOpen(true);
+              }}
               className="inline-flex items-center gap-2 h-[34px] px-3 rounded-full bg-[#f3f4f6] hover:bg-[#e5e7eb]/70 text-[13px] text-[#4b5563] cursor-pointer"
             >
               <Search className="w-4 h-4 text-[#00897b]" />
@@ -366,25 +395,105 @@ export function Layout({ currentPath, onNavigate, children }: LayoutProps) {
             </button>
 
             {/* Language Globe */}
-            <button
-              type="button"
-              className="p-1.5 text-[#00897b] hover:bg-[#f3f4f6] rounded-full cursor-pointer"
-              title="Ngôn ngữ"
-            >
-              <Globe className="w-[18px] h-[18px]" />
-            </button>
+            <div className="relative" ref={langRef}>
+              <button
+                type="button"
+                onClick={() => setLangOpen(!langOpen)}
+                className="p-1.5 text-[#00897b] hover:bg-[#f3f4f6] rounded-full cursor-pointer"
+                title="Ngôn ngữ"
+              >
+                <Globe className="w-[18px] h-[18px]" />
+              </button>
+              {langOpen && (
+                <div className="absolute right-0 mt-2 w-40 bg-white rounded-[8px] shadow-xl border border-[#e5e7eb] py-1 z-50 text-[13px]">
+                  {[
+                    { code: 'vi', label: 'Tiếng Việt (VI)' },
+                    { code: 'en', label: 'English (EN)' },
+                    { code: 'ja', label: '日本語 (JA)' },
+                  ].map((item) => (
+                    <button
+                      key={item.code}
+                      type="button"
+                      onClick={() => {
+                        setLang(item.code as 'vi' | 'en' | 'ja');
+                        setLangOpen(false);
+                      }}
+                      className={`w-full px-3 py-1.5 text-left hover:bg-[#f9fafb] flex items-center justify-between cursor-pointer ${
+                        lang === item.code ? 'text-[#00897b] font-semibold bg-[#eefbf6]' : 'text-[#374151]'
+                      }`}
+                    >
+                      <span>{item.label}</span>
+                      {lang === item.code && <span>✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Notification Bell with Badge */}
-            <button
-              type="button"
-              className="p-1.5 text-[#00897b] hover:bg-[#f3f4f6] rounded-full relative cursor-pointer"
-              title="Thông báo"
-            >
-              <Bell className="w-[18px] h-[18px]" />
-              <span className="absolute -top-0.5 -right-0.5 px-1 min-w-[16px] h-[16px] rounded-full bg-[#ef4444] text-white text-[10px] font-bold flex items-center justify-center leading-none">
-                5
-              </span>
-            </button>
+            <div className="relative" ref={notifRef}>
+              <button
+                type="button"
+                onClick={() => setNotifOpen(!notifOpen)}
+                className="p-1.5 text-[#00897b] hover:bg-[#f3f4f6] rounded-full relative cursor-pointer"
+                title="Thông báo"
+              >
+                <Bell className="w-[18px] h-[18px]" />
+                <span className="absolute -top-0.5 -right-0.5 px-1 min-w-[16px] h-[16px] rounded-full bg-[#ef4444] text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                  5
+                </span>
+              </button>
+              {notifOpen && (
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-[8px] shadow-xl border border-[#e5e7eb] py-2 z-50 text-[13px]">
+                  <div className="px-3.5 pb-1.5 border-b border-[#f3f4f6] font-semibold text-[#111827] flex items-center justify-between">
+                    <span>Thông báo hệ thống</span>
+                    <span className="text-[11px] text-[#00897b]">5 mới</span>
+                  </div>
+                  <div className="divide-y divide-[#f3f4f6] max-h-72 overflow-y-auto">
+                    {[
+                      {
+                        title: '16 yêu cầu xe đang chờ phê duyệt',
+                        sub: 'Nhấn để mở Hàng chờ phê duyệt',
+                        path: '/requests',
+                      },
+                      {
+                        title: '153 đơn đang chờ điều phối xe',
+                        sub: 'Nhấn để mở Hàng chờ điều phối',
+                        path: '/dispatch',
+                      },
+                      {
+                        title: '3 tuyến cố định thiếu ghế ngày vận hành',
+                        sub: 'Tuyến C, Tuyến CN02, Tuyến CN04',
+                        path: '/dispatch',
+                      },
+                      {
+                        title: 'Chuyến đi chờ tài xế xác nhận',
+                        sub: 'Nhấn để mở Theo dõi chuyến đi',
+                        path: '/trips',
+                      },
+                      {
+                        title: 'Bảng thanh toán tháng 09/2026 đã tính',
+                        sub: 'Nhấn để xem Báo cáo chi phí',
+                        path: '/cost-reports',
+                      },
+                    ].map((n, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setNotifOpen(false);
+                          onNavigate(n.path);
+                        }}
+                        className="w-full px-3.5 py-2.5 text-left hover:bg-[#f9fafb] cursor-pointer block"
+                      >
+                        <div className="font-medium text-[#1f2937]">{n.title}</div>
+                        <div className="text-[11px] text-[#6b7280] mt-0.5">{n.sub}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Avatar with Role Switcher Popover */}
             <div className="relative" ref={dropdownRef}>
