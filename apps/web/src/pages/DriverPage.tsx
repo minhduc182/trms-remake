@@ -166,11 +166,27 @@ export const DriverPage: React.FC = () => {
         String(t.departureDropoffPointText || '').toLowerCase().includes(kw)
     )
     .sort((a, b) => {
-      const aFixed =
-        a.route?.routeName?.startsWith('Tuyến') && a.vehiclePlateSnapshot !== '00015' ? 0 : 1;
-      const bFixed =
-        b.route?.routeName?.startsWith('Tuyến') && b.vehiclePlateSnapshot !== '00015' ? 0 : 1;
-      return aFixed - bFixed;
+      const aCn =
+        a.route?.routeName?.startsWith('Tuyến CN2') &&
+        Boolean(a.vehiclePlateSnapshot) &&
+        a.vehiclePlateSnapshot !== '00015'
+          ? 0
+          : a.route?.routeName?.startsWith('Tuyến') &&
+              Boolean(a.vehiclePlateSnapshot) &&
+              a.vehiclePlateSnapshot !== '00015'
+            ? 1
+            : 2;
+      const bCn =
+        b.route?.routeName?.startsWith('Tuyến CN2') &&
+        Boolean(b.vehiclePlateSnapshot) &&
+        b.vehiclePlateSnapshot !== '00015'
+          ? 0
+          : b.route?.routeName?.startsWith('Tuyến') &&
+              Boolean(b.vehiclePlateSnapshot) &&
+              b.vehiclePlateSnapshot !== '00015'
+            ? 1
+            : 2;
+      return aCn - bCn;
     });
 
   const driverPaging = usePagination(filteredTrips, 20);
@@ -235,7 +251,7 @@ export const DriverPage: React.FC = () => {
 
       {/* 4. Table (Exact match to 038-driver-confirmation.png) */}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1100px] table-fixed text-left border-collapse">
+        <table className="w-full table-fixed text-left border-collapse">
           <thead>
             <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] text-[13px] font-semibold text-[#1f2937]">
               <th className="px-2.5 w-[3.5%]">#</th>
@@ -243,8 +259,8 @@ export const DriverPage: React.FC = () => {
               <th className="px-2.5 w-[13%]">Trạng thái</th>
               <th className="px-2.5 w-[11.5%]">Tài xế</th>
               <th className="px-2.5 w-[9%]">Xe</th>
-              <th className="px-2.5 w-[18%]">Tuyến</th>
-              <th className="px-2.5 w-[13%]">Khung giờ</th>
+              <th className="px-2.5 w-[17.5%]">Tuyến</th>
+              <th className="px-2.5 w-[13.5%]">Khung giờ</th>
               <th className="px-2.5 w-[8.5%]">Quãng đường</th>
               <th className="px-2.5 w-[11.5%]">Chế độ xác nhận</th>
             </tr>

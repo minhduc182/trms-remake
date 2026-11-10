@@ -417,8 +417,18 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
       );
     })
     .sort((a, b) => {
-      const aFixed = a.route?.routeName?.startsWith('Tuyến') && a.vehiclePlateSnapshot !== '00015' ? 0 : 1;
-      const bFixed = b.route?.routeName?.startsWith('Tuyến') && b.vehiclePlateSnapshot !== '00015' ? 0 : 1;
+      const aFixed =
+        a.route?.routeName?.startsWith('Tuyến') &&
+        Boolean(a.vehiclePlateSnapshot) &&
+        a.vehiclePlateSnapshot !== '00015'
+          ? 0
+          : 1;
+      const bFixed =
+        b.route?.routeName?.startsWith('Tuyến') &&
+        Boolean(b.vehiclePlateSnapshot) &&
+        b.vehiclePlateSnapshot !== '00015'
+          ? 0
+          : 1;
       if (aFixed !== bFixed) return aFixed - bFixed;
       return 0;
     });
@@ -426,7 +436,7 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
   const filteredVehicleStatuses = vehicleStatuses
     .filter((vs) => {
       const plate = String(vs.vehicle?.vehiclePlate || '');
-      if (!plate || plate === '00015' || plate.startsWith('29E-')) return false;
+      if (!search.trim() && !/^(19|29|30)[A-Z]\d{5}$/.test(plate)) return false;
       return true;
     })
     .filter((vs) => !vehicleStatusFilter || vs.status === vehicleStatusFilter)
@@ -548,18 +558,18 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
 
           {/* Table (Exact columns from 034-trip-tracking.png) */}
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1120px] table-fixed text-left border-collapse">
+            <table className="w-full table-fixed text-left border-collapse">
               <thead>
                 <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] text-[13px] font-semibold text-[#1f2937]">
                   <th className="px-2.5 w-[3%]"></th>
                   <th className="px-2.5 w-[3.5%]">#</th>
                   <th className="px-2.5 w-[11.5%]">Loại chuyến đi</th>
                   <th className="px-2.5 w-[13.5%]">Trạng thái</th>
-                  <th className="px-2.5 w-[20%]">Lộ trình / Điểm đón – Điểm trả</th>
+                  <th className="px-2.5 w-[19%]">Lộ trình / Điểm đón – Điểm trả</th>
                   <th className="px-2.5 w-[8.5%]">Biển số xe</th>
                   <th className="px-2.5 w-[8.5%]">Loại xe</th>
                   <th className="px-2.5 w-[11%]">Tài xế</th>
-                  <th className="px-2.5 w-[12.5%]">Khung giờ</th>
+                  <th className="px-2.5 w-[13.5%]">Khung giờ</th>
                   <th className="px-2.5 w-[8%]">Hành khách</th>
                 </tr>
               </thead>
@@ -798,7 +808,7 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
 
           {/* Table (Exact columns from 035-vehicle-ops.png) */}
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1120px] table-fixed text-left border-collapse">
+            <table className="w-full table-fixed text-left border-collapse">
               <thead>
                 <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] text-[13px] font-semibold text-[#1f2937]">
                   <th className="px-2.5 w-[3%]"></th>
@@ -807,10 +817,10 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
                   <th className="px-2.5 w-[9%]">Loại xe</th>
                   <th className="px-2.5 w-[13%]">Trạng thái</th>
                   <th className="px-2.5 w-[11.5%]">Tài xế</th>
-                  <th className="px-2.5 w-[13.5%]">Điểm bắt đầu</th>
-                  <th className="px-2.5 w-[15%]">Điểm kết thúc</th>
-                  <th className="px-2.5 w-[13%]">Khung giờ</th>
-                  <th className="px-2.5 w-[9.5%]">Mã chuyến</th>
+                  <th className="px-2.5 w-[12.5%]">Điểm bắt đầu</th>
+                  <th className="px-2.5 w-[14.5%]">Điểm kết thúc</th>
+                  <th className="px-2.5 w-[13.5%]">Khung giờ</th>
+                  <th className="px-2.5 w-[10.5%]">Mã chuyến</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">

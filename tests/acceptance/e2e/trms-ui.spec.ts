@@ -43,54 +43,55 @@ test.describe('TRMS Remake E2E UI Acceptance Suite (Full QA Coverage)', () => {
     // 1. Tab POINTS: Create a new point via UI modal
     await expect(page.locator('[data-testid="master-tab-POINTS"]')).toBeVisible();
     await page.click('button:has-text("Thêm điểm đón/trả")');
-    await expect(page.locator('text=Thêm điểm đón/trả mới')).toBeVisible();
-    await page.fill('input[placeholder="VD: PT_CAUGIAY"]', `PT_UI_${suffix}`);
-    await page.fill('input[placeholder="VD: BigC Thăng Long"]', `Điểm E2E ${suffix}`);
-    await page.click('button:has-text("Lưu điểm đón/trả")');
-    await expect(page.locator('text=Thêm điểm đón/trả mới')).toBeHidden({ timeout: 10000 });
+    const ptForm = page.locator('form', { hasText: 'Thêm điểm đón/trả' });
+    await expect(ptForm).toBeVisible();
+    await ptForm.locator('input[placeholder="VD: PT_CAUGIAY"]').fill(`PT_UI_${suffix}`);
+    await ptForm.locator('input[placeholder="VD: BigC Thăng Long"]').fill(`Điểm E2E ${suffix}`);
+    await ptForm.locator('button[type="submit"]').click();
+    await expect(ptForm).toBeHidden({ timeout: 10000 });
 
     // 2. Tab DRIVERS: Create a new driver with CREATE_NEW account via UI modal
     await page.click('[data-testid="master-tab-DRIVERS"]');
     await expect(page.locator('button:has-text("Thêm tài xế")')).toBeVisible();
     await page.click('button:has-text("Thêm tài xế")');
-    await expect(page.locator('text=Thêm tài xế mới')).toBeVisible();
-    const drvForm = page.locator('form', { hasText: 'Thêm tài xế mới' });
+    const drvForm = page.locator('form', { hasText: 'Thêm tài xế' });
+    await expect(drvForm).toBeVisible();
     await drvForm.locator('input[type="text"]').nth(0).fill(`Tài xế E2E ${suffix}`);
     await drvForm.locator('input[type="text"]').nth(1).fill(`09876${suffix}`);
     await drvForm.locator('input[type="text"]').nth(3).fill(`usr_e2e_${suffix}`);
     await drvForm.locator('input[type="password"]').fill('Password@123');
     await drvForm.locator('button[type="submit"]').click();
-    await expect(page.locator('text=Thêm tài xế mới')).toBeHidden({ timeout: 10000 });
+    await expect(drvForm).toBeHidden({ timeout: 10000 });
 
     // 3. Tab VEHICLES: Open modal, verify auto seat capacity when switching VAN_16 -> 15
     await page.click('[data-testid="master-tab-VEHICLES"]');
     await page.click('button:has-text("Thêm xe")');
-    await expect(page.locator('text=Thêm xe mới')).toBeVisible();
-    const vehForm = page.locator('form', { hasText: 'Thêm xe mới' });
+    const vehForm = page.locator('form', { hasText: 'Thêm xe' });
+    await expect(vehForm).toBeVisible();
     await vehForm.locator('select').first().selectOption('VAN_16');
     await expect(vehForm.locator('input[readonly]')).toHaveValue('15');
     await vehForm.locator('input[placeholder="VD: 29B-123.45"]').fill(`29E-${suffix}`);
     await vehForm.locator('button[type="submit"]').click();
-    await expect(page.locator('text=Thêm xe mới')).toBeHidden({ timeout: 10000 });
+    await expect(vehForm).toBeHidden({ timeout: 10000 });
 
     // 4. Tab LEGS: Open modal, verify Deadhead=Y locks direction to TO_FACTORY
     await page.click('[data-testid="master-tab-LEGS"]');
     await page.click('button:has-text("Thêm lượt")');
-    await expect(page.locator('text=Thêm lượt chạy mới')).toBeVisible();
-    const legForm = page.locator('form', { hasText: 'Thêm lượt chạy mới' });
+    const legForm = page.locator('form', { hasText: 'Thêm lượt' });
+    await expect(legForm).toBeVisible();
     await legForm.locator('input[placeholder="VD: SANG_DON"]').fill(`LEG_UI_${suffix}`);
     await legForm.locator('input[placeholder="VD: Đón ca sáng"]').fill(`Lượt E2E ${suffix}`);
     await legForm.locator('select').nth(1).selectOption('Y');
     await expect(legForm.locator('select').nth(2)).toBeDisabled();
     await expect(legForm.locator('select').nth(2)).toHaveValue('TO_FACTORY');
     await legForm.locator('button[type="submit"]').click();
-    await expect(page.locator('text=Thêm lượt chạy mới')).toBeHidden({ timeout: 10000 });
+    await expect(legForm).toBeHidden({ timeout: 10000 });
 
     // 5. Tab ROUTES: Open modal, verify WORKER locks runDays to MON_SUN
     await page.click('[data-testid="master-tab-ROUTES"]');
     await page.click('button:has-text("Thêm tuyến")');
-    await expect(page.locator('text=Thêm Tuyến xe cố định mới')).toBeVisible();
-    const rtForm = page.locator('form', { hasText: 'Thêm Tuyến xe cố định mới' });
+    const rtForm = page.locator('form', { hasText: 'Thêm tuyến' });
+    await expect(rtForm).toBeVisible();
     await rtForm.locator('select').first().selectOption('WORKER');
     await expect(rtForm.locator('select').nth(1)).toBeDisabled();
     await expect(rtForm.locator('select').nth(1)).toHaveValue('MON_SUN');
@@ -108,7 +109,7 @@ test.describe('TRMS Remake E2E UI Acceptance Suite (Full QA Coverage)', () => {
     await page.click('[data-testid="master-tab-COST_CONFIGS"]');
     await expect(page.locator('th:has-text("Phiên bản")')).toBeVisible();
     await page.click('button:has-text("Tạo phiên bản")');
-    await expect(page.locator('text=Tạo phiên bản Cấu hình chi phí mới')).toBeVisible();
+    await expect(page.locator('text=Tạo quy tắc chi phí')).toBeVisible();
     await page.click('button:has-text("Hủy")');
 
     expect(dialogs).toEqual([]);

@@ -2176,109 +2176,110 @@ export const MasterDataPage: React.FC = () => {
       )}
 
       {/* ==================================================================== */}
-      {/* MODAL 1: ADD / EDIT POINT */}
+      {/* MODAL 1: ADD / EDIT POINT (Legacy 047-master-data-stop-add-form.png) */}
       {/* ==================================================================== */}
       {pointModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center p-4">
           <form
             onSubmit={handleSavePoint}
-            className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md p-5 space-y-4"
+            className="bg-white rounded-[12px] shadow-[0_12px_32px_rgba(0,0,0,0.18)] border border-[#e5e7eb] w-full max-w-[560px] p-6 space-y-4"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">
-                {pointModal.id ? 'Cập nhật điểm đón/trả' : 'Thêm điểm đón/trả mới'}
+            <div className="flex items-center justify-between pb-1">
+              <h3 className="text-[15px] font-bold text-[#1f2937]">
+                {pointModal.id ? 'Sửa điểm đón/trả' : 'Thêm điểm đón/trả'}
               </h3>
               <button
                 type="button"
                 onClick={() => setPointModal(null)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-[#ef4444] hover:text-[#dc2626] p-1 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Mã điểm *</label>
-                <input
-                  type="text"
-                  required
-                  disabled={Boolean(pointModal.id)}
-                  value={pointModal.pointCode}
-                  onChange={(e) =>
-                    setPointModal({ ...pointModal, pointCode: e.target.value.toUpperCase() })
-                  }
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 disabled:bg-slate-100"
-                  placeholder="VD: PT_CAUGIAY"
-                />
+            <div className="space-y-3.5 text-[13px]">
+              <div className="grid grid-cols-2 gap-3.5">
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Mã điểm <span className="text-[#ef4444]">*</span>
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    disabled={Boolean(pointModal.id)}
+                    value={pointModal.pointCode}
+                    onChange={(e) =>
+                      setPointModal({ ...pointModal, pointCode: e.target.value.toUpperCase() })
+                    }
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b] disabled:bg-[#f3f4f6]"
+                    placeholder="VD: PT_CAUGIAY"
+                  />
+                </div>
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Loại
+                  </span>
+                  <select
+                    value={pointModal.pointType}
+                    onChange={(e) => setPointModal({ ...pointModal, pointType: e.target.value })}
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white focus:outline-none focus:border-[#00897b]"
+                  >
+                    <option value="PICKUP">Đón</option>
+                    <option value="DROPOFF">Trả</option>
+                    <option value="BOTH">Cả đón và trả</option>
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Tên điểm đón/trả *</label>
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Tên điểm <span className="text-[#ef4444]">*</span>
+                </span>
                 <input
                   type="text"
                   required
                   value={pointModal.pointName}
                   onChange={(e) => setPointModal({ ...pointModal, pointName: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                  className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
                   placeholder="VD: BigC Thăng Long"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Loại điểm *</label>
-                  <select
-                    value={pointModal.pointType}
-                    onChange={(e) => setPointModal({ ...pointModal, pointType: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2"
-                  >
-                    <option value="PICKUP">Điểm đón (PICKUP)</option>
-                    <option value="DROPOFF">Điểm trả (DROPOFF)</option>
-                    <option value="BOTH">Đón & Trả (BOTH)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Là nhà máy?</label>
-                  <select
-                    value={pointModal.isFactory || 'N'}
-                    onChange={(e) => setPointModal({ ...pointModal, isFactory: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2"
-                  >
-                    <option value="N">Không</option>
-                    <option value="Y">Là Nhà máy MKVC</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Quận / Huyện</label>
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Quận/huyện
+                </span>
                 <input
                   type="text"
                   value={pointModal.districtName || ''}
                   onChange={(e) => setPointModal({ ...pointModal, districtName: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                  className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
+                  placeholder="Quận/huyện"
                 />
               </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Địa chỉ chi tiết</label>
-                <input
-                  type="text"
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Địa chỉ
+                </span>
+                <textarea
+                  rows={2}
                   value={pointModal.address || ''}
                   onChange={(e) => setPointModal({ ...pointModal, address: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                  className="w-full border border-[#d1d5db] rounded-[6px] px-3 py-2 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
+                  placeholder="Địa chỉ"
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setPointModal(null)}
-                className="px-3.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600"
+                className="h-[34px] px-4 rounded-[6px] border border-[#d1d5db] bg-white text-[13px] font-medium text-[#4b5563] hover:bg-[#f9fafb] cursor-pointer"
               >
                 Hủy
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 cursor-pointer"
+                className="h-[34px] px-4 rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[13px] font-medium cursor-pointer"
               >
-                Lưu điểm đón/trả
+                Lưu
               </button>
             </div>
           </form>
@@ -2286,83 +2287,103 @@ export const MasterDataPage: React.FC = () => {
       )}
 
       {/* ==================================================================== */}
-      {/* MODAL 2: ADD / EDIT DRIVER (3 ACCOUNT MODES) */}
+      {/* MODAL 2: ADD / EDIT DRIVER (Legacy 048 & 050) */}
       {/* ==================================================================== */}
       {driverModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center p-4">
           <form
             onSubmit={handleSaveDriver}
-            className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md p-5 space-y-4"
+            className="bg-white rounded-[12px] shadow-[0_12px_32px_rgba(0,0,0,0.18)] border border-[#e5e7eb] w-full max-w-[560px] p-6 space-y-4"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">
-                {driverModal.id ? 'Cập nhật tài xế' : 'Thêm tài xế mới'}
+            <div className="flex items-center justify-between pb-1">
+              <h3 className="text-[15px] font-bold text-[#1f2937]">
+                {driverModal.id ? 'Sửa tài xế' : 'Thêm tài xế'}
               </h3>
               <button
                 type="button"
                 onClick={() => setDriverModal(null)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-[#ef4444] hover:text-[#dc2626] p-1 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Họ tên tài xế *</label>
-                <input
-                  type="text"
-                  required
-                  value={driverModal.driverName}
-                  onChange={(e) => setDriverModal({ ...driverModal, driverName: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2"
-                />
+            <div className="space-y-3.5 text-[13px]">
+              <div className="grid grid-cols-2 gap-3.5">
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Họ tên <span className="text-[#ef4444]">*</span>
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    value={driverModal.driverName}
+                    onChange={(e) => setDriverModal({ ...driverModal, driverName: e.target.value })}
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
+                    placeholder="Họ tên *"
+                  />
+                </div>
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Số điện thoại <span className="text-[#ef4444]">*</span>
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    value={driverModal.phoneNumber}
+                    onChange={(e) => setDriverModal({ ...driverModal, phoneNumber: e.target.value })}
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
+                    placeholder="Số điện thoại *"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Số điện thoại *</label>
-                <input
-                  type="text"
-                  required
-                  value={driverModal.phoneNumber}
-                  onChange={(e) => setDriverModal({ ...driverModal, phoneNumber: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2"
-                />
+
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Tùy chọn tài khoản đăng nhập
+                </span>
+                <select
+                  value={driverModal.accountMode || 'NONE'}
+                  onChange={(e) => setDriverModal({ ...driverModal, accountMode: e.target.value })}
+                  className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white focus:outline-none focus:border-[#00897b]"
+                >
+                  <option value="NONE">Không dùng tài khoản đăng nhập</option>
+                  <option value="LINK_EXISTING">Liên kết tài khoản có sẵn</option>
+                  <option value="CREATE_NEW">Tạo tài khoản đăng nhập mới</option>
+                </select>
+                <p className="mt-1.5 text-[12px] text-[#6b7280]">
+                  {driverModal.accountMode === 'CREATE_NEW'
+                    ? 'Tài khoản sẽ được tạo với vai trò Tài xế (Driver) thuộc bộ phận GA.'
+                    : driverModal.accountMode === 'LINK_EXISTING'
+                      ? 'Liên kết tài xế với một tài khoản đăng nhập đã tồn tại trên hệ thống.'
+                      : 'Tài xế này sẽ không được liên kết với tài khoản đăng nhập nào.'}
+                </p>
               </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Địa chỉ ngắn</label>
+
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Địa chỉ ngắn <span className="text-[#ef4444]">*</span>
+                </span>
                 <input
                   type="text"
                   value={driverModal.shortAddress || ''}
                   onChange={(e) => setDriverModal({ ...driverModal, shortAddress: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                  className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
+                  placeholder="Địa chỉ ngắn *"
                 />
-              </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Chế độ tài khoản đăng nhập (3 chế độ chuẩn Tester)
-                </label>
-                <select
-                  value={driverModal.accountMode || 'NONE'}
-                  onChange={(e) => setDriverModal({ ...driverModal, accountMode: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-slate-50 font-medium"
-                >
-                  <option value="NONE">1. Không sử dụng tài khoản (NONE)</option>
-                  <option value="LINK_EXISTING">2. Liên kết tài khoản sẵn có (LINK_EXISTING)</option>
-                  <option value="CREATE_NEW">3. Tạo tài khoản mới (CREATE_NEW)</option>
-                </select>
               </div>
 
               {driverModal.accountMode === 'LINK_EXISTING' && (
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Chọn tài khoản người dùng *
-                  </label>
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Chọn tài khoản người dùng <span className="text-[#ef4444]">*</span>
+                  </span>
                   <select
                     required
                     value={driverModal.identityUserId || ''}
                     onChange={(e) =>
                       setDriverModal({ ...driverModal, identityUserId: e.target.value })
                     }
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white focus:outline-none focus:border-[#00897b]"
                   >
                     <option value="">-- Chọn tài khoản --</option>
                     {users.map((u) => (
@@ -2375,9 +2396,11 @@ export const MasterDataPage: React.FC = () => {
               )}
 
               {driverModal.accountMode === 'CREATE_NEW' && (
-                <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-blue-50/60 border border-blue-200">
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Username mới *</label>
+                <div className="space-y-3.5">
+                  <div className="relative">
+                    <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                      Tên người dùng <span className="text-[#ef4444]">*</span>
+                    </span>
                     <input
                       type="text"
                       required
@@ -2385,11 +2408,14 @@ export const MasterDataPage: React.FC = () => {
                       onChange={(e) =>
                         setDriverModal({ ...driverModal, newUsername: e.target.value })
                       }
-                      className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white"
+                      className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
+                      placeholder="Tên người dùng *"
                     />
                   </div>
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Mật khẩu *</label>
+                  <div className="relative">
+                    <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                      Mật khẩu <span className="text-[#ef4444]">*</span>
+                    </span>
                     <input
                       type="password"
                       required
@@ -2397,25 +2423,39 @@ export const MasterDataPage: React.FC = () => {
                       onChange={(e) =>
                         setDriverModal({ ...driverModal, newPassword: e.target.value })
                       }
-                      className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white"
+                      className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
+                      placeholder="Mật khẩu *"
                     />
                   </div>
                 </div>
               )}
+
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Địa chỉ đầy đủ
+                </span>
+                <textarea
+                  rows={2}
+                  value={driverModal.fullAddress || ''}
+                  onChange={(e) => setDriverModal({ ...driverModal, fullAddress: e.target.value })}
+                  className="w-full border border-[#d1d5db] rounded-[6px] px-3 py-2 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
+                  placeholder="Địa chỉ đầy đủ"
+                />
+              </div>
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setDriverModal(null)}
-                className="px-3.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600"
+                className="h-[34px] px-4 rounded-[6px] border border-[#d1d5db] bg-white text-[13px] font-medium text-[#4b5563] hover:bg-[#f9fafb] cursor-pointer"
               >
                 Hủy
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 cursor-pointer"
+                className="h-[34px] px-4 rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[13px] font-medium cursor-pointer"
               >
-                Lưu tài xế
+                Lưu
               </button>
             </div>
           </form>
@@ -2423,29 +2463,31 @@ export const MasterDataPage: React.FC = () => {
       )}
 
       {/* ==================================================================== */}
-      {/* MODAL 3: ADD / EDIT VEHICLE (AUTO CAPACITY & BY_SEGMENT QUOTAS) */}
+      {/* MODAL 3: ADD / EDIT VEHICLE (Legacy 052-master-data-vehicle-add-form.png) */}
       {/* ==================================================================== */}
       {vehicleModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center p-4">
           <form
             onSubmit={handleSaveVehicle}
-            className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md p-5 space-y-4"
+            className="bg-white rounded-[12px] shadow-[0_12px_32px_rgba(0,0,0,0.18)] border border-[#e5e7eb] w-full max-w-[560px] p-6 space-y-4"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">
-                {vehicleModal.id ? 'Cập nhật xe' : 'Thêm xe mới'}
+            <div className="flex items-center justify-between pb-1">
+              <h3 className="text-[15px] font-bold text-[#1f2937]">
+                {vehicleModal.id ? 'Sửa xe' : 'Thêm xe'}
               </h3>
               <button
                 type="button"
                 onClick={() => setVehicleModal(null)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-[#ef4444] hover:text-[#dc2626] p-1 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Biển số xe *</label>
+            <div className="space-y-3.5 text-[13px]">
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Biển số <span className="text-[#ef4444]">*</span>
+                </span>
                 <input
                   type="text"
                   required
@@ -2456,13 +2498,15 @@ export const MasterDataPage: React.FC = () => {
                       vehiclePlate: e.target.value.toUpperCase(),
                     })
                   }
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono"
+                  className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
                   placeholder="VD: 29B-123.45"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Loại xe *</label>
+              <div className="grid grid-cols-2 gap-3.5">
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Loại xe <span className="text-[#ef4444]">*</span>
+                  </span>
                   <select
                     value={vehicleModal.vehicleType}
                     onChange={(e) => {
@@ -2473,17 +2517,17 @@ export const MasterDataPage: React.FC = () => {
                         seatCapacity: VEHICLE_CAPACITY_MAP[vt] ?? 28,
                       });
                     }}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white focus:outline-none focus:border-[#00897b]"
                   >
-                    <option value="VAN_16">Xe 16 chỗ (VAN_16)</option>
-                    <option value="BUS_29">Xe 29 chỗ (BUS_29)</option>
-                    <option value="BUS_45">Xe 45 chỗ (BUS_45)</option>
+                    <option value="VAN_16">Xe 16 chỗ</option>
+                    <option value="BUS_29">Xe 29 chỗ</option>
+                    <option value="BUS_45">Xe 45 chỗ</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Số ghế chở khách (Tự điền)
-                  </label>
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Sức chứa <span className="text-[#ef4444]">*</span>
+                  </span>
                   <input
                     type="number"
                     readOnly
@@ -2492,32 +2536,32 @@ export const MasterDataPage: React.FC = () => {
                       vehicleModal.seatCapacity ??
                       28
                     }
-                    className="w-full border border-slate-200 bg-slate-100 rounded-lg px-3 py-2 font-bold text-blue-700"
+                    className="w-full h-[38px] border border-[#e5e7eb] bg-[#f9fafb] rounded-[6px] px-3 text-[13px] text-[#6b7280]"
                   />
                 </div>
               </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Phương thức tính cước xe tuyến
-                </label>
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Cách tính giá tháng
+                </span>
                 <select
                   value={vehicleModal.commutePackageMode || 'BY_ROUTE'}
                   onChange={(e) =>
                     setVehicleModal({ ...vehicleModal, commutePackageMode: e.target.value })
                   }
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                  className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white focus:outline-none focus:border-[#00897b]"
                 >
-                  <option value="BY_ROUTE">Trọn gói theo tuyến (BY_ROUTE)</option>
-                  <option value="BY_SEGMENT">Theo số lượt & định mức KM (BY_SEGMENT)</option>
+                  <option value="BY_ROUTE">Trọn gói theo tuyến</option>
+                  <option value="BY_SEGMENT">Theo số lượt & định mức KM</option>
                 </select>
               </div>
 
               {vehicleModal.commutePackageMode === 'BY_SEGMENT' && (
-                <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
-                  <div>
-                    <label className="block font-semibold text-amber-900 mb-1">
-                      Số lượt / ngày *
-                    </label>
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div className="relative">
+                    <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                      Số lượt / ngày <span className="text-[#ef4444]">*</span>
+                    </span>
                     <input
                       type="number"
                       min={1}
@@ -2526,13 +2570,13 @@ export const MasterDataPage: React.FC = () => {
                       onChange={(e) =>
                         setVehicleModal({ ...vehicleModal, dailyTripQuota: e.target.value })
                       }
-                      className="w-full border border-amber-300 rounded-lg px-2.5 py-1.5 bg-white"
+                      className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white"
                     />
                   </div>
-                  <div>
-                    <label className="block font-semibold text-amber-900 mb-1">
-                      KM tối đa / tháng *
-                    </label>
+                  <div className="relative">
+                    <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                      KM tối đa / tháng <span className="text-[#ef4444]">*</span>
+                    </span>
                     <input
                       type="number"
                       min={1}
@@ -2541,25 +2585,25 @@ export const MasterDataPage: React.FC = () => {
                       onChange={(e) =>
                         setVehicleModal({ ...vehicleModal, monthlyKmQuota: e.target.value })
                       }
-                      className="w-full border border-amber-300 rounded-lg px-2.5 py-1.5 bg-white"
+                      className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white"
                     />
                   </div>
                 </div>
               )}
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setVehicleModal(null)}
-                className="px-3.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600"
+                className="h-[34px] px-4 rounded-[6px] border border-[#d1d5db] bg-white text-[13px] font-medium text-[#4b5563] hover:bg-[#f9fafb] cursor-pointer"
               >
                 Hủy
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 cursor-pointer"
+                className="h-[34px] px-4 rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[13px] font-medium cursor-pointer"
               >
-                Lưu thông tin xe
+                Lưu
               </button>
             </div>
           </form>
@@ -2567,30 +2611,32 @@ export const MasterDataPage: React.FC = () => {
       )}
 
       {/* ==================================================================== */}
-      {/* MODAL 4: ADD / EDIT LEG DEFINITION (DEADHEAD LOCKS TO_FACTORY) */}
+      {/* MODAL 4: ADD / EDIT LEG DEFINITION (Legacy 061-master-data-trip-leg-add-form.png) */}
       {/* ==================================================================== */}
       {legModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center p-4">
           <form
             onSubmit={handleSaveLeg}
-            className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md p-5 space-y-4"
+            className="bg-white rounded-[12px] shadow-[0_12px_32px_rgba(0,0,0,0.18)] border border-[#e5e7eb] w-full max-w-[680px] p-6 space-y-4"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">
-                {legModal.id ? 'Cập nhật lượt chạy' : 'Thêm lượt chạy mới'}
+            <div className="flex items-center justify-between pb-1">
+              <h3 className="text-[15px] font-bold text-[#1f2937]">
+                {legModal.id ? 'Sửa lượt' : 'Thêm lượt'}
               </h3>
               <button
                 type="button"
                 onClick={() => setLegModal(null)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-[#ef4444] hover:text-[#dc2626] p-1 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Mã lượt *</label>
+            <div className="space-y-3.5 text-[13px]">
+              <div className="grid grid-cols-2 gap-3.5">
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Lượt chạy <span className="text-[#ef4444]">*</span>
+                  </span>
                   <input
                     type="text"
                     required
@@ -2598,49 +2644,55 @@ export const MasterDataPage: React.FC = () => {
                     onChange={(e) =>
                       setLegModal({ ...legModal, legCode: e.target.value.toUpperCase() })
                     }
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono"
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
                     placeholder="VD: SANG_DON"
                   />
                 </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Thứ tự hiển thị</label>
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Tên lượt <span className="text-[#ef4444]">*</span>
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    value={legModal.legName}
+                    onChange={(e) => setLegModal({ ...legModal, legName: e.target.value })}
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
+                    placeholder="VD: Đón ca sáng"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3.5">
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Loại hành khách <span className="text-[#ef4444]">*</span>
+                  </span>
+                  <select
+                    value={legModal.passengerType}
+                    onChange={(e) => setLegModal({ ...legModal, passengerType: e.target.value })}
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white focus:outline-none focus:border-[#00897b]"
+                  >
+                    <option value="STAFF">Nhân viên</option>
+                    <option value="WORKER">Công nhân</option>
+                  </select>
+                </div>
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Thứ tự hiển thị <span className="text-[#ef4444]">*</span>
+                  </span>
                   <input
                     type="number"
                     value={legModal.displayOrder}
                     onChange={(e) => setLegModal({ ...legModal, displayOrder: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
                   />
                 </div>
               </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Tên lượt chạy *</label>
-                <input
-                  type="text"
-                  required
-                  value={legModal.legName}
-                  onChange={(e) => setLegModal({ ...legModal, legName: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2"
-                  placeholder="VD: Đón ca sáng"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Loại hành khách *
-                  </label>
-                  <select
-                    value={legModal.passengerType}
-                    onChange={(e) => setLegModal({ ...legModal, passengerType: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2"
-                  >
-                    <option value="STAFF">Nhân viên (STAFF)</option>
-                    <option value="WORKER">Công nhân (WORKER)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Chạy rỗng (Deadhead)
-                  </label>
+              <div className="grid grid-cols-2 gap-3.5">
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Chạy rỗng
+                  </span>
                   <select
                     value={legModal.isDeadhead}
                     onChange={(e) => {
@@ -2651,41 +2703,41 @@ export const MasterDataPage: React.FC = () => {
                         direction: deadhead === 'Y' ? 'TO_FACTORY' : legModal.direction,
                       });
                     }}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white focus:outline-none focus:border-[#00897b]"
                   >
-                    <option value="N">Không (Chở khách)</option>
-                    <option value="Y">Có (Chạy rỗng)</option>
+                    <option value="N">Không</option>
+                    <option value="Y">Có</option>
+                  </select>
+                </div>
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Hướng <span className="text-[#ef4444]">*</span>
+                  </span>
+                  <select
+                    disabled={legModal.isDeadhead === 'Y'}
+                    value={legModal.isDeadhead === 'Y' ? 'TO_FACTORY' : legModal.direction}
+                    onChange={(e) => setLegModal({ ...legModal, direction: e.target.value })}
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white disabled:bg-[#f3f4f6] focus:outline-none focus:border-[#00897b]"
+                  >
+                    <option value="TO_FACTORY">Đến nhà máy</option>
+                    <option value="FROM_FACTORY">Từ nhà máy</option>
                   </select>
                 </div>
               </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Hướng di chuyển {legModal.isDeadhead === 'Y' && '(Tự khóa Đến nhà máy khi chạy rỗng)'}
-                </label>
-                <select
-                  disabled={legModal.isDeadhead === 'Y'}
-                  value={legModal.isDeadhead === 'Y' ? 'TO_FACTORY' : legModal.direction}
-                  onChange={(e) => setLegModal({ ...legModal, direction: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 disabled:bg-slate-100"
-                >
-                  <option value="TO_FACTORY">Đến nhà máy (TO_FACTORY)</option>
-                  <option value="FROM_FACTORY">Từ nhà máy về (FROM_FACTORY)</option>
-                </select>
-              </div>
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setLegModal(null)}
-                className="px-3.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600"
+                className="h-[34px] px-4 rounded-[6px] border border-[#d1d5db] bg-white text-[13px] font-medium text-[#4b5563] hover:bg-[#f9fafb] cursor-pointer"
               >
                 Hủy
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 cursor-pointer"
+                className="h-[34px] px-4 rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[13px] font-medium cursor-pointer"
               >
-                Lưu lượt chạy
+                Lưu
               </button>
             </div>
           </form>
@@ -2693,30 +2745,32 @@ export const MasterDataPage: React.FC = () => {
       )}
 
       {/* ==================================================================== */}
-      {/* MODAL 5: ADD / EDIT ROUTE + SEGMENTS + WORKER VEHICLES */}
+      {/* MODAL 5: ADD / EDIT ROUTE (Legacy 055-master-data-route-add-form.png) */}
       {/* ==================================================================== */}
       {routeModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center p-4 overflow-y-auto">
           <form
             onSubmit={handleSaveRoute}
-            className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-3xl p-5 space-y-4 my-8 max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-[12px] shadow-[0_12px_32px_rgba(0,0,0,0.18)] border border-[#e5e7eb] w-full max-w-[780px] p-6 space-y-4 my-8 max-h-[90vh] overflow-y-auto"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">
-                {routeModal.id ? 'Cập nhật Tuyến & Chặng' : 'Thêm Tuyến xe cố định mới'}
+            <div className="flex items-center justify-between pb-1">
+              <h3 className="text-[15px] font-bold text-[#1f2937]">
+                {routeModal.id ? 'Sửa tuyến' : 'Thêm tuyến'}
               </h3>
               <button
                 type="button"
                 onClick={() => setRouteModal(null)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-[#ef4444] hover:text-[#dc2626] p-1 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Mã tuyến *</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-[13px]">
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Mã tuyến <span className="text-[#ef4444]">*</span>
+                </span>
                 <input
                   type="text"
                   required
@@ -2725,23 +2779,38 @@ export const MasterDataPage: React.FC = () => {
                   onChange={(e) =>
                     setRouteModal({ ...routeModal, routeCode: e.target.value.toUpperCase() })
                   }
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono disabled:bg-slate-100"
-                  placeholder="VD: RT_HN_01"
+                  className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] disabled:bg-[#f3f4f6] focus:outline-none focus:border-[#00897b]"
+                  placeholder="Mã tuyến *"
                 />
               </div>
-              <div className="md:col-span-2">
-                <label className="block font-semibold text-slate-700 mb-1">Tên tuyến *</label>
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Tên tuyến <span className="text-[#ef4444]">*</span>
+                </span>
                 <input
                   type="text"
                   required
                   value={routeModal.routeName}
                   onChange={(e) => setRouteModal({ ...routeModal, routeName: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2"
-                  placeholder="VD: Tuyến Cầu Giấy - Nhà máy MKVC"
+                  className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
+                  placeholder="Tên tuyến *"
                 />
               </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Loại hành khách *</label>
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Loại tuyến <span className="text-[#ef4444]">*</span>
+                </span>
+                <input
+                  type="text"
+                  readOnly
+                  value="Tuyến cố định"
+                  className="w-full h-[38px] border border-[#e5e7eb] bg-[#f9fafb] rounded-[6px] px-3 text-[13px] text-[#374151]"
+                />
+              </div>
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Loại hành khách <span className="text-[#ef4444]">*</span>
+                </span>
                 <select
                   value={routeModal.passengerType}
                   onChange={(e) => {
@@ -2752,46 +2821,37 @@ export const MasterDataPage: React.FC = () => {
                       runDays: pt === 'WORKER' ? 'MON_SUN' : routeModal.runDays,
                     });
                   }}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                  className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white focus:outline-none focus:border-[#00897b]"
                 >
-                  <option value="STAFF">Nhân viên (STAFF)</option>
-                  <option value="WORKER">Công nhân (WORKER)</option>
+                  <option value="STAFF">Nhân viên</option>
+                  <option value="WORKER">Công nhân</option>
                 </select>
               </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Ngày có kế hoạch xe
-                </label>
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Ngày có kế hoạch xe <span className="text-[#ef4444]">*</span>
+                </span>
                 <select
                   disabled={routeModal.passengerType === 'WORKER'}
                   value={
                     routeModal.passengerType === 'WORKER' ? 'MON_SUN' : routeModal.runDays
                   }
                   onChange={(e) => setRouteModal({ ...routeModal, runDays: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 disabled:bg-slate-100"
+                  className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white disabled:bg-[#f3f4f6] focus:outline-none focus:border-[#00897b]"
                 >
-                  <option value="MON_FRI">Thứ 2 - Thứ 6 (MON_FRI)</option>
-                  <option value="MON_SAT">Thứ 2 - Thứ 7 (MON_SAT)</option>
-                  <option value="MON_SUN">Cả tuần (MON_SUN)</option>
+                  <option value="MON_FRI">Thứ Hai đến Thứ Sáu</option>
+                  <option value="MON_SAT">Thứ Hai đến Thứ Bảy</option>
+                  <option value="MON_SUN">Thứ Hai đến Chủ Nhật</option>
                 </select>
-              </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Phân loại tuyến</label>
-                <input
-                  type="text"
-                  readOnly
-                  value="FIXED_ROUTE (Cố định)"
-                  className="w-full border border-slate-200 bg-slate-100 rounded-lg px-3 py-2 text-slate-600"
-                />
               </div>
             </div>
 
             {/* Worker Route Vehicles Block */}
             {routeModal.passengerType === 'WORKER' && (
-              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 space-y-2.5 text-xs">
+              <div className="p-3.5 rounded-[8px] bg-[#f9fafb] border border-[#e5e7eb] space-y-2.5 text-[13px]">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-amber-900">
-                    Xe chạy chuyến này (Dành cho tuyến Công nhân)
+                  <span className="font-semibold text-[#1f2937]">
+                    Xe chạy chuyến này
                   </span>
                   <button
                     type="button"
@@ -2804,7 +2864,7 @@ export const MasterDataPage: React.FC = () => {
                         ],
                       })
                     }
-                    className="px-2.5 py-1 rounded bg-amber-600 text-white font-semibold hover:bg-amber-700 cursor-pointer"
+                    className="h-[30px] px-3 rounded-[6px] bg-[#00897b] text-white text-[12px] font-medium hover:bg-[#00796b] cursor-pointer"
                   >
                     + Thêm xe vào tuyến
                   </button>
@@ -2819,7 +2879,7 @@ export const MasterDataPage: React.FC = () => {
                           next[idx] = { ...next[idx], vehicleId: e.target.value };
                           setRouteModal({ ...routeModal, routeVehicles: next });
                         }}
-                        className="w-full border border-amber-300 rounded px-2 py-1.5 bg-white"
+                        className="w-full h-[34px] border border-[#d1d5db] rounded-[6px] px-2.5 bg-white text-[13px]"
                       >
                         <option value="">-- Chọn xe --</option>
                         {vehicles.map((v) => (
@@ -2837,7 +2897,7 @@ export const MasterDataPage: React.FC = () => {
                           next[idx] = { ...next[idx], driverId: e.target.value };
                           setRouteModal({ ...routeModal, routeVehicles: next });
                         }}
-                        className="w-full border border-amber-300 rounded px-2 py-1.5 bg-white"
+                        className="w-full h-[34px] border border-[#d1d5db] rounded-[6px] px-2.5 bg-white text-[13px]"
                       >
                         <option value="">-- Chọn tài xế --</option>
                         {drivers.map((d) => (
@@ -2856,7 +2916,7 @@ export const MasterDataPage: React.FC = () => {
                           );
                           setRouteModal({ ...routeModal, routeVehicles: next });
                         }}
-                        className="text-red-600 hover:text-red-800"
+                        className="text-[#ef4444] hover:text-[#dc2626]"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -2867,43 +2927,11 @@ export const MasterDataPage: React.FC = () => {
             )}
 
             {/* Route Segments Builder */}
-            <div className="space-y-2.5 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-800">
-                  Danh sách Chặng / Lượt của tuyến ({routeModal.segments?.length || 0})
-                </span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setRouteModal({
-                      ...routeModal,
-                      segments: [
-                        ...(routeModal.segments || []),
-                        {
-                          legCode: `SANG_${(routeModal.segments?.length || 0) + 1}`,
-                          legName: 'Chặng đón sáng',
-                          direction: 'TO_FACTORY',
-                          departureTime: '06:30',
-                          arrivalTime: '07:30',
-                          defaultVehicleId: vehicles[0]?.id || '',
-                          defaultDriverId: drivers[0]?.id || '',
-                          pickupPointIds: points[0] ? [points[0].id] : [],
-                          dropoffPointIds: points[1] ? [points[1].id] : [],
-                          shiftIds: shifts[0] ? [shifts[0].id] : [],
-                        },
-                      ],
-                    })
-                  }
-                  className="px-2.5 py-1 rounded bg-slate-900 text-white font-semibold hover:bg-slate-800 cursor-pointer"
-                >
-                  + Thêm chặng
-                </button>
-              </div>
-
+            <div className="space-y-2.5 text-[13px]">
               {(routeModal.segments || []).map((seg: any, idx: number) => (
                 <div
                   key={idx}
-                  className="p-3 rounded-lg border border-slate-200 bg-slate-50 space-y-2"
+                  className="p-3 rounded-[8px] border border-[#e5e7eb] bg-[#f9fafb] space-y-2"
                 >
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                     <input
@@ -2915,7 +2943,7 @@ export const MasterDataPage: React.FC = () => {
                         next[idx] = { ...next[idx], legCode: e.target.value };
                         setRouteModal({ ...routeModal, segments: next });
                       }}
-                      className="border border-slate-300 rounded px-2 py-1 bg-white font-mono"
+                      className="h-[34px] border border-[#d1d5db] rounded-[6px] px-2.5 bg-white text-[13px]"
                     />
                     <input
                       type="text"
@@ -2926,7 +2954,7 @@ export const MasterDataPage: React.FC = () => {
                         next[idx] = { ...next[idx], legName: e.target.value };
                         setRouteModal({ ...routeModal, segments: next });
                       }}
-                      className="border border-slate-300 rounded px-2 py-1 bg-white"
+                      className="h-[34px] border border-[#d1d5db] rounded-[6px] px-2.5 bg-white text-[13px]"
                     />
                     <select
                       value={seg.direction}
@@ -2935,7 +2963,7 @@ export const MasterDataPage: React.FC = () => {
                         next[idx] = { ...next[idx], direction: e.target.value };
                         setRouteModal({ ...routeModal, segments: next });
                       }}
-                      className="border border-slate-300 rounded px-2 py-1 bg-white"
+                      className="h-[34px] border border-[#d1d5db] rounded-[6px] px-2.5 bg-white text-[13px]"
                     >
                       <option value="TO_FACTORY">Đến nhà máy</option>
                       <option value="FROM_FACTORY">Từ nhà máy</option>
@@ -2949,7 +2977,7 @@ export const MasterDataPage: React.FC = () => {
                         next[idx] = { ...next[idx], departureTime: e.target.value };
                         setRouteModal({ ...routeModal, segments: next });
                       }}
-                      className="border border-slate-300 rounded px-2 py-1 bg-white font-mono"
+                      className="h-[34px] border border-[#d1d5db] rounded-[6px] px-2.5 bg-white text-[13px]"
                     />
                     <div className="flex items-center gap-1">
                       <input
@@ -2961,7 +2989,7 @@ export const MasterDataPage: React.FC = () => {
                           next[idx] = { ...next[idx], arrivalTime: e.target.value };
                           setRouteModal({ ...routeModal, segments: next });
                         }}
-                        className="w-full border border-slate-300 rounded px-2 py-1 bg-white font-mono"
+                        className="w-full h-[34px] border border-[#d1d5db] rounded-[6px] px-2.5 bg-white text-[13px]"
                       />
                       <button
                         type="button"
@@ -2971,7 +2999,7 @@ export const MasterDataPage: React.FC = () => {
                           );
                           setRouteModal({ ...routeModal, segments: next });
                         }}
-                        className="text-red-600 p-1"
+                        className="text-[#ef4444] p-1"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -2979,21 +3007,48 @@ export const MasterDataPage: React.FC = () => {
                   </div>
                 </div>
               ))}
+
+              <button
+                type="button"
+                onClick={() =>
+                  setRouteModal({
+                    ...routeModal,
+                    segments: [
+                      ...(routeModal.segments || []),
+                      {
+                        legCode: `SANG_${(routeModal.segments?.length || 0) + 1}`,
+                        legName: 'Chặng đón sáng',
+                        direction: 'TO_FACTORY',
+                        departureTime: '06:30',
+                        arrivalTime: '07:30',
+                        defaultVehicleId: vehicles[0]?.id || '',
+                        defaultDriverId: drivers[0]?.id || '',
+                        pickupPointIds: points[0] ? [points[0].id] : [],
+                        dropoffPointIds: points[1] ? [points[1].id] : [],
+                        shiftIds: shifts[0] ? [shifts[0].id] : [],
+                      },
+                    ],
+                  })
+                }
+                className="w-full h-[36px] rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[13px] font-medium cursor-pointer"
+              >
+                + Thêm chặng
+              </button>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setRouteModal(null)}
-                className="px-3.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600"
+                className="h-[34px] px-4 rounded-[6px] border border-[#d1d5db] bg-white text-[13px] font-medium text-[#4b5563] hover:bg-[#f9fafb] cursor-pointer"
               >
                 Hủy
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 cursor-pointer"
+                className="h-[34px] px-4 rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[13px] font-medium cursor-pointer"
               >
-                Lưu Tuyến & Chặng
+                Lưu
               </button>
             </div>
           </form>
@@ -3001,36 +3056,38 @@ export const MasterDataPage: React.FC = () => {
       )}
 
       {/* ==================================================================== */}
-      {/* MODAL 6A: ADD ETP REGISTRATION */}
+      {/* MODAL 6A: ADD ETP REGISTRATION (Legacy 065-route-worker-add-route-form.png) */}
       {/* ==================================================================== */}
       {etpCreateModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center p-4">
           <form
             onSubmit={handleCreateEtp}
-            className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md p-5 space-y-4"
+            className="bg-white rounded-[12px] shadow-[0_12px_32px_rgba(0,0,0,0.18)] border border-[#e5e7eb] w-full max-w-[560px] p-6 space-y-4"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">
-                Đăng ký người đi xe tuyến cố định
+            <div className="flex items-center justify-between pb-1">
+              <h3 className="text-[15px] font-bold text-[#1f2937]">
+                Thêm tuyến đăng ký
               </h3>
               <button
                 type="button"
                 onClick={() => setEtpCreateModal(null)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-[#ef4444] hover:text-[#dc2626] p-1 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Nhân viên *</label>
+            <div className="space-y-3.5 text-[13px]">
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Nhân viên <span className="text-[#ef4444]">*</span>
+                </span>
                 <select
                   required
                   value={etpCreateModal.employeeId}
                   onChange={(e) =>
                     setEtpCreateModal({ ...etpCreateModal, employeeId: e.target.value })
                   }
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                  className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white focus:outline-none focus:border-[#00897b]"
                 >
                   <option value="">-- Chọn nhân viên --</option>
                   {employees.map((emp) => (
@@ -3040,66 +3097,70 @@ export const MasterDataPage: React.FC = () => {
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Tuyến cố định *</label>
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Tuyến <span className="text-[#ef4444]">*</span>
+                </span>
                 <select
                   required
                   value={etpCreateModal.routeId}
                   onChange={(e) =>
                     setEtpCreateModal({ ...etpCreateModal, routeId: e.target.value })
                   }
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                  className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white focus:outline-none focus:border-[#00897b]"
                 >
-                  <option value="">-- Chọn tuyến --</option>
+                  <option value="">Tuyến *</option>
                   {routes.map((rt) => (
                     <option key={rt.id} value={rt.id}>
-                      {rt.routeCode} - {rt.routeName} ({rt.passengerType})
+                      {rt.routeCode} - {rt.routeName}
                     </option>
                   ))}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Điểm đón *</label>
-                  <select
-                    required
-                    value={etpCreateModal.pickupPointId}
-                    onChange={(e) =>
-                      setEtpCreateModal({ ...etpCreateModal, pickupPointId: e.target.value })
-                    }
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2"
-                  >
-                    <option value="">-- Chọn điểm đón --</option>
-                    {points.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.pointCode} - {p.pointName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Điểm trả</label>
-                  <select
-                    value={etpCreateModal.dropoffPointId || ''}
-                    onChange={(e) =>
-                      setEtpCreateModal({ ...etpCreateModal, dropoffPointId: e.target.value })
-                    }
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2"
-                  >
-                    <option value="">-- Mặc định theo tuyến --</option>
-                    {points.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.pointCode} - {p.pointName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Điểm đón <span className="text-[#ef4444]">*</span>
+                </span>
+                <select
+                  required
+                  value={etpCreateModal.pickupPointId}
+                  onChange={(e) =>
+                    setEtpCreateModal({ ...etpCreateModal, pickupPointId: e.target.value })
+                  }
+                  className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white focus:outline-none focus:border-[#00897b]"
+                >
+                  <option value="">Điểm đón *</option>
+                  {points.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.pointCode} - {p.pointName}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Hiệu lực từ ngày *
-                  </label>
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Điểm trả
+                </span>
+                <select
+                  value={etpCreateModal.dropoffPointId || ''}
+                  onChange={(e) =>
+                    setEtpCreateModal({ ...etpCreateModal, dropoffPointId: e.target.value })
+                  }
+                  className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white focus:outline-none focus:border-[#00897b]"
+                >
+                  <option value="">Điểm trả</option>
+                  {points.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.pointCode} - {p.pointName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3.5">
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Hiệu lực từ
+                  </span>
                   <input
                     type="date"
                     required
@@ -3107,35 +3168,37 @@ export const MasterDataPage: React.FC = () => {
                     onChange={(e) =>
                       setEtpCreateModal({ ...etpCreateModal, effectiveFrom: e.target.value })
                     }
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
                   />
                 </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Đến ngày</label>
+                <div className="relative">
+                  <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                    Hiệu lực đến
+                  </span>
                   <input
                     type="date"
                     value={etpCreateModal.effectiveTo || ''}
                     onChange={(e) =>
                       setEtpCreateModal({ ...etpCreateModal, effectiveTo: e.target.value })
                     }
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                    className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
                   />
                 </div>
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setEtpCreateModal(null)}
-                className="px-3.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600"
+                className="h-[34px] px-4 rounded-[6px] border border-[#d1d5db] bg-white text-[13px] font-medium text-[#4b5563] hover:bg-[#f9fafb] cursor-pointer"
               >
                 Hủy
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 cursor-pointer"
+                className="h-[34px] px-4 rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[13px] font-medium cursor-pointer"
               >
-                Lưu đăng ký
+                Lưu
               </button>
             </div>
           </form>
@@ -3146,44 +3209,55 @@ export const MasterDataPage: React.FC = () => {
       {/* MODAL 6B: DEACTIVATE ETP ("NGỪNG SỬ DỤNG XE") */}
       {/* ==================================================================== */}
       {etpDeactivateModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center p-4">
           <form
             onSubmit={handleDeactivateEtp}
-            className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-sm p-5 space-y-4"
+            className="bg-white rounded-[12px] shadow-[0_12px_32px_rgba(0,0,0,0.18)] border border-[#e5e7eb] w-full max-w-[440px] p-6 space-y-4"
           >
-            <h3 className="text-sm font-bold text-slate-900">
-              Ngừng sử dụng xe tuyến: {etpDeactivateModal.empName}
-            </h3>
-            <div className="text-xs space-y-2">
-              <p className="text-slate-600">
-                Ngày bắt đầu hiện tại: <b>{etpDeactivateModal.effectiveFrom}</b>
+            <div className="flex items-center justify-between pb-1">
+              <h3 className="text-[15px] font-bold text-[#1f2937]">
+                Ngừng sử dụng xe tuyến: {etpDeactivateModal.empName}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEtpDeactivateModal(null)}
+                className="text-[#ef4444] hover:text-[#dc2626] p-1 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="text-[13px] space-y-3">
+              <p className="text-[#4b5563]">
+                Hiệu lực từ: <b>{etpDeactivateModal.effectiveFrom}</b>
               </p>
-              <label className="block font-semibold text-slate-700">
-                Chọn ngày kết thúc hiệu lực *
-              </label>
-              <input
-                type="date"
-                required
-                value={etpDeactivateModal.effectiveTo}
-                onChange={(e) =>
-                  setEtpDeactivateModal({ ...etpDeactivateModal, effectiveTo: e.target.value })
-                }
-                className="w-full border border-slate-300 rounded-lg px-3 py-2"
-              />
+              <div className="relative">
+                <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                  Hiệu lực đến <span className="text-[#ef4444]">*</span>
+                </span>
+                <input
+                  type="date"
+                  required
+                  value={etpDeactivateModal.effectiveTo}
+                  onChange={(e) =>
+                    setEtpDeactivateModal({ ...etpDeactivateModal, effectiveTo: e.target.value })
+                  }
+                  className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
+                />
+              </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setEtpDeactivateModal(null)}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs"
+                className="h-[34px] px-4 rounded-[6px] border border-[#d1d5db] bg-white text-[13px] font-medium text-[#4b5563] hover:bg-[#f9fafb] cursor-pointer"
               >
                 Hủy
               </button>
               <button
                 type="submit"
-                className="px-3.5 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold cursor-pointer"
+                className="h-[34px] px-4 rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[13px] font-medium cursor-pointer"
               >
-                Xác nhận ngừng
+                Lưu
               </button>
             </div>
           </form>
@@ -3191,56 +3265,73 @@ export const MasterDataPage: React.FC = () => {
       )}
 
       {/* ==================================================================== */}
-      {/* MODAL 6C: ETP HISTORY & REACTIVATE */}
+      {/* MODAL 6C: ETP HISTORY (Legacy 063-route-worker-registration-history.png) */}
       {/* ==================================================================== */}
       {etpHistoryModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-2xl p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">
-                  Lịch sử đăng ký xe tuyến: {etpHistoryModal.employee?.empCode} -{' '}
-                  {etpHistoryModal.employee?.fullName}
-                </h3>
-                <p className="text-[11px] text-slate-500">
-                  Hỗ trợ Kích hoạt lại kỳ mới hoặc Xóa đăng ký tương lai chưa tới hạn
-                </p>
-              </div>
+        <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] shadow-[0_12px_32px_rgba(0,0,0,0.18)] border border-[#e5e7eb] w-full max-w-[1040px] p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[15px] font-bold text-[#1f2937]">
+                Lịch sử đăng ký
+              </h3>
               <button
                 onClick={() => setEtpHistoryModal(null)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-[#ef4444] hover:text-[#dc2626] p-1 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="overflow-x-auto border border-slate-200 rounded-lg">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-[11px] text-slate-600 uppercase">
-                  <tr>
-                    <th className="py-2 px-3">Tuyến</th>
-                    <th className="py-2 px-3">Điểm đón</th>
-                    <th className="py-2 px-3">Từ ngày → Đến ngày</th>
-                    <th className="py-2 px-3">Trạng thái</th>
-                    <th className="py-2 px-3 text-right">Thao tác</th>
+            <div className="overflow-x-auto border-t border-[#e5e7eb]">
+              <table className="m-advance-table w-full text-left border-collapse table-fixed">
+                <thead>
+                  <tr className="bg-[#f8fafc] border-b border-[#e5e7eb] text-[12px] font-bold text-[#1f2937] h-[38px]">
+                    <th className="px-2 w-[38px]">#</th>
+                    <th className="px-2 w-[210px]">Tuyến</th>
+                    <th className="px-2 w-[180px]">Điểm đón</th>
+                    <th className="px-2 w-[180px]">Điểm trả</th>
+                    <th className="px-2 w-[95px]">Hiệu lực từ</th>
+                    <th className="px-2 w-[95px]">Hiệu lực đến</th>
+                    <th className="px-2 w-[130px]">Trạng thái phê duyệt</th>
+                    <th className="px-2 w-[125px]">Trạng thái hiệu lực</th>
+                    <th className="px-2">Thao tác</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {etpHistoryModal.registrations.map((reg) => {
+                <tbody className="divide-y divide-[#f3f4f6] text-[13px]">
+                  {etpHistoryModal.registrations.map((reg, idx) => {
                     const isFuture =
                       reg.effectiveFrom > new Date().toISOString().slice(0, 10);
                     return (
-                      <tr key={reg.id}>
-                        <td className="py-2 px-3 font-semibold">{reg.route?.routeCode}</td>
-                        <td className="py-2 px-3">{reg.pickupPoint?.pointName}</td>
-                        <td className="py-2 px-3 font-mono">
-                          {reg.effectiveFrom} → {reg.effectiveTo || 'Vô thời hạn'}
+                      <tr key={reg.id} className="h-[36px] hover:bg-[#f9fafb]">
+                        <td className="px-2 text-[#374151]">{idx + 1}</td>
+                        <td className="px-2 text-[#1f2937] truncate">
+                          {reg.route?.routeName || reg.route?.routeCode || '—'}
                         </td>
-                        <td className="py-2 px-3">
-                          <span className="font-semibold">{reg.approvalStatus}</span> (
-                          {reg.activeFlag})
+                        <td className="px-2 text-[#374151] truncate">
+                          {reg.pickupPoint
+                            ? `${reg.pickupPoint.pointCode} - ${reg.pickupPoint.pointName}`
+                            : '—'}
                         </td>
-                        <td className="py-2 px-3 text-right space-x-1">
+                        <td className="px-2 text-[#374151] truncate">
+                          {reg.dropoffPoint
+                            ? `${reg.dropoffPoint.pointCode} - ${reg.dropoffPoint.pointName}`
+                            : '—'}
+                        </td>
+                        <td className="px-2 text-[#374151]">{reg.effectiveFrom}</td>
+                        <td className="px-2 text-[#374151]">{reg.effectiveTo || '-'}</td>
+                        <td className="px-2">
+                          <PastelBadge
+                            variant={reg.approvalStatus === 'APPROVED' ? 'green' : 'amber'}
+                          >
+                            {reg.approvalStatus === 'APPROVED' ? 'Đã phê duyệt' : 'Chờ xử lý'}
+                          </PastelBadge>
+                        </td>
+                        <td className="px-2">
+                          <PastelBadge variant={reg.activeFlag === 'Y' ? 'green' : 'red'}>
+                            {reg.activeFlag === 'Y' ? 'Hoạt động' : 'Không hoạt động'}
+                          </PastelBadge>
+                        </td>
+                        <td className="px-2 space-x-1">
                           <button
                             onClick={() => {
                               setEtpHistoryModal(null);
@@ -3255,14 +3346,14 @@ export const MasterDataPage: React.FC = () => {
                                 effectiveTo: '',
                               });
                             }}
-                            className="px-2 py-1 rounded bg-blue-50 text-blue-700 font-medium text-[11px] cursor-pointer"
+                            className="px-2 py-0.5 rounded bg-[#e0f2f1] text-[#00796b] font-medium text-[11px] cursor-pointer"
                           >
                             Kích hoạt lại
                           </button>
                           {isFuture && (
                             <button
                               onClick={() => handleDeleteFutureEtp(reg.id)}
-                              className="px-2 py-1 rounded bg-red-50 text-red-700 font-medium text-[11px] cursor-pointer"
+                              className="px-2 py-0.5 rounded bg-[#fee2e2] text-[#dc2626] font-medium text-[11px] cursor-pointer"
                             >
                               Xóa kỳ tương lai
                             </button>
@@ -3279,42 +3370,42 @@ export const MasterDataPage: React.FC = () => {
       )}
 
       {/* ==================================================================== */}
-      {/* MODAL 6D: EXCEL IMPORT PREVIEW */}
+      {/* MODAL 6D: EXCEL IMPORT PREVIEW (Legacy 093 & 095) */}
       {/* ==================================================================== */}
       {etpImportModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-lg p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">
+        <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] shadow-[0_12px_32px_rgba(0,0,0,0.18)] border border-[#e5e7eb] w-full max-w-[520px] p-6 space-y-4">
+            <div className="flex items-center justify-between pb-1">
+              <h3 className="text-[15px] font-bold text-[#1f2937]">
                 Import danh sách Người đi xe tuyến từ Excel
               </h3>
               <button
                 onClick={() => setEtpImportModal(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-[#ef4444] hover:text-[#dc2626] p-1 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="p-4 border-2 border-dashed border-slate-300 rounded-xl text-center space-y-2">
-              <FileSpreadsheet className="w-8 h-8 text-emerald-600 mx-auto" />
-              <p className="text-xs font-medium text-slate-700">
+            <div className="p-5 border-2 border-dashed border-[#d1d5db] rounded-[8px] text-center space-y-2">
+              <FileSpreadsheet className="w-8 h-8 text-[#00897b] mx-auto" />
+              <p className="text-[13px] font-medium text-[#374151]">
                 Chọn file Excel (.xlsx) theo mẫu TRMS_ETP_Template.xlsx
               </p>
-              <input type="file" accept=".xlsx,.xls,.csv" className="text-xs text-slate-500" />
+              <input type="file" accept=".xlsx,.xls,.csv" className="text-[12px] text-[#6b7280]" />
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 onClick={() => setEtpImportModal(false)}
-                className="px-3.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 cursor-pointer"
+                className="h-[34px] px-4 rounded-[6px] border border-[#d1d5db] bg-white text-[13px] font-medium text-[#4b5563] hover:bg-[#f9fafb] cursor-pointer"
               >
-                Hủy Import (Giữ nguyên dữ liệu)
+                Hủy Import
               </button>
               <button
                 onClick={() => {
                   setEtpImportModal(false);
                   showToast('Đã kiểm tra file Excel hợp lệ');
                 }}
-                className="px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold cursor-pointer"
+                className="h-[34px] px-4 rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[13px] font-medium cursor-pointer"
               >
                 Xác nhận Import
               </button>
@@ -3324,156 +3415,227 @@ export const MasterDataPage: React.FC = () => {
       )}
 
       {/* ==================================================================== */}
-      {/* MODAL 7: CREATE COST CONFIG VERSION */}
+      {/* MODAL 7: CREATE COST CONFIG VERSION (Legacy 066-cost-config-new-version-form.png) */}
       {/* ==================================================================== */}
       {costConfigModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center p-4">
           <form
             onSubmit={handleSaveCostConfig}
-            className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-lg p-5 space-y-4"
+            className="bg-white rounded-[12px] shadow-[0_12px_32px_rgba(0,0,0,0.18)] border border-[#e5e7eb] w-full max-w-[920px] p-6 space-y-5"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">
-                Tạo phiên bản Cấu hình chi phí mới
+            <div className="flex items-center justify-between">
+              <h3 className="text-[15px] font-bold text-[#1f2937]">
+                Tạo quy tắc chi phí
               </h3>
               <button
                 type="button"
                 onClick={() => setCostConfigModal(null)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-[#ef4444] hover:text-[#dc2626] p-1 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Mã Version *</label>
-                  <input
-                    type="text"
-                    required
-                    value={costConfigModal.versionCode}
-                    onChange={(e) =>
-                      setCostConfigModal({
-                        ...costConfigModal,
-                        versionCode: e.target.value.toUpperCase(),
-                      })
-                    }
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Nhóm chi phí *</label>
-                  <select
-                    value={costConfigModal.configType}
-                    onChange={(e) =>
-                      setCostConfigModal({ ...costConfigModal, configType: e.target.value })
-                    }
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2"
-                  >
-                    <option value="COMMUTE">Xe tuyến cố định (COMMUTE)</option>
-                    <option value="EXTRA">Phát sinh / Điều chuyến (EXTRA)</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Loại hành khách *
-                  </label>
-                  <select
-                    value={costConfigModal.passengerType}
-                    onChange={(e) =>
-                      setCostConfigModal({ ...costConfigModal, passengerType: e.target.value })
-                    }
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2"
-                  >
-                    <option value="STAFF">Nhân viên (STAFF)</option>
-                    <option value="WORKER">Công nhân (WORKER)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Loại xe *</label>
-                  <select
-                    value={costConfigModal.vehicleType}
-                    onChange={(e) =>
-                      setCostConfigModal({ ...costConfigModal, vehicleType: e.target.value })
-                    }
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2"
-                  >
-                    <option value="SEDAN_4">SEDAN_4</option>
-                    <option value="SUV_7">SUV_7</option>
-                    <option value="VAN_16">VAN_16</option>
-                    <option value="BUS_29">BUS_29</option>
-                    <option value="BUS_45">BUS_45</option>
-                  </select>
-                </div>
-              </div>
 
-              {costConfigModal.configType === 'EXTRA' &&
-                costConfigModal.passengerType === 'WORKER' && (
-                  <div>
-                    <label className="block font-semibold text-amber-800 mb-1">
-                      Phạm vi áp dụng (Pricing Scope cho EXTRA + WORKER) *
-                    </label>
+            <div className="space-y-4 text-[13px]">
+              {/* PHÂN LOẠI */}
+              <div className="space-y-3">
+                <div className="text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider border-b border-[#f3f4f6] pb-1.5">
+                  PHÂN LOẠI
+                </div>
+                <div className="grid grid-cols-3 gap-3.5">
+                  <div className="relative">
+                    <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                      Loại cấu hình
+                    </span>
                     <select
-                      value={costConfigModal.pricingScope || 'STANDARD'}
+                      value={costConfigModal.configType}
                       onChange={(e) =>
-                        setCostConfigModal({ ...costConfigModal, pricingScope: e.target.value })
+                        setCostConfigModal({ ...costConfigModal, configType: e.target.value })
                       }
-                      className="w-full border border-amber-300 bg-amber-50 rounded-lg px-3 py-2"
+                      className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white focus:outline-none focus:border-[#00897b]"
                     >
-                      <option value="STANDARD">Tiêu chuẩn (STANDARD)</option>
-                      <option value="HOA_BINH">Khu vực Hòa Bình (HOA_BINH)</option>
+                      <option value="COMMUTE">Tuyến thường</option>
+                      <option value="EXTRA">Phát sinh</option>
                     </select>
                   </div>
-                )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Hiệu lực từ ngày *
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={costConfigModal.effectiveFrom}
-                    onChange={(e) =>
-                      setCostConfigModal({ ...costConfigModal, effectiveFrom: e.target.value })
-                    }
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2"
-                  />
+                  <div className="relative">
+                    <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                      Loại hành khách
+                    </span>
+                    <select
+                      value={costConfigModal.passengerType}
+                      onChange={(e) =>
+                        setCostConfigModal({ ...costConfigModal, passengerType: e.target.value })
+                      }
+                      className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white focus:outline-none focus:border-[#00897b]"
+                    >
+                      <option value="STAFF">Nhân viên</option>
+                      <option value="WORKER">Công nhân</option>
+                    </select>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                      Loại xe
+                    </span>
+                    <select
+                      value={costConfigModal.vehicleType}
+                      onChange={(e) =>
+                        setCostConfigModal({ ...costConfigModal, vehicleType: e.target.value })
+                      }
+                      className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white focus:outline-none focus:border-[#00897b]"
+                    >
+                      <option value="SEDAN_4">Xe 4 chỗ</option>
+                      <option value="SUV_7">Xe 7 chỗ</option>
+                      <option value="VAN_16">Van 16 chỗ</option>
+                      <option value="BUS_29">Bus 29 chỗ</option>
+                      <option value="BUS_45">Bus 45 chỗ</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Đơn giá cơ bản (VND) *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    value={costConfigModal.rules[0]?.unitPrice || '26000000'}
-                    onChange={(e) => {
-                      const nextRules = [...costConfigModal.rules];
-                      nextRules[0] = { ...nextRules[0], unitPrice: e.target.value };
-                      setCostConfigModal({ ...costConfigModal, rules: nextRules });
-                    }}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono"
-                  />
+                {costConfigModal.configType === 'EXTRA' &&
+                  costConfigModal.passengerType === 'WORKER' && (
+                    <div className="relative">
+                      <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                        Phạm vi áp dụng
+                      </span>
+                      <select
+                        value={costConfigModal.pricingScope || 'STANDARD'}
+                        onChange={(e) =>
+                          setCostConfigModal({ ...costConfigModal, pricingScope: e.target.value })
+                        }
+                        className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] bg-white focus:outline-none focus:border-[#00897b]"
+                      >
+                        <option value="STANDARD">Khu vực tiêu chuẩn</option>
+                        <option value="HOA_BINH">Có qua Hòa Bình</option>
+                      </select>
+                    </div>
+                  )}
+              </div>
+
+              {/* GIÁ THUÊ CƠ BẢN THEO THỜI GIAN / KM */}
+              <div className="space-y-3">
+                <div className="text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider border-b border-[#f3f4f6] pb-1.5">
+                  GIÁ THUÊ CƠ BẢN THEO THỜI GIAN / KM
+                </div>
+                <div className="grid grid-cols-4 gap-3.5">
+                  <div className="relative">
+                    <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                      Giá thuê tháng cơ bản (VND)
+                    </span>
+                    <input
+                      type="number"
+                      required
+                      value={costConfigModal.rules[0]?.unitPrice || '0'}
+                      onChange={(e) => {
+                        const nextRules = [...costConfigModal.rules];
+                        nextRules[0] = { ...nextRules[0], unitPrice: e.target.value };
+                        setCostConfigModal({ ...costConfigModal, rules: nextRules });
+                      }}
+                      className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
+                    />
+                  </div>
+                  <div className="relative">
+                    <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                      Hạn mức KM hàng tháng
+                    </span>
+                    <input
+                      type="number"
+                      defaultValue={2600}
+                      className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
+                    />
+                  </div>
+                  <div className="relative">
+                    <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                      Giá KM vượt mức (VNĐ)
+                    </span>
+                    <input
+                      type="number"
+                      defaultValue={0}
+                      className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
+                    />
+                  </div>
+                  <div className="relative">
+                    <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                      Giá OT / giờ (VNĐ)
+                    </span>
+                    <input
+                      type="number"
+                      defaultValue={0}
+                      className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* PHỤ PHÍ DÙNG CHUNG */}
+              <div className="space-y-3">
+                <div className="text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider border-b border-[#f3f4f6] pb-1.5">
+                  PHỤ PHÍ DÙNG CHUNG
+                </div>
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div className="relative">
+                    <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                      Phụ cấp điện thoại (VND)
+                    </span>
+                    <input
+                      type="number"
+                      defaultValue={0}
+                      className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* THỜI HẠN HIỆU LỰC */}
+              <div className="space-y-3">
+                <div className="text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider border-b border-[#f3f4f6] pb-1.5">
+                  THỜI HẠN HIỆU LỰC
+                </div>
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div className="relative">
+                    <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                      Áp dụng từ <span className="text-[#ef4444]">*</span>
+                    </span>
+                    <input
+                      type="date"
+                      required
+                      value={costConfigModal.effectiveFrom}
+                      onChange={(e) =>
+                        setCostConfigModal({ ...costConfigModal, effectiveFrom: e.target.value })
+                      }
+                      className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
+                    />
+                  </div>
+                  <div className="relative">
+                    <span className="absolute -top-2 left-2.5 bg-white px-1 text-[11px] text-[#6b7280] leading-none">
+                      Hiệu lực đến
+                    </span>
+                    <input
+                      type="date"
+                      value={costConfigModal.effectiveTo || ''}
+                      onChange={(e) =>
+                        setCostConfigModal({ ...costConfigModal, effectiveTo: e.target.value })
+                      }
+                      className="w-full h-[38px] border border-[#d1d5db] rounded-[6px] px-3 text-[13px] text-[#1f2937] focus:outline-none focus:border-[#00897b]"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setCostConfigModal(null)}
-                className="px-3.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600"
+                className="h-[34px] px-4 rounded-[6px] border border-[#d1d5db] bg-white text-[13px] font-medium text-[#4b5563] hover:bg-[#f9fafb] cursor-pointer"
               >
                 Hủy
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 cursor-pointer"
+                className="h-[34px] px-4 rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[13px] font-medium cursor-pointer"
               >
-                Lưu Version mới
+                Lưu phiên bản
               </button>
             </div>
           </form>
