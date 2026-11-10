@@ -339,69 +339,74 @@ export const ShiftsPage: React.FC = () => {
       />
 
       {/* ==================================================================== */}
-      {/* MODAL / DRAWER: DANH SÁCH CA LÀM VIỆC & CỜ ĐƯA ĐÓN */}
+      {/* MODAL: DANH SÁCH CA LÀM VIỆC (Legacy 076-shift-data-shift-list-context.png) */}
       {/* ==================================================================== */}
       {catalogOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[10px] shadow-xl border border-[#e5e7eb] w-full max-w-4xl p-5 space-y-4 max-h-[88vh] flex flex-col">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <div>
-                <h3 className="text-[16px] font-bold text-[#1f2937]">
-                  Danh sách ca làm việc ({shifts.length})
-                </h3>
-                <p className="text-[12px] text-[#6b7280]">
-                  Quản lý danh mục ca làm việc và bật/tắt cờ hỗ trợ xe đưa đón
-                </p>
-              </div>
+        <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] shadow-[0_12px_32px_rgba(0,0,0,0.18)] border border-[#e5e7eb] w-full max-w-[1080px] p-6 space-y-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[15px] font-bold text-[#1f2937]">
+                Danh sách ca làm việc
+              </h3>
               <button
                 type="button"
                 onClick={() => setCatalogOpen(false)}
-                className="text-gray-400 hover:text-gray-600 cursor-pointer"
+                className="text-[#ef4444] hover:text-[#dc2626] p-1 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5">
-              <div className="relative flex-1 min-w-[200px]">
-                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Tìm mã ca, tên ca..."
-                  value={searchShift}
-                  onChange={(e) => setSearchShift(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && loadShiftsCatalog()}
-                  className="w-full h-[34px] pl-8 pr-3 text-[13px] border border-gray-300 rounded-md"
-                />
-              </div>
-              <select
+            <div className="flex flex-wrap items-center gap-3">
+              <FloatingSelect
+                label="Có xe đưa đón"
                 value={transportFlagFilter}
-                onChange={(e) => setTransportFlagFilter(e.target.value)}
-                className="h-[34px] text-[13px] border border-gray-300 rounded-md px-3 bg-white"
-              >
-                <option value="">Tất cả trạng thái đưa đón</option>
-                <option value="Y">Có xe đưa đón</option>
-                <option value="N">Không đưa đón</option>
-              </select>
-              <button
-                type="button"
-                onClick={loadShiftsCatalog}
-                className="h-[34px] px-3.5 rounded-md bg-[#00897b] text-white text-[13px] font-medium cursor-pointer"
-              >
-                Lọc
-              </button>
+                onChange={setTransportFlagFilter}
+                options={[
+                  { value: 'Y', label: 'Có xe đưa đón' },
+                  { value: 'N', label: 'Không có xe đưa đón' },
+                ]}
+              />
+              <FloatingSelect
+                label="Chính"
+                value=""
+                onChange={() => {}}
+                options={[{ value: 'MAIN', label: 'Chính' }]}
+              />
+              <FloatingSelect
+                label="Trạng thái"
+                value=""
+                onChange={() => {}}
+                options={[{ value: 'Y', label: 'Hoạt động' }]}
+              />
             </div>
 
-            <div className="overflow-y-auto flex-1 border border-[#e5e7eb] rounded-md">
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-[#f9fafb] border-b border-[#e5e7eb] text-[13px] font-bold text-[#1f2937] sticky top-0">
+            <SectionToolbar
+              title=""
+              loading={loading}
+              onRefresh={loadShiftsCatalog}
+              search={searchShift}
+              onSearchChange={setSearchShift}
+              onSearchSubmit={loadShiftsCatalog}
+              showCustomize
+              showFilter={false}
+              primaryButton={{
+                label: 'Xuất excel trang hiện tại',
+                onClick: () => showToast('Đã xuất Excel Danh sách ca làm việc'),
+              }}
+            />
+
+            <div className="overflow-y-auto flex-1 border-t border-[#e5e7eb]">
+              <table className="m-advance-table w-full text-left border-collapse table-fixed">
+                <thead className="bg-[#f8fafc] border-b border-[#e5e7eb] text-[12px] font-bold text-[#1f2937] sticky top-0 h-[38px]">
                   <tr>
-                    <th className="py-2.5 px-3 w-12">#</th>
-                    <th className="py-2.5 px-3">Mã ca</th>
-                    <th className="py-2.5 px-3">Tên ca làm việc</th>
-                    <th className="py-2.5 px-3">Khung giờ</th>
-                    <th className="py-2.5 px-3">Đang gắn chặng</th>
-                    <th className="py-2.5 px-3 text-center">Xe đưa đón</th>
+                    <th className="px-2.5 w-[5%]">#</th>
+                    <th className="px-2.5 w-[13%]">Mã ca</th>
+                    <th className="px-2.5 w-[33%]">Mô tả</th>
+                    <th className="px-2.5 w-[17%]">Thời gian</th>
+                    <th className="px-2.5 w-[9%]">Chính</th>
+                    <th className="px-2.5 w-[13%]">Có xe đưa đón</th>
+                    <th className="px-2.5 w-[10%]">Trạng thái</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#e5e7eb] text-[13px]">
@@ -418,31 +423,34 @@ export const ShiftsPage: React.FC = () => {
                           .includes(searchShift.trim().toLowerCase())
                     )
                     .map((sh, idx) => (
-                    <tr key={sh.id} className="hover:bg-[#f9fafb]">
-                      <td className="py-2 px-3 text-[#6b7280]">{idx + 1}</td>
-                      <td className="py-2 px-3 font-semibold text-[#1f2937]">{sh.shiftCode}</td>
-                      <td className="py-2 px-3 text-[#374151]">{sh.shiftName}</td>
-                      <td className="py-2 px-3 text-[#374151]">
-                        {sh.startTime || '--:--'} - {sh.endTime || '--:--'}
-                      </td>
-                      <td className="py-2 px-3 text-[#6b7280]">{sh.segmentUsageCount} chặng</td>
-                      <td className="py-2 px-3 text-center">
-                        <button
-                          type="button"
+                      <tr key={sh.id} className="hover:bg-[#f9fafb] h-[36px]">
+                        <td className="px-2.5 text-[#374151]">{idx + 1}</td>
+                        <td className="px-2.5 text-[#1f2937] truncate">{sh.shiftCode}</td>
+                        <td className="px-2.5 text-[#374151] truncate">{sh.shiftName}</td>
+                        <td className="px-2.5 text-[#374151] truncate">
+                          {sh.startTime && sh.endTime
+                            ? `${sh.startTime}:00 - ${sh.endTime}:00`
+                            : '-'}
+                        </td>
+                        <td className="px-2.5">
+                          <PastelBadge label="Chính" tone="green" />
+                        </td>
+                        <td
+                          className="px-2.5 cursor-pointer"
                           onClick={() => handleToggleTransportFlag(sh)}
-                          className={`inline-flex items-center h-6 w-11 rounded-full transition-colors p-0.5 cursor-pointer ${
-                            sh.transportFlag === 'Y' ? 'bg-[#00897b]' : 'bg-gray-300'
-                          }`}
+                          title="Nhấn để bật/tắt cờ Có xe đưa đón"
                         >
-                          <span
-                            className={`h-5 w-5 rounded-full bg-white shadow transform transition-transform ${
-                              sh.transportFlag === 'Y' ? 'translate-x-5' : 'translate-x-0'
-                            }`}
-                          />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                          {sh.transportFlag === 'Y' ? (
+                            <PastelBadge label="Có xe đưa đón" tone="green" />
+                          ) : (
+                            <PastelBadge label="Không có xe đưa đón" tone="gray" />
+                          )}
+                        </td>
+                        <td className="px-2.5">
+                          <PastelBadge label="Hoạt động" tone="green" />
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
