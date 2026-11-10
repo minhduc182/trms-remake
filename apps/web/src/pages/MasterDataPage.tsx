@@ -175,8 +175,8 @@ export const MasterDataPage: React.FC = () => {
         const sortedVehicles = [...(res.vehicles || [])].sort((a, b) => {
           const ap = String(a.vehiclePlate || '');
           const bp = String(b.vehiclePlate || '');
-          const aReal = /^(19|29|30|98|88|28)/.test(ap) ? 0 : 1;
-          const bReal = /^(19|29|30|98|88|28)/.test(bp) ? 0 : 1;
+          const aReal = /^(19|29|30|98|88|28)[A-Z]\d/.test(ap) ? 0 : 1;
+          const bReal = /^(19|29|30|98|88|28)[A-Z]\d/.test(bp) ? 0 : 1;
           if (aReal !== bReal) return aReal - bReal;
           return ap.localeCompare(bp, 'vi');
         });
@@ -194,7 +194,12 @@ export const MasterDataPage: React.FC = () => {
           }
         );
         const filteredLegs = (res.legDefinitions || [])
-          .filter((l) => search || !/^test/i.test(String(l.legName || '')))
+          .filter(
+            (l) =>
+              search ||
+              (!/^(test|Lượt E2E)/i.test(String(l.legName || '')) &&
+                !String(l.legCode || '').startsWith('LEG_UI_'))
+          )
           .sort((a, b) => {
             if (a.passengerType !== b.passengerType) {
               return a.passengerType === 'STAFF' ? -1 : 1;
@@ -1860,19 +1865,19 @@ export const MasterDataPage: React.FC = () => {
             <table className="w-full table-fixed text-left border-collapse text-[13px]">
               <thead>
                 <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] text-[#1f2937] font-semibold">
-                  <th className="px-2 w-[3%] text-center">
+                  <th className="px-1.5 w-[2.8%] text-center">
                     <input type="checkbox" className="rounded border-gray-300" />
                   </th>
-                  <th className="px-2 w-[3%]">#</th>
-                  <th className="px-2 w-[8.5%]">Mã nhân viên</th>
-                  <th className="px-2 w-[11.5%]">Tên nhân viên</th>
-                  <th className="px-2 w-[12.5%]">Phòng ban</th>
-                  <th className="px-2 w-[11%]">Trạng thái hoạt động</th>
-                  <th className="px-2 w-[15%]">Tuyến đang hoạt động</th>
-                  <th className="px-2 w-[9.5%]">Loại hành khách</th>
-                  <th className="px-2 w-[11%]">Trạng thái phê duyệt</th>
-                  <th className="px-2 w-[7%]">Yêu cầu bởi</th>
-                  <th className="px-2 w-[8%]">Thời điểm yêu cầu</th>
+                  <th className="px-1.5 w-[2.5%]">#</th>
+                  <th className="px-1.5 w-[8%]">Mã nhân viên</th>
+                  <th className="px-1.5 w-[10.2%]">Tên nhân viên</th>
+                  <th className="px-1.5 w-[10%]">Phòng ban</th>
+                  <th className="px-1.5 w-[12.5%]">Trạng thái hoạt động</th>
+                  <th className="px-1.5 w-[14.5%]">Tuyến đang hoạt động</th>
+                  <th className="px-1.5 w-[9.5%]">Loại hành khách</th>
+                  <th className="px-1.5 w-[12.5%]">Trạng thái phê duyệt</th>
+                  <th className="px-1.5 w-[7%]">Yêu cầu bởi</th>
+                  <th className="px-1.5 w-[10.5%]">Thời điểm yêu cầu</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb]">
@@ -1987,23 +1992,23 @@ export const MasterDataPage: React.FC = () => {
       {activeTab === 'COST_CONFIGS' && (
         <div>
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed text-left border-collapse text-[13px]">
+            <table className="w-full table-fixed text-left border-collapse text-[12.5px]">
               <thead>
                 <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] text-[#1f2937] font-semibold">
-                  <th className="px-1 w-[2.5%]">#</th>
-                  <th className="px-1 w-[7%]">Phiên bản</th>
-                  <th className="px-1 w-[8%]">Loại</th>
-                  <th className="px-1 w-[7%]">Hành khách</th>
-                  <th className="px-1 w-[10.5%]">Phạm vi tính giá</th>
-                  <th className="px-1 w-[6.5%]">Xe</th>
-                  <th className="px-1 w-[5%]">Quy tắc</th>
-                  <th className="px-1 w-[9.5%]">Giá chính</th>
-                  <th className="px-1 w-[10%]">Hạn mức KM / tháng</th>
-                  <th className="px-1 w-[9%]">Đơn giá KM vượt</th>
-                  <th className="px-1 w-[7.5%]">Giá OT / giờ</th>
-                  <th className="px-1 w-[8%]">Giá lưu đêm</th>
+                  <th className="px-1 w-[2.2%]">#</th>
+                  <th className="px-1 w-[6.3%]">Phiên bản</th>
+                  <th className="px-1 w-[7.2%]">Loại</th>
+                  <th className="px-1 w-[6.5%]">Hành khách</th>
+                  <th className="px-1 w-[9.8%]">Phạm vi tính giá</th>
+                  <th className="px-1 w-[6.2%]">Xe</th>
+                  <th className="px-1 w-[4.8%]">Quy tắc</th>
+                  <th className="px-1 w-[9.0%]">Giá chính</th>
+                  <th className="px-1 w-[11.2%]">Hạn mức KM / tháng</th>
+                  <th className="px-1 w-[9.8%]">Đơn giá KM vượt</th>
+                  <th className="px-1 w-[7.2%]">Giá OT / giờ</th>
+                  <th className="px-1 w-[7.5%]">Giá lưu đêm</th>
                   <th className="px-1 w-[6.5%]">Áp dụng từ</th>
-                  <th className="px-1 w-[6%]">Trạng thái</th>
+                  <th className="px-1 w-[5.8%]">Trạng thái</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb]">

@@ -695,7 +695,7 @@ export const CostReportsPage: React.FC<{
                   <th rowSpan={2} className="px-2 border-r border-[#e5e7eb] w-[9%]">
                     Loại xe
                   </th>
-                  <th rowSpan={2} className="px-2 border-r border-[#e5e7eb] w-[30%]">
+                  <th rowSpan={2} className="px-2 border-r border-[#e5e7eb] w-[28%]">
                     Tuyến
                   </th>
                   <th
@@ -712,11 +712,11 @@ export const CostReportsPage: React.FC<{
                   </th>
                   <th
                     rowSpan={2}
-                    className="px-2 text-center border-r border-[#e5e7eb] w-[7%]"
+                    className="px-2 text-center border-r border-[#e5e7eb] w-[8.5%]"
                   >
                     Vượt 150 km
                   </th>
-                  <th rowSpan={2} className="px-2 text-right w-[7%]">
+                  <th rowSpan={2} className="px-2 text-right w-[7.5%]">
                     Tiền cước
                   </th>
                 </tr>
@@ -895,7 +895,7 @@ export const CostReportsPage: React.FC<{
                   <th rowSpan={2} className="px-2 border-r border-[#e5e7eb] w-[8.5%]">
                     Xe
                   </th>
-                  <th rowSpan={2} className="px-2 border-r border-[#e5e7eb] w-[30%]">
+                  <th rowSpan={2} className="px-2 border-r border-[#e5e7eb] w-[29%]">
                     Tuyến
                   </th>
                   <th
@@ -912,7 +912,7 @@ export const CostReportsPage: React.FC<{
                   </th>
                   <th
                     colSpan={3}
-                    className="px-2 text-center border-b border-r border-[#e5e7eb] w-[24.5%]"
+                    className="px-2 text-center border-b border-r border-[#e5e7eb] w-[25.5%]"
                   >
                     Làm Ngoài giờ
                   </th>
@@ -920,7 +920,7 @@ export const CostReportsPage: React.FC<{
                 <tr className="bg-[#f9fafb] text-[#1f2937] font-bold border-b border-[#e5e7eb]">
                   <th className="px-2 text-right border-r border-[#e5e7eb] w-[6%]">Giờ</th>
                   <th className="px-2 text-right border-r border-[#e5e7eb] w-[8.5%]">Đơn giá</th>
-                  <th className="px-2 text-right border-r border-[#e5e7eb] w-[10%]">Số tiền</th>
+                  <th className="px-2 text-right border-r border-[#e5e7eb] w-[11%]">Số tiền</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb] text-[#1f2937]">

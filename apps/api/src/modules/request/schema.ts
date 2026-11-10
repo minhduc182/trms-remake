@@ -1236,6 +1236,8 @@ builder.mutationFields((t) => ({
     args: {
       id: t.arg({ type: 'BigInt', required: true }),
       reason: t.arg.string(),
+      mergeRequired: t.arg.boolean(),
+      mergeNote: t.arg.string(),
     },
     resolve: async (query, _root, args, ctx) => {
       const reqId = BigInt(args.id);
@@ -1281,6 +1283,14 @@ builder.mutationFields((t) => ({
         throw new Error(`Không thể duyệt đơn đang ở trạng thái ${req.status}`);
       }
 
+      const mergeTag = args.mergeRequired
+        ? `[YÊU CẦU GHÉP CHUYẾN${args.mergeNote ? `: ${args.mergeNote.trim()}` : ''}]`
+        : '';
+      const combinedReason = [args.reason?.trim(), mergeTag].filter(Boolean).join(' ') || null;
+      const updatedNotes = mergeTag
+        ? `${req.notes ?? ''} ${mergeTag}`.trim()
+        : req.notes;
+
       const updated = await prisma.transportRequest.update({
         ...query,
         where: { id: reqId },
@@ -1288,6 +1298,8 @@ builder.mutationFields((t) => ({
           status: nextStatus,
           outboundStatus: nextStatus,
           returnStatus: req.tripMode === 'ROUND_TRIP' ? nextStatus : req.returnStatus,
+          notes: updatedNotes,
+          overrideReason: mergeTag || req.overrideReason,
           approvals: {
             create: {
               id: nextSnowflakeId(),
@@ -1296,7 +1308,7 @@ builder.mutationFields((t) => ({
               approverId: ctx.user?.id ?? null,
               approverName: ctx.user?.fullName ?? 'Approver',
               decision: 'APPROVED',
-              decisionReason: args.reason ?? null,
+              decisionReason: combinedReason,
             },
           },
           statusHistory: {
@@ -1305,7 +1317,7 @@ builder.mutationFields((t) => ({
               fromStatus: req.status,
               toStatus: nextStatus,
               actionBy: ctx.user?.id ?? null,
-              actionReason: args.reason ?? `Duyệt bước ${stage}`,
+              actionReason: combinedReason ?? `Duyệt bước ${stage}`,
             },
           },
         },
@@ -1515,6 +1527,8 @@ builder.mutationFields((t) => ({
     args: {
       ids: t.arg({ type: ['BigInt'], required: true }),
       reason: t.arg.string(),
+      mergeRequired: t.arg.boolean(),
+      mergeNote: t.arg.string(),
     },
     resolve: async (query, _root, args, ctx) => {
       const reqIds = args.ids.map((id) => BigInt(id));
@@ -1522,15 +1536,26 @@ builder.mutationFields((t) => ({
         where: { id: { in: reqIds } },
       });
 
+      const mergeTag = args.mergeRequired
+        ? `[YÊU CẦU GHÉP CHUYẾN${args.mergeNote ? `: ${args.mergeNote.trim()}` : ''}]`
+        : '';
+      const combinedReason =
+        [args.reason?.trim(), mergeTag].filter(Boolean).join(' ') || 'Duyệt hàng loạt';
+
       for (const req of reqs) {
         const nextStatus =
           req.status === 'PENDING_DEPARTMENT' ? 'PENDING_GA' : 'WAITING_VENDOR_DISPATCH';
+        const updatedNotes = mergeTag
+          ? `${req.notes ?? ''} ${mergeTag}`.trim()
+          : req.notes;
         await prisma.transportRequest.update({
           where: { id: req.id },
           data: {
             status: nextStatus,
             outboundStatus: nextStatus,
             returnStatus: req.tripMode === 'ROUND_TRIP' ? nextStatus : req.returnStatus,
+            notes: updatedNotes,
+            overrideReason: mergeTag || req.overrideReason,
             approvals: {
               create: {
                 id: nextSnowflakeId(),
@@ -1539,7 +1564,7 @@ builder.mutationFields((t) => ({
                 approverId: ctx.user?.id ?? null,
                 approverName: ctx.user?.fullName ?? 'Approver',
                 decision: 'APPROVED',
-                decisionReason: args.reason ?? 'Duyệt hàng loạt',
+                decisionReason: combinedReason,
               },
             },
             statusHistory: {
@@ -1548,7 +1573,7 @@ builder.mutationFields((t) => ({
                 fromStatus: req.status,
                 toStatus: nextStatus,
                 actionBy: ctx.user?.id ?? null,
-                actionReason: args.reason ?? 'Duyệt hàng loạt',
+                actionReason: combinedReason,
               },
             },
           },

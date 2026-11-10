@@ -189,6 +189,72 @@ export const TripObj = builder.prismaObject('Trip', {
         return fact?.actualKm ?? null;
       },
     }),
+    actualStartAt: t.field({
+      type: 'DateTime',
+      nullable: true,
+      resolve: async (trip) => {
+        const fact = await prisma.tripExecutionFact.findFirst({
+          where: { tripId: trip.id },
+          orderBy: { id: 'desc' },
+        });
+        return fact?.actualDepartureAt ?? null;
+      },
+    }),
+    actualEndAt: t.field({
+      type: 'DateTime',
+      nullable: true,
+      resolve: async (trip) => {
+        const fact = await prisma.tripExecutionFact.findFirst({
+          where: { tripId: trip.id },
+          orderBy: { id: 'desc' },
+        });
+        return fact?.actualArrivalAt ?? null;
+      },
+    }),
+    actualPassengerCount: t.field({
+      type: 'Int',
+      nullable: true,
+      resolve: async (trip) => {
+        const fact = await prisma.tripExecutionFact.findFirst({
+          where: { tripId: trip.id },
+          orderBy: { id: 'desc' },
+        });
+        return fact?.actualPassengerCount ?? null;
+      },
+    }),
+    startOdometerKm: t.field({
+      type: 'Decimal',
+      nullable: true,
+      resolve: async (trip) => {
+        const fact = await prisma.tripExecutionFact.findFirst({
+          where: { tripId: trip.id },
+          orderBy: { id: 'desc' },
+        });
+        return fact?.startOdometerKm ?? null;
+      },
+    }),
+    endOdometerKm: t.field({
+      type: 'Decimal',
+      nullable: true,
+      resolve: async (trip) => {
+        const fact = await prisma.tripExecutionFact.findFirst({
+          where: { tripId: trip.id },
+          orderBy: { id: 'desc' },
+        });
+        return fact?.endOdometerKm ?? null;
+      },
+    }),
+    tollFeeAmount: t.field({
+      type: 'Decimal',
+      nullable: true,
+      resolve: async (trip) => {
+        const rec = await prisma.costRecord.findFirst({
+          where: { tripId: trip.id, costType: 'TOLL_FEE' },
+          orderBy: { id: 'desc' },
+        });
+        return rec?.appliedAmount ?? null;
+      },
+    }),
   }),
 });
 
@@ -199,6 +265,7 @@ export interface DashboardStatsShape {
   pendingApprovalRequests: number;
   waitingDispatchRequests: number;
   totalTrips: number;
+  activeTrips: number;
   completedTrips: number;
   totalVehicles: number;
   availableVehicles: number;
@@ -212,6 +279,7 @@ export const DashboardStatsRef = builder.objectRef<DashboardStatsShape>('Dashboa
     pendingApprovalRequests: t.exposeInt('pendingApprovalRequests'),
     waitingDispatchRequests: t.exposeInt('waitingDispatchRequests'),
     totalTrips: t.exposeInt('totalTrips'),
+    activeTrips: t.exposeInt('activeTrips'),
     completedTrips: t.exposeInt('completedTrips'),
     totalVehicles: t.exposeInt('totalVehicles'),
     availableVehicles: t.exposeInt('availableVehicles'),
@@ -454,6 +522,9 @@ builder.queryFields((t) => ({
       status: t.arg.string(),
       dispatchType: t.arg.string(),
       tripType: t.arg.string(),
+      passengerType: t.arg.string(),
+      tripLeg: t.arg.string(),
+      deadheadKind: t.arg.string(),
       vehicleId: t.arg({ type: 'BigInt' }),
       driverId: t.arg({ type: 'BigInt' }),
       routeId: t.arg({ type: 'BigInt' }),
@@ -476,6 +547,22 @@ builder.queryFields((t) => ({
           dispatchTypeFilter = [args.dispatchType];
         }
       }
+      let tripTypeFilter: string[] | undefined;
+      if (args.tripType && args.tripType !== 'ALL') {
+        if (args.tripType === 'COMMUTE') {
+          tripTypeFilter = ['COMMUTE', 'FIXED_ROUTE', 'SUPPLEMENT'];
+        } else if (args.tripType === 'BUSINESS') {
+          tripTypeFilter = ['BUSINESS', 'BUSINESS_TRIP'];
+        } else if (args.tripType === 'OT') {
+          tripTypeFilter = ['OT', 'OVERTIME'];
+        } else if (args.tripType === 'CARGO') {
+          tripTypeFilter = ['CARGO', 'GOODS'];
+        } else if (args.tripType === 'MIXED') {
+          tripTypeFilter = ['MIXED', 'MERGED'];
+        } else {
+          tripTypeFilter = [args.tripType];
+        }
+      }
       return prisma.trip.findMany({
         ...query,
         where: {
@@ -483,7 +570,10 @@ builder.queryFields((t) => ({
           ...(args.businessDate ? { businessDate: args.businessDate } : {}),
           ...(statusFilter ? { status: { in: statusFilter } } : {}),
           ...(dispatchTypeFilter ? { dispatchType: { in: dispatchTypeFilter } } : {}),
-          ...(args.tripType ? { tripType: args.tripType } : {}),
+          ...(tripTypeFilter ? { tripType: { in: tripTypeFilter } } : {}),
+          ...(args.passengerType ? { passengerType: args.passengerType } : {}),
+          ...(args.tripLeg ? { tripLeg: args.tripLeg } : {}),
+          ...(args.deadheadKind ? { deadheadKind: args.deadheadKind } : {}),
           ...(args.vehicleId ? { vehicleId: BigInt(args.vehicleId) } : {}),
           ...(args.driverId ? { driverId: BigInt(args.driverId) } : {}),
           ...(args.routeId ? { routeId: BigInt(args.routeId) } : {}),
@@ -623,9 +713,10 @@ builder.queryFields((t) => ({
         pendingApprovalRequests,
         waitingDispatchRequests,
         totalTrips,
+        activeTrips,
         completedTrips,
         totalVehicles,
-        availableVehicles,
+        availableVehiclesCount,
         activeRiders,
         costAgg,
       ] = await Promise.all([
@@ -644,10 +735,17 @@ builder.queryFields((t) => ({
         }),
         prisma.trip.count({ where: { delFlag: 'N', ...dateFilter } }),
         prisma.trip.count({
+          where: {
+            delFlag: 'N',
+            status: { in: ['DISPATCHED', 'WAITING_DRIVER_CONFIRM', 'DRIVER_CONFIRMED', 'IN_PROGRESS'] },
+            ...dateFilter,
+          },
+        }),
+        prisma.trip.count({
           where: { delFlag: 'N', status: 'COMPLETED', ...dateFilter },
         }),
         prisma.vehicle.count({ where: { delFlag: 'N' } }),
-        prisma.vehicleStatus.count({ where: { status: 'AVAILABLE' } }),
+        prisma.vehicle.count({ where: { delFlag: 'N', activeFlag: 'Y' } }),
         prisma.employeeTransportProfile.count({
           where: { delFlag: 'N', approvalStatus: 'APPROVED', activeFlag: 'Y' },
         }),
@@ -661,9 +759,10 @@ builder.queryFields((t) => ({
         pendingApprovalRequests,
         waitingDispatchRequests,
         totalTrips,
+        activeTrips,
         completedTrips,
         totalVehicles,
-        availableVehicles,
+        availableVehicles: availableVehiclesCount,
         activeRiders,
         totalCostAfterVat: Number(costAgg._sum.amountAfterVat || 0),
       };
@@ -1166,8 +1265,17 @@ builder.mutationFields((t) => ({
         include: { requestLinks: { where: { delFlag: 'N' } } },
       });
 
+      const tripIdsToCancel = [tripId];
+      if (trip.pairedTripId) {
+        tripIdsToCancel.push(trip.pairedTripId);
+      }
+
+      const allLinks = await prisma.tripRequestLink.findMany({
+        where: { tripId: { in: tripIdsToCancel }, delFlag: 'N' },
+      });
+
       // AT-DSP-010: Return all linked requests back to WAITING_VENDOR_DISPATCH
-      for (const link of trip.requestLinks) {
+      for (const link of allLinks) {
         await prisma.tripRequestLink.update({
           where: { id: link.id },
           data: { delFlag: 'Y' },
@@ -1177,7 +1285,18 @@ builder.mutationFields((t) => ({
           data: {
             status: 'WAITING_VENDOR_DISPATCH',
             outboundStatus: 'WAITING_VENDOR_DISPATCH',
+            returnStatus: 'WAITING_VENDOR_DISPATCH',
             currentTripId: null,
+          },
+        });
+      }
+
+      if (trip.pairedTripId) {
+        await prisma.trip.updateMany({
+          where: { id: trip.pairedTripId },
+          data: {
+            status: 'CANCELLED',
+            notes: args.reason ? `[Hủy cặp chuyến: ${args.reason}]` : undefined,
           },
         });
       }
@@ -1212,12 +1331,16 @@ builder.mutationFields((t) => ({
       id: t.arg({ type: 'BigInt', required: true }),
       vehicleId: t.arg({ type: 'BigInt', required: true }),
       driverId: t.arg({ type: 'BigInt', required: true }),
+      actualKm: t.arg({ type: 'Decimal' }),
       reason: t.arg.string(),
     },
     resolve: async (query, _root, args, ctx) => {
       const tripId = BigInt(args.id);
       const [trip, vehicle, driver] = await Promise.all([
-        prisma.trip.findUniqueOrThrow({ where: { id: tripId } }),
+        prisma.trip.findUniqueOrThrow({
+          where: { id: tripId },
+          include: { executionFacts: { orderBy: { id: 'desc' }, take: 1 } },
+        }),
         prisma.vehicle.findUniqueOrThrow({ where: { id: BigInt(args.vehicleId) } }),
         prisma.driver.findUniqueOrThrow({ where: { id: BigInt(args.driverId) } }),
       ]);
@@ -1236,6 +1359,27 @@ builder.mutationFields((t) => ({
           overrideReason: args.reason ?? trip.overrideReason,
         },
       });
+
+      if (args.actualKm !== undefined && args.actualKm !== null && Number(args.actualKm) > 0) {
+        const kmDec = new Prisma.Decimal(Number(args.actualKm).toFixed(2));
+        if (trip.executionFacts.length > 0) {
+          await prisma.tripExecutionFact.update({
+            where: { id: trip.executionFacts[0].id },
+            data: { actualKm: kmDec, actualKmSource: 'MANUAL' },
+          });
+        } else {
+          await prisma.tripExecutionFact.create({
+            data: {
+              id: nextSnowflakeId(),
+              tripId,
+              actualDepartureAt: trip.plannedDepartureAt ?? new Date(),
+              actualArrivalAt: trip.plannedArrivalAt ?? new Date(),
+              actualKm: kmDec,
+              actualKmSource: 'MANUAL',
+            },
+          });
+        }
+      }
 
       // AT-DSP-009 / AT-TRIP-009: If trip is already COMPLETED, sync vehicleId on its costRecords
       if (trip.status === 'COMPLETED') {
@@ -1369,6 +1513,7 @@ builder.mutationFields((t) => ({
       id: t.arg({ type: 'BigInt', required: true }),
       endOdometerKm: t.arg({ type: 'Decimal' }),
       actualPassengerCount: t.arg.int(),
+      tollFeeAmount: t.arg({ type: 'Decimal' }),
       executionNote: t.arg.string(),
     },
     resolve: async (query, _root, args, ctx) => {
@@ -1390,14 +1535,25 @@ builder.mutationFields((t) => ({
 
       const now = new Date();
       const latestFact = trip.executionFacts[0];
+      const endOdoDec = args.endOdometerKm
+        ? new Prisma.Decimal(String(args.endOdometerKm))
+        : (latestFact?.endOdometerKm ?? null);
+      const startOdoDec = latestFact?.startOdometerKm ?? null;
+      let computedActualKm = latestFact?.actualKm ?? null;
+      if (startOdoDec !== null && endOdoDec !== null) {
+        const diff = Number(endOdoDec) - Number(startOdoDec);
+        if (diff > 0) {
+          computedActualKm = new Prisma.Decimal(diff.toFixed(2));
+        }
+      }
+
       if (latestFact) {
         await prisma.tripExecutionFact.update({
           where: { id: latestFact.id },
           data: {
             actualArrivalAt: now,
-            endOdometerKm: args.endOdometerKm
-              ? new Prisma.Decimal(String(args.endOdometerKm))
-              : latestFact.endOdometerKm,
+            endOdometerKm: endOdoDec,
+            actualKm: computedActualKm,
             actualPassengerCount:
               args.actualPassengerCount ?? trip.passengerCount,
             completedBy: ctx.user?.id ?? null,
@@ -1412,14 +1568,51 @@ builder.mutationFields((t) => ({
             tripId,
             actualDepartureAt: trip.plannedDepartureAt ?? now,
             actualArrivalAt: now,
-            endOdometerKm: args.endOdometerKm
-              ? new Prisma.Decimal(String(args.endOdometerKm))
-              : null,
+            endOdometerKm: endOdoDec,
+            actualKm: computedActualKm,
             actualPassengerCount:
               args.actualPassengerCount ?? trip.passengerCount,
             completedBy: ctx.user?.id ?? null,
             completedAt: now,
             executionNote: args.executionNote ?? null,
+          },
+        });
+      }
+
+      if (args.tollFeeAmount !== undefined && args.tollFeeAmount !== null && Number(args.tollFeeAmount) > 0) {
+        const tollDec = new Prisma.Decimal(Number(args.tollFeeAmount).toFixed(2));
+        const tollKey = `TRIP_TOLL:${String(tripId)}`;
+        await prisma.costRecord.upsert({
+          where: { idempotencyKey: tollKey },
+          update: {
+            quantity: new Prisma.Decimal('1'),
+            appliedUnitPrice: tollDec,
+            appliedAmount: tollDec,
+            vatRate: new Prisma.Decimal('0'),
+            vatAmount: new Prisma.Decimal('0'),
+            amountAfterVat: tollDec,
+            costStatus: 'DRAFT',
+            pricedAt: new Date(),
+          },
+          create: {
+            id: nextSnowflakeId(),
+            idempotencyKey: tollKey,
+            costSource: 'AUTO',
+            costType: 'TOLL_FEE',
+            costScope: 'TRIP',
+            tripId,
+            vehicleId: trip.vehicleId,
+            routeId: trip.routeId,
+            serviceDate: trip.businessDate,
+            costMonth: trip.businessDate.slice(0, 7),
+            quantity: new Prisma.Decimal('1'),
+            appliedUnitPrice: tollDec,
+            appliedAmount: tollDec,
+            vatRate: new Prisma.Decimal('0'),
+            vatAmount: new Prisma.Decimal('0'),
+            amountAfterVat: tollDec,
+            description: `Phí cầu đường chuyến ${trip.tripCode}`,
+            costStatus: 'DRAFT',
           },
         });
       }
@@ -1461,6 +1654,11 @@ builder.mutationFields((t) => ({
       id: t.arg({ type: 'BigInt', required: true }),
       actualKm: t.arg({ type: 'Decimal', required: true }),
       otHours: t.arg({ type: 'Decimal' }),
+      tollFeeAmount: t.arg({ type: 'Decimal' }),
+      actualStartAt: t.arg.string(),
+      actualEndAt: t.arg.string(),
+      overnightNights: t.arg.int(),
+      targetStatus: t.arg.string(),
       executionNote: t.arg.string(),
     },
     resolve: async (query, _root, args, ctx) => {
@@ -1484,6 +1682,16 @@ builder.mutationFields((t) => ({
 
       const kmDec = new Prisma.Decimal(kmVal.toFixed(2));
       const otDec = args.otHours ? new Prisma.Decimal(String(args.otHours)) : null;
+      const parsedStart = args.actualStartAt
+        ? (args.actualStartAt.includes('T')
+            ? new Date(args.actualStartAt)
+            : parseTimeOnDate(trip.businessDate, args.actualStartAt))
+        : null;
+      const parsedEnd = args.actualEndAt
+        ? (args.actualEndAt.includes('T')
+            ? new Date(args.actualEndAt)
+            : parseTimeOnDate(trip.businessDate, args.actualEndAt))
+        : null;
 
       if (trip.executionFacts.length > 0) {
         await prisma.tripExecutionFact.update({
@@ -1491,6 +1699,8 @@ builder.mutationFields((t) => ({
           data: {
             actualKm: kmDec,
             otHours: otDec ?? trip.executionFacts[0].otHours,
+            actualDepartureAt: parsedStart ?? trip.executionFacts[0].actualDepartureAt,
+            actualArrivalAt: parsedEnd ?? trip.executionFacts[0].actualArrivalAt,
             actualKmSource: 'MANUAL',
             executionNote: args.executionNote ?? trip.executionFacts[0].executionNote,
           },
@@ -1500,8 +1710,8 @@ builder.mutationFields((t) => ({
           data: {
             id: nextSnowflakeId(),
             tripId,
-            actualDepartureAt: trip.plannedDepartureAt ?? new Date(),
-            actualArrivalAt: trip.plannedArrivalAt ?? new Date(),
+            actualDepartureAt: parsedStart ?? trip.plannedDepartureAt ?? new Date(),
+            actualArrivalAt: parsedEnd ?? trip.plannedArrivalAt ?? new Date(),
             actualKm: kmDec,
             otHours: otDec,
             actualKmSource: 'MANUAL',
@@ -1510,6 +1720,60 @@ builder.mutationFields((t) => ({
             executionNote: args.executionNote ?? null,
           },
         });
+      }
+
+      if (args.targetStatus || args.overnightNights !== undefined) {
+        const extraNotes =
+          args.overnightNights && args.overnightNights > 0
+            ? `${trip.notes ?? ''} [Lưu đêm: ${args.overnightNights} đêm]`.trim()
+            : trip.notes;
+        await prisma.trip.update({
+          where: { id: tripId },
+          data: {
+            ...(args.targetStatus ? { status: args.targetStatus } : {}),
+            notes: extraNotes,
+          },
+        });
+      }
+
+      if (args.tollFeeAmount !== undefined && args.tollFeeAmount !== null && Number(args.tollFeeAmount) >= 0) {
+        const tollDec = new Prisma.Decimal(Number(args.tollFeeAmount).toFixed(2));
+        const tollKey = `TRIP_TOLL:${String(tripId)}`;
+        if (Number(args.tollFeeAmount) > 0) {
+          await prisma.costRecord.upsert({
+            where: { idempotencyKey: tollKey },
+            update: {
+              quantity: new Prisma.Decimal('1'),
+              appliedUnitPrice: tollDec,
+              appliedAmount: tollDec,
+              vatRate: new Prisma.Decimal('0'),
+              vatAmount: new Prisma.Decimal('0'),
+              amountAfterVat: tollDec,
+              costStatus: 'DRAFT',
+              pricedAt: new Date(),
+            },
+            create: {
+              id: nextSnowflakeId(),
+              idempotencyKey: tollKey,
+              costSource: 'AUTO',
+              costType: 'TOLL_FEE',
+              costScope: 'TRIP',
+              tripId,
+              vehicleId: trip.vehicleId,
+              routeId: trip.routeId,
+              serviceDate: trip.businessDate,
+              costMonth: trip.businessDate.slice(0, 7),
+              quantity: new Prisma.Decimal('1'),
+              appliedUnitPrice: tollDec,
+              appliedAmount: tollDec,
+              vatRate: new Prisma.Decimal('0'),
+              vatAmount: new Prisma.Decimal('0'),
+              amountAfterVat: tollDec,
+              description: `Phí cầu đường chuyến ${trip.tripCode}`,
+              costStatus: 'DRAFT',
+            },
+          });
+        }
       }
 
       // Transition linked requests from WAITING_DISTANCE_INPUT -> COMPLETED (handling ROUND_TRIP via composeRequestStatus)
