@@ -206,9 +206,9 @@ test.describe('TRMS Remake E2E UI Acceptance Suite (Full QA Coverage)', () => {
     await page.click('text=Báo cáo chi phí');
     await expect(page.locator('button:has-text("Hóa đơn xe")')).toBeVisible();
     await page.click('button:has-text("Chi phí ngày")');
-    await expect(page.locator('button:has-text("Tính toán chi phí")')).toBeVisible();
+    await expect(page.locator('button:has-text("Tính lại chi phí ngày")')).toBeVisible();
     await page.click('button:has-text("Thanh toán tháng")');
-    await expect(page.locator('button:has-text("Tính toán thanh toán")')).toBeVisible();
+    await expect(page.locator('button:has-text("Tính lại thanh toán tháng")')).toBeVisible();
 
     // 2. ETP Reports
     await page.click('text=Báo cáo hồ sơ sử dụng xe');
