@@ -448,37 +448,37 @@ export const CostReportsPage: React.FC<{
             <table className="w-full table-fixed text-left border-collapse text-[13px]">
               <thead>
                 <tr className="bg-[#f3f4f6] text-[#1f2937] font-semibold border-b border-[#e5e7eb]">
-                  <th className="px-2.5 text-center border-r border-[#e5e7eb] w-[4%]">
+                  <th className="px-2 text-center border-r border-[#e5e7eb] w-[4%]">
                     STT
                   </th>
-                  <th className="px-2.5 text-center border-r border-[#e5e7eb] w-[7.5%]">
+                  <th className="px-2 text-center border-r border-[#e5e7eb] w-[8.5%]">
                     Giờ khởi hành
                   </th>
-                  <th className="px-2.5 text-center border-r border-[#e5e7eb] w-[6.5%]">
+                  <th className="px-2 text-center border-r border-[#e5e7eb] w-[6.5%]">
                     Giờ đến
                   </th>
-                  <th className="px-2.5 text-center border-r border-[#e5e7eb] w-[25%]">
+                  <th className="px-2 text-center border-r border-[#e5e7eb] w-[24%]">
                     Lộ trình chuyến
                   </th>
-                  <th className="px-2.5 text-center border-r border-[#e5e7eb] w-[8.5%]">
+                  <th className="px-2 text-center border-r border-[#e5e7eb] w-[9%]">
                     Phí cầu đường
                   </th>
-                  <th className="px-2.5 text-center border-r border-[#e5e7eb] w-[9.5%]">
+                  <th className="px-2 text-center border-r border-[#e5e7eb] w-[10.5%]">
                     Km lúc xuất phát
                   </th>
-                  <th className="px-2.5 text-center border-r border-[#e5e7eb] w-[9.5%]">
+                  <th className="px-2 text-center border-r border-[#e5e7eb] w-[10.5%]">
                     Km lúc kết thúc
                   </th>
-                  <th className="px-2.5 text-center border-r border-[#e5e7eb] w-[10%]">
+                  <th className="px-2 text-center border-r border-[#e5e7eb] w-[11%]">
                     Quãng đường (km)
                   </th>
-                  <th className="px-2.5 text-center border-r border-[#e5e7eb] w-[6%]">
+                  <th className="px-2 text-center border-r border-[#e5e7eb] w-[5.5%]">
                     Giờ OT
                   </th>
-                  <th className="px-2.5 text-center border-r border-[#e5e7eb] w-[6%]">
+                  <th className="px-2 text-center border-r border-[#e5e7eb] w-[5.5%]">
                     Ghi chú
                   </th>
-                  <th className="px-2.5 text-center w-[7.5%]">
+                  <th className="px-2 text-center w-[5%]">
                     Trạng thái
                   </th>
                 </tr>

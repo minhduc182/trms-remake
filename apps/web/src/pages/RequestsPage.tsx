@@ -199,12 +199,12 @@ export const RequestsPage: React.FC = () => {
           const aSynth = String(a.businessDate || '').startsWith('2027-') ? 1 : 0;
           const bSynth = String(b.businessDate || '').startsWith('2027-') ? 1 : 0;
           if (aSynth !== bSynth) return aSynth - bSynth;
-          const aOct21 = String(a.businessDate || '').startsWith('2026-10-21') ? 0 : 1;
-          const bOct21 = String(b.businessDate || '').startsWith('2026-10-21') ? 0 : 1;
-          if (aOct21 !== bOct21) return aOct21 - bOct21;
           const aHasPoints = a.departurePickupPointText && a.departureDropoffPointText ? 0 : 1;
           const bHasPoints = b.departurePickupPointText && b.departureDropoffPointText ? 0 : 1;
           if (aHasPoints !== bHasPoints) return aHasPoints - bHasPoints;
+          const aOct21 = String(a.businessDate || '').startsWith('2026-10-21') ? 0 : 1;
+          const bOct21 = String(b.businessDate || '').startsWith('2026-10-21') ? 0 : 1;
+          if (aOct21 !== bOct21) return aOct21 - bOct21;
           return 0;
         });
       }
@@ -588,16 +588,16 @@ export const RequestsPage: React.FC = () => {
                   />
                 </th>
               )}
-              <th className="px-2.5 w-[3.5%]">#</th>
-              <th className="px-2.5 w-[8.5%]">Loại yêu cầu</th>
-              <th className="px-2.5 w-[11.5%]">Trạng thái</th>
-              <th className="px-2.5 w-[10%]">Người yêu cầu</th>
-              <th className="px-2.5 w-[12%]">Bộ phận người yêu cầu</th>
-              <th className="px-2.5 w-[8.5%]">Số lượng đăng ký</th>
-              <th className="px-2.5 w-[10.5%]">Giờ khởi hành / Đón</th>
-              <th className="px-2.5 w-[13%]">Điểm đón / Lấy hàng</th>
-              <th className="px-2.5 w-[13%]">Điểm trả / Giao hàng</th>
-              <th className="px-2.5 w-[9.5%]">Giờ về / Giao hàng</th>
+              <th className="px-2 w-[3%]">#</th>
+              <th className="px-2 w-[8.5%]">Loại yêu cầu</th>
+              <th className="px-2 w-[11.5%]">Trạng thái</th>
+              <th className="px-2 w-[9.5%]">Người yêu cầu</th>
+              <th className="px-2 w-[13.5%]">Bộ phận người yêu cầu</th>
+              <th className="px-2 w-[7.5%]">Số lượng đăng ký</th>
+              <th className="px-2 w-[11.5%]">Giờ khởi hành / Đón</th>
+              <th className="px-2 w-[12%]">Điểm đón / Lấy hàng</th>
+              <th className="px-2 w-[12%]">Điểm trả / Giao hàng</th>
+              <th className="px-2 w-[11%]">Giờ về / Giao hàng</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">

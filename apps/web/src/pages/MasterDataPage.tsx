@@ -133,10 +133,12 @@ export const MasterDataPage: React.FC = () => {
           }
         );
         const sortedPts = [...(res.points || [])].sort((a, b) => {
-          const aTest = String(a.pointCode || '').startsWith('MC_') || String(a.pointCode || '').startsWith('PT_') ? 1 : 0;
-          const bTest = String(b.pointCode || '').startsWith('MC_') || String(b.pointCode || '').startsWith('PT_') ? 1 : 0;
+          const ac = String(a.pointCode || '');
+          const bc = String(b.pointCode || '');
+          const aTest = ac.startsWith('MC_') || ac.startsWith('PT_') || ac.includes('@') ? 1 : 0;
+          const bTest = bc.startsWith('MC_') || bc.startsWith('PT_') || bc.includes('@') ? 1 : 0;
           if (aTest !== bTest) return aTest - bTest;
-          return String(a.pointCode || '').localeCompare(String(b.pointCode || ''));
+          return ac.localeCompare(bc);
         });
         setPoints(sortedPts);
       } else if (activeTab === 'DRIVERS') {
