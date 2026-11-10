@@ -634,7 +634,7 @@ export const RequestsPage: React.FC = () => {
 
       {/* 4. Legacy Data Table (Exact columns & widths from 002-requests.png & 009-approval-row-context.png) */}
       <div className="overflow-x-auto">
-        <table className="w-full table-fixed text-left border-collapse">
+        <table className="w-full min-w-[1140px] table-fixed text-left border-collapse">
           <thead>
             <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] text-[13px] font-semibold text-[#1f2937]">
               {activeTab === 'APPROVAL_QUEUE' && (
@@ -648,16 +648,16 @@ export const RequestsPage: React.FC = () => {
                   />
                 </th>
               )}
-              <th className="px-1.5 w-[3%]">#</th>
-              <th className="px-1.5 w-[8%]">Loại yêu cầu</th>
-              <th className="px-1.5 w-[11.5%]">Trạng thái</th>
-              <th className="px-1.5 w-[9.5%]">Người yêu cầu</th>
-              <th className="px-1.5 w-[14.5%]">Bộ phận người yêu cầu</th>
-              <th className="px-1.5 w-[10.5%]">Số lượng đăng ký</th>
+              <th className="px-1.5 w-[2.5%]">#</th>
+              <th className="px-1.5 w-[7.5%]">Loại yêu cầu</th>
+              <th className="px-1.5 w-[13%]">Trạng thái</th>
+              <th className="px-1.5 w-[9%]">Người yêu cầu</th>
+              <th className="px-1.5 w-[13.5%]">Bộ phận người yêu cầu</th>
+              <th className="px-1.5 w-[10%]">Số lượng đăng ký</th>
               <th className="px-1.5 w-[11.5%]">Giờ khởi hành / Đón</th>
-              <th className="px-1.5 w-[11%]">Điểm đón / Lấy hàng</th>
-              <th className="px-1.5 w-[11%]">Điểm trả / Giao hàng</th>
-              <th className="px-1.5 w-[9.5%]">Giờ về / Giao hàng</th>
+              <th className="px-1.5 w-[11.5%]">Điểm đón / Lấy hàng</th>
+              <th className="px-1.5 w-[11.5%]">Điểm trả / Giao hàng</th>
+              <th className="px-1.5 w-[10%]">Giờ về / Giao hàng</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">

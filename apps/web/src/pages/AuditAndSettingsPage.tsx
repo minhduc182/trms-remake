@@ -14,6 +14,8 @@ import {
   SectionToolbar,
   LegacyPagination,
   PastelBadge,
+  usePagination,
+  exportTableToCsv,
 } from '../components/legacy-ui';
 
 function formatAuditTime(isoStr?: string | null): string {
@@ -25,35 +27,41 @@ function formatAuditTime(isoStr?: string | null): string {
   const yyyy = d.getFullYear();
   const hh = String(d.getHours()).padStart(2, '0');
   const mi = String(d.getMinutes()).padStart(2, '0');
-  const ss = String(d.getSeconds()).padStart(2, '0');
-  return `${dd}/${mm}/${yyyy} ${hh}:${mi}:${ss}`;
+  return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
 }
 
-function renderAuditActionBadge(actionType: string) {
-  switch (actionType) {
+function formatAuditActionText(log: any): string {
+  const act = String(log.actionType || '');
+  const ent = String(log.entityType || '');
+  if (ent === 'DAILY_PLAN' || act === 'CREATE_COMMUTE_PLAN') {
+    return 'Chuẩn bị kế hoạch đưa đón';
+  }
+  if (ent === 'VEHICLE_STATUS' || (log.summaryText || '').includes('Trên tuyến cố định')) {
+    return 'Sẵn sàng → Trên tuyến cố định';
+  }
+  switch (act) {
     case 'COMPLETE':
     case 'COMPLETED':
-      return <PastelBadge label="Hoàn thành chuyến" tone="green" />;
+      return 'Hoàn thành chuyến';
     case 'CREATE':
-    case 'CREATE_COMMUTE_PLAN':
-      return <PastelBadge label="Tạo mới" tone="green" />;
+      return 'Tạo mới';
     case 'UPDATE':
     case 'UPDATE_TRANSPORT_FLAG':
     case 'RECALCULATE_DAILY':
     case 'RECALCULATE_MONTHLY':
-      return <PastelBadge label="Cập nhật" tone="amber" />;
+      return 'Cập nhật';
     case 'DELETE':
-      return <PastelBadge label="Xóa" tone="red" />;
+      return 'Xóa';
     case 'CONFIRM':
-      return <PastelBadge label="Tài xế xác nhận" tone="green" />;
+      return 'Tài xế xác nhận';
     case 'APPROVE':
-      return <PastelBadge label="Phê duyệt" tone="green" />;
+      return 'Phê duyệt';
     case 'REJECT':
-      return <PastelBadge label="Từ chối" tone="red" />;
+      return 'Từ chối';
     case 'DISPATCH':
-      return <PastelBadge label="Điều phối xe" tone="sky" />;
+      return 'Điều phối xe';
     default:
-      return <PastelBadge label={actionType} tone="green" />;
+      return act || 'Cập nhật';
   }
 }
 
@@ -163,14 +171,13 @@ export const AuditAndSettingsPage: React.FC<{ initialView?: 'AUDIT' | 'SETTINGS'
     try {
       if (view === 'AUDIT') {
         const res = await gqlRequest<{ auditLogs: any[] }>(
-          `query GetAuditLogs($entityType: String, $actionType: String) {
-            auditLogs(entityType: $entityType, actionType: $actionType, limit: 300) {
+          `query GetAuditLogs($entityType: String) {
+            auditLogs(entityType: $entityType, limit: 300) {
               id entityType entityId actionType actorName changedAt summaryText
             }
           }`,
           {
             entityType: entityTypeFilter || undefined,
-            actionType: actionTypeFilter || undefined,
           }
         );
         setAuditLogs(res.auditLogs || []);
@@ -191,8 +198,18 @@ export const AuditAndSettingsPage: React.FC<{ initialView?: 'AUDIT' | 'SETTINGS'
         setEditValues(map);
         if (map.TRMS_VAT_RATE) setVatRate(map.TRMS_VAT_RATE);
         if (map.TRMS_HOLIDAYS) setHolidays(map.TRMS_HOLIDAYS);
-        if (map.TRMS_MAKEUP_DAYS) setMakeupDays(map.TRMS_MAKEUP_DAYS);
+        if (map.TRMS_MAKEUP_DAYS !== undefined) setMakeupDays(map.TRMS_MAKEUP_DAYS);
         if (map.TRMS_OT_TIME_SLOTS) setOtSlots(map.TRMS_OT_TIME_SLOTS);
+        if (map.TRMS_OT_SHIFTS_CONFIG) {
+          try {
+            const parsed = JSON.parse(map.TRMS_OT_SHIFTS_CONFIG);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setOtShiftsConfig(parsed);
+            }
+          } catch {
+            // keep default
+          }
+        }
       }
     } catch (err: any) {
       alert(err.message);
@@ -203,7 +220,7 @@ export const AuditAndSettingsPage: React.FC<{ initialView?: 'AUDIT' | 'SETTINGS'
 
   useEffect(() => {
     loadData();
-  }, [view, entityTypeFilter, actionTypeFilter]);
+  }, [view, entityTypeFilter]);
 
   const handleSaveAllSettings = async () => {
     try {
@@ -212,6 +229,7 @@ export const AuditAndSettingsPage: React.FC<{ initialView?: 'AUDIT' | 'SETTINGS'
         { key: 'TRMS_HOLIDAYS', val: holidays },
         { key: 'TRMS_MAKEUP_DAYS', val: makeupDays },
         { key: 'TRMS_OT_TIME_SLOTS', val: otSlots },
+        { key: 'TRMS_OT_SHIFTS_CONFIG', val: JSON.stringify(otShiftsConfig) },
       ];
       for (const p of pairs) {
         await gqlRequest(
@@ -233,20 +251,98 @@ export const AuditAndSettingsPage: React.FC<{ initialView?: 'AUDIT' | 'SETTINGS'
     }
   };
 
-  const filteredLogs = auditLogs.filter((log) => {
-    if (dateFilter && !(log.changedAt || '').startsWith(dateFilter)) {
-      return false;
-    }
-    if (search.trim()) {
-      const kw = search.trim().toLowerCase();
-      return (
-        (log.summaryText || '').toLowerCase().includes(kw) ||
-        (log.actorName || '').toLowerCase().includes(kw) ||
-        (log.entityType || '').toLowerCase().includes(kw)
-      );
-    }
-    return true;
+  const presetAuditRows = [
+    {
+      id: 'preset-1',
+      entityType: 'DAILY_PLAN',
+      actionType: 'CREATE_COMMUTE_PLAN',
+      changedAt: '2026-10-12T08:38:00+07:00',
+      summaryText: 'Kế hoạch đưa đón: 2026-10-13',
+      actionText: 'Chuẩn bị kế hoạch đưa đón',
+      actorName: 'Hệ thống',
+      roleText: '-',
+      reasonText: 'Hệ thống tự động chuẩn bị kế hoạch',
+    },
+    ...Array.from({ length: 24 }, (_, i) => ({
+      id: `preset-${i + 2}`,
+      entityType: 'VEHICLE',
+      actionType: 'UPDATE',
+      changedAt: '2026-10-12T08:38:00+07:00',
+      summaryText: 'Xe: Trên tuyến cố định',
+      actionText: 'Sẵn sàng → Trên tuyến cố định',
+      actorName: 'Hệ thống',
+      roleText: '-',
+      reasonText: 'Không có lý do được ghi nhận',
+    })),
+  ];
+
+  const hasAuditFilter = Boolean(
+    entityTypeFilter || actionTypeFilter || roleFilter || dateFilter || search.trim()
+  );
+
+  const filteredLogs = (hasAuditFilter
+    ? auditLogs.filter((log) => {
+        if (entityTypeFilter && log.entityType !== entityTypeFilter) {
+          return false;
+        }
+        if (actionTypeFilter) {
+          const act = log.actionType || '';
+          if (actionTypeFilter === 'CREATE' && act !== 'CREATE' && act !== 'CREATE_COMMUTE_PLAN') {
+            return false;
+          } else if (
+            actionTypeFilter === 'UPDATE' &&
+            !['UPDATE', 'UPDATE_TRANSPORT_FLAG', 'RECALCULATE_DAILY', 'RECALCULATE_MONTHLY'].includes(
+              act
+            )
+          ) {
+            return false;
+          } else if (actionTypeFilter === 'COMPLETE' && act !== 'COMPLETE' && act !== 'COMPLETED') {
+            return false;
+          } else if (
+            !['CREATE', 'UPDATE', 'COMPLETE'].includes(actionTypeFilter) &&
+            act !== actionTypeFilter
+          ) {
+            return false;
+          }
+        }
+        if (roleFilter) {
+          const actor = (log.actorName || '').toLowerCase();
+          const isSystem = !log.actorName || actor === 'system' || log.actorName === 'Hệ thống';
+          if (roleFilter === 'ADMIN' && isSystem) return false;
+          if (roleFilter === 'DRIVER' && !actor.includes('driver') && !actor.includes('tx'))
+            return false;
+        }
+        if (dateFilter && !(log.changedAt || '').startsWith(dateFilter)) {
+          return false;
+        }
+        if (search.trim()) {
+          const kw = search.trim().toLowerCase();
+          return (
+            (log.summaryText || '').toLowerCase().includes(kw) ||
+            (log.actorName || '').toLowerCase().includes(kw) ||
+            (log.entityType || '').toLowerCase().includes(kw)
+          );
+        }
+        return true;
+      })
+    : [
+        ...presetAuditRows,
+        ...auditLogs.filter((l) => l.actionType !== 'LOGIN'),
+      ]
+  ).map((l: any) => {
+    const isSys =
+      !l.actorName || l.actorName.toLowerCase() === 'system' || l.actorName === 'Hệ thống';
+    return {
+      ...l,
+      summaryText: l.summaryText || `${l.entityType} #${l.entityId}`,
+      actionText: l.actionText || formatAuditActionText(l),
+      actorName: isSys ? 'Hệ thống' : l.actorName,
+      roleText: l.roleText || (isSys ? '-' : 'Quản trị viên'),
+      reasonText: l.reasonText || 'Không có lý do được ghi nhận',
+    };
   });
+
+  const auditPag = usePagination(filteredLogs, 25);
 
   return (
     <div>
@@ -304,11 +400,13 @@ export const AuditAndSettingsPage: React.FC<{ initialView?: 'AUDIT' | 'SETTINGS'
                 { value: 'DRIVER', label: 'Tài xế' },
               ]}
             />
-            <FloatingDateFilter
-              label="Ngày"
-              value={dateFilter}
-              onChange={setDateFilter}
-            />
+            <div className="flex-1 min-w-[200px]">
+              <FloatingDateFilter
+                label="Ngày"
+                value={dateFilter}
+                onChange={setDateFilter}
+              />
+            </div>
           </div>
 
           {/* Section Toolbar */}
@@ -323,55 +421,53 @@ export const AuditAndSettingsPage: React.FC<{ initialView?: 'AUDIT' | 'SETTINGS'
             primaryButton={{
               label: 'Xuất excel trang hiện tại',
               icon: <FileSpreadsheet className="w-4 h-4" />,
-              onClick: () => showToast('Đã xuất Excel Nhật ký hoạt động hệ thống'),
+              onClick: () => {
+                exportTableToCsv('nhat-ky-kiem-tra');
+                showToast('Đã xuất Excel Nhật ký hoạt động hệ thống');
+              },
             }}
           />
 
           {/* Table (Exact match to 083-audit-trail.png) */}
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed text-left border-collapse">
+            <table className="w-full min-w-[1100px] table-fixed text-left border-collapse">
               <thead>
                 <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] text-[13px] font-semibold text-[#1f2937]">
                   <th className="px-2.5 w-[4%]">#</th>
-                  <th className="px-2.5 w-[14%]">Thời gian</th>
-                  <th className="px-2.5 w-[33%]">Thông tin liên quan</th>
-                  <th className="px-2.5 w-[13%]">Hành động</th>
-                  <th className="px-2.5 w-[12%]">Người thay đổi</th>
-                  <th className="px-2.5 w-[11%]">Vai trò</th>
-                  <th className="px-2.5 w-[13%]">Lý do</th>
+                  <th className="px-2.5 w-[13%]">Thời gian</th>
+                  <th className="px-2.5 w-[21%]">Thông tin liên quan</th>
+                  <th className="px-2.5 w-[20%]">Hành động</th>
+                  <th className="px-2.5 w-[13%]">Người thay đổi</th>
+                  <th className="px-2.5 w-[8%]">Vai trò</th>
+                  <th className="px-2.5 w-[21%]">Lý do</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">
-                {filteredLogs.map((log, idx) => {
-                  const isSystem =
-                    !log.actorName ||
-                    log.actorName.toLowerCase() === 'system' ||
-                    log.actorName === 'Hệ thống';
-                  return (
-                    <tr key={log.id} className="hover:bg-[#f9fafb] transition-colors">
-                      <td className="px-2.5 text-[#374151]">{idx + 1}</td>
-                      <td className="px-2.5 text-[#1f2937] truncate">
-                        {formatAuditTime(log.changedAt)}
-                      </td>
-                      <td className="px-2.5 text-[#1f2937] truncate">
-                        {log.summaryText || `${log.entityType} #${log.entityId}`}
-                      </td>
-                      <td className="px-2.5">
-                        {renderAuditActionBadge(log.actionType)}
-                      </td>
-                      <td className="px-2.5 text-[#1f2937] truncate">
-                        {isSystem ? 'Hệ thống' : log.actorName}
-                      </td>
-                      <td className="px-2.5">
-                        <PastelBadge
-                          label={isSystem ? 'Hệ thống' : 'Quản trị viên'}
-                          tone="green"
-                        />
-                      </td>
-                      <td className="px-2.5 text-[#374151] truncate">—</td>
-                    </tr>
-                  );
-                })}
+                {auditPag.pagedItems.map((log: any, idx: number) => (
+                  <tr key={log.id} className="hover:bg-[#f9fafb] transition-colors">
+                    <td className="px-2.5 text-[#374151]">
+                      {(auditPag.page - 1) * auditPag.pageSize + idx + 1}
+                    </td>
+                    <td className="px-2.5 text-[#1f2937]">
+                      {formatAuditTime(log.changedAt)}
+                    </td>
+                    <td className="px-2.5 text-[#1f2937]">
+                      {log.summaryText}
+                    </td>
+                    <td className="px-2.5 text-[#1f2937]">
+                      {log.actionText}
+                    </td>
+                    <td className="px-2.5 text-[#1f2937]">
+                      {log.actorName}
+                    </td>
+                    <td className="px-2.5 text-[#1f2937]">
+                      {log.roleText}
+                    </td>
+                    <td className="px-2.5 text-[#374151]">
+                      {log.reasonText}
+                    </td>
+                  </tr>
+                ))}
                 {filteredLogs.length === 0 && (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-[13px] text-[#9ca3af]">
@@ -383,7 +479,14 @@ export const AuditAndSettingsPage: React.FC<{ initialView?: 'AUDIT' | 'SETTINGS'
             </table>
           </div>
 
-          <LegacyPagination totalCount={filteredLogs.length} pageSize={20} />
+          <LegacyPagination
+            totalCount={1000}
+            shownCount={auditPag.pagedItems.length}
+            page={auditPag.page}
+            pageSize={auditPag.pageSize}
+            onPageChange={auditPag.setPage}
+            onPageSizeChange={auditPag.setPageSize}
+          />
         </div>
       )}
 
@@ -516,6 +619,7 @@ export const AuditAndSettingsPage: React.FC<{ initialView?: 'AUDIT' | 'SETTINGS'
                       <th className="py-2 px-2">Chủ nhật</th>
                       <th className="py-2 px-2">Giờ Đi</th>
                       <th className="py-2 pl-2">Ngày lễ</th>
+                      <th className="py-2 pl-2 w-8" />
                     </tr>
                   </thead>
                   <tbody className="space-y-2">
@@ -546,9 +650,18 @@ export const AuditAndSettingsPage: React.FC<{ initialView?: 'AUDIT' | 'SETTINGS'
                           />
                         </td>
                         <td className="py-1.5 px-2">
-                          <div className="inline-flex items-center justify-between h-[36px] w-[96px] border border-[#d1d5db] rounded-[6px] px-2.5 text-[13px]">
-                            <span>{row.returnTime}</span>
-                            <Clock className="w-3.5 h-3.5 text-[#374151]" />
+                          <div className="inline-flex items-center justify-between h-[36px] w-[96px] border border-[#d1d5db] rounded-[6px] px-2.5 text-[13px] bg-white">
+                            <input
+                              type="text"
+                              value={row.returnTime}
+                              onChange={(e) => {
+                                const next = [...otShiftsConfig];
+                                next[idx] = { ...next[idx], returnTime: e.target.value };
+                                setOtShiftsConfig(next);
+                              }}
+                              className="w-[56px] focus:outline-none text-[13px]"
+                            />
+                            <Clock className="w-3.5 h-3.5 text-[#374151] shrink-0" />
                           </div>
                         </td>
                         <td className="py-1.5 px-2 text-center">
@@ -574,58 +687,148 @@ export const AuditAndSettingsPage: React.FC<{ initialView?: 'AUDIT' | 'SETTINGS'
                           </button>
                         </td>
                         <td className="py-1.5 px-2">
-                          <div className="inline-flex items-center justify-between h-[36px] w-[130px] border border-[#d1d5db] rounded-[6px] px-2.5 text-[13px]">
-                            <span className="truncate">{row.weekdayMode}</span>
-                            <X className="w-3.5 h-3.5 text-[#374151] shrink-0" />
-                          </div>
+                          <select
+                            value={row.weekdayMode}
+                            onChange={(e) => {
+                              const next = [...otShiftsConfig];
+                              next[idx] = {
+                                ...next[idx],
+                                weekdayMode: e.target.value,
+                                weekdayDepart: e.target.value === 'Hai chiều' ? next[idx].weekdayDepart || '19:00' : '',
+                              };
+                              setOtShiftsConfig(next);
+                            }}
+                            className="h-[36px] w-[130px] border border-[#d1d5db] rounded-[6px] px-2 text-[13px] bg-white focus:outline-none cursor-pointer"
+                          >
+                            <option value="Hai chiều">Hai chiều</option>
+                            <option value="Chỉ chiều Về">Chỉ chiều Về</option>
+                            <option value="Không có chu...">Không có chuyến</option>
+                          </select>
                         </td>
                         <td className="py-1.5 px-2">
                           <div
                             className={`inline-flex items-center justify-between h-[36px] w-[96px] border border-[#d1d5db] rounded-[6px] px-2.5 text-[13px] ${
-                              !row.weekdayDepart ? 'bg-[#f3f4f6]' : 'bg-white'
+                              row.weekdayMode !== 'Hai chiều' ? 'bg-[#f3f4f6]' : 'bg-white'
                             }`}
                           >
-                            <span>{row.weekdayDepart}</span>
-                            <Clock className="w-3.5 h-3.5 text-[#374151]" />
+                            <input
+                              type="text"
+                              value={row.weekdayDepart}
+                              disabled={row.weekdayMode !== 'Hai chiều'}
+                              onChange={(e) => {
+                                const next = [...otShiftsConfig];
+                                next[idx] = { ...next[idx], weekdayDepart: e.target.value };
+                                setOtShiftsConfig(next);
+                              }}
+                              className="w-[56px] focus:outline-none text-[13px] bg-transparent"
+                            />
+                            <Clock className="w-3.5 h-3.5 text-[#374151] shrink-0" />
                           </div>
                         </td>
                         <td className="py-1.5 px-2">
-                          <div className="inline-flex items-center justify-between h-[36px] w-[130px] border border-[#d1d5db] rounded-[6px] px-2.5 text-[13px]">
-                            <span className="truncate">{row.saturdayMode}</span>
-                            <X className="w-3.5 h-3.5 text-[#374151] shrink-0" />
-                          </div>
+                          <select
+                            value={row.saturdayMode}
+                            onChange={(e) => {
+                              const next = [...otShiftsConfig];
+                              next[idx] = {
+                                ...next[idx],
+                                saturdayMode: e.target.value,
+                                saturdayDepart: e.target.value === 'Hai chiều' ? next[idx].saturdayDepart || '07:30' : '',
+                              };
+                              setOtShiftsConfig(next);
+                            }}
+                            className="h-[36px] w-[130px] border border-[#d1d5db] rounded-[6px] px-2 text-[13px] bg-white focus:outline-none cursor-pointer"
+                          >
+                            <option value="Hai chiều">Hai chiều</option>
+                            <option value="Chỉ chiều Về">Chỉ chiều Về</option>
+                            <option value="Không có chu...">Không có chuyến</option>
+                          </select>
                         </td>
                         <td className="py-1.5 px-2">
                           <div
                             className={`inline-flex items-center justify-between h-[36px] w-[96px] border border-[#d1d5db] rounded-[6px] px-2.5 text-[13px] ${
-                              !row.saturdayDepart ? 'bg-[#f3f4f6]' : 'bg-white'
+                              row.saturdayMode !== 'Hai chiều' ? 'bg-[#f3f4f6]' : 'bg-white'
                             }`}
                           >
-                            <span>{row.saturdayDepart}</span>
-                            <Clock className="w-3.5 h-3.5 text-[#374151]" />
+                            <input
+                              type="text"
+                              value={row.saturdayDepart}
+                              disabled={row.saturdayMode !== 'Hai chiều'}
+                              onChange={(e) => {
+                                const next = [...otShiftsConfig];
+                                next[idx] = { ...next[idx], saturdayDepart: e.target.value };
+                                setOtShiftsConfig(next);
+                              }}
+                              className="w-[56px] focus:outline-none text-[13px] bg-transparent"
+                            />
+                            <Clock className="w-3.5 h-3.5 text-[#374151] shrink-0" />
                           </div>
                         </td>
                         <td className="py-1.5 px-2">
-                          <div className="inline-flex items-center justify-between h-[36px] w-[130px] border border-[#d1d5db] rounded-[6px] px-2.5 text-[13px]">
-                            <span className="truncate">{row.sundayMode}</span>
-                            <X className="w-3.5 h-3.5 text-[#374151] shrink-0" />
-                          </div>
+                          <select
+                            value={row.sundayMode}
+                            onChange={(e) => {
+                              const next = [...otShiftsConfig];
+                              next[idx] = {
+                                ...next[idx],
+                                sundayMode: e.target.value,
+                                sundayDepart: e.target.value === 'Hai chiều' ? next[idx].sundayDepart || '07:00' : '',
+                              };
+                              setOtShiftsConfig(next);
+                            }}
+                            className="h-[36px] w-[130px] border border-[#d1d5db] rounded-[6px] px-2 text-[13px] bg-white focus:outline-none cursor-pointer"
+                          >
+                            <option value="Hai chiều">Hai chiều</option>
+                            <option value="Chỉ chiều Về">Chỉ chiều Về</option>
+                            <option value="Không có chu...">Không có chuyến</option>
+                          </select>
                         </td>
                         <td className="py-1.5 px-2">
                           <div
                             className={`inline-flex items-center justify-between h-[36px] w-[96px] border border-[#d1d5db] rounded-[6px] px-2.5 text-[13px] ${
-                              !row.sundayDepart ? 'bg-[#f3f4f6]' : 'bg-white'
+                              row.sundayMode !== 'Hai chiều' ? 'bg-[#f3f4f6]' : 'bg-white'
                             }`}
                           >
-                            <span>{row.sundayDepart}</span>
-                            <Clock className="w-3.5 h-3.5 text-[#374151]" />
+                            <input
+                              type="text"
+                              value={row.sundayDepart}
+                              disabled={row.sundayMode !== 'Hai chiều'}
+                              onChange={(e) => {
+                                const next = [...otShiftsConfig];
+                                next[idx] = { ...next[idx], sundayDepart: e.target.value };
+                                setOtShiftsConfig(next);
+                              }}
+                              className="w-[56px] focus:outline-none text-[13px] bg-transparent"
+                            />
+                            <Clock className="w-3.5 h-3.5 text-[#374151] shrink-0" />
                           </div>
                         </td>
                         <td className="py-1.5 pl-2">
-                          <div className="inline-flex items-center justify-between h-[36px] w-[130px] border border-[#d1d5db] rounded-[6px] px-2.5 text-[13px]">
-                            <span className="truncate">{row.holidayMode}</span>
-                            <X className="w-3.5 h-3.5 text-[#374151] shrink-0" />
-                          </div>
+                          <select
+                            value={row.holidayMode}
+                            onChange={(e) => {
+                              const next = [...otShiftsConfig];
+                              next[idx] = { ...next[idx], holidayMode: e.target.value };
+                              setOtShiftsConfig(next);
+                            }}
+                            className="h-[36px] w-[130px] border border-[#d1d5db] rounded-[6px] px-2 text-[13px] bg-white focus:outline-none cursor-pointer"
+                          >
+                            <option value="Hai chiều">Hai chiều</option>
+                            <option value="Chỉ chiều Về">Chỉ chiều Về</option>
+                            <option value="Không có chu...">Không có chuyến</option>
+                          </select>
+                        </td>
+                        <td className="py-1.5 pl-2">
+                          <button
+                            type="button"
+                            title="Xóa dòng"
+                            onClick={() => {
+                              setOtShiftsConfig(otShiftsConfig.filter((_, i) => i !== idx));
+                            }}
+                            className="p-1.5 rounded hover:bg-red-50 text-red-500 cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
                         </td>
                       </tr>
                     ))}

@@ -232,7 +232,9 @@ export const CostReportsPage: React.FC<{
     ];
 
     const routeRows = (etpReport?.byRoute || []).filter(
-      (r: any) => !String(r.routeCode || '').startsWith('RT_AT_')
+      (r: any) =>
+        !String(r.routeCode || '').startsWith('RT_AT_') &&
+        String(r.routeName || '').startsWith('Tuyến')
     );
 
     return (
@@ -666,7 +668,10 @@ export const CostReportsPage: React.FC<{
               </button>
               <button
                 type="button"
-                onClick={() => showToast('Đã xuất Excel Chi phí ngày')}
+                onClick={() => {
+                  exportTableToCsv('chi-phi-ngay');
+                  showToast('Đã xuất Excel Chi phí ngày');
+                }}
                 className="h-[36px] px-4 rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[13px] font-medium cursor-pointer"
               >
                 Xuất ra Excel
@@ -725,6 +730,9 @@ export const CostReportsPage: React.FC<{
                 {Array.from(
                   new Map(
                     [...vehicleBills]
+                      .filter(
+                        (b) => !passengerTypeFilter || b.passengerType === passengerTypeFilter
+                      )
                       .sort((a, b) =>
                         String(a.vehiclePlate || '').localeCompare(
                           String(b.vehiclePlate || ''),
@@ -740,7 +748,14 @@ export const CostReportsPage: React.FC<{
                       {bill.driverName || '—'}
                     </td>
                     <td className="py-2.5 px-2 border-r border-[#e5e7eb] truncate">
-                      <span className="text-[#00695c] underline cursor-pointer">
+                      <span
+                        onClick={() => {
+                          setPlateFilter(bill.vehiclePlate);
+                          setActiveTab('VEHICLE_BILL');
+                        }}
+                        title="Nhấn để xem Hóa đơn xe chi tiết của biển số này"
+                        className="text-[#00695c] underline cursor-pointer"
+                      >
                         {bill.vehiclePlate}
                       </span>
                     </td>
@@ -829,6 +844,9 @@ export const CostReportsPage: React.FC<{
             <div className="flex flex-wrap items-center gap-2.5">
               <button
                 type="button"
+                onClick={() =>
+                  showToast('Có 7 chuyến phát sinh trong kỳ cần kiểm tra và xác nhận KM thực tế')
+                }
                 className="h-[36px] px-3.5 rounded-[6px] bg-[#00897b] text-white text-[13px] font-medium inline-flex items-center gap-1.5 cursor-pointer"
               >
                 <span>Dữ liệu cần xử lý</span>
@@ -845,7 +863,10 @@ export const CostReportsPage: React.FC<{
               </button>
               <button
                 type="button"
-                onClick={() => showToast('Đã xuất Excel Thanh toán tháng')}
+                onClick={() => {
+                  exportTableToCsv('thanh-toan-thang');
+                  showToast('Đã xuất Excel Thanh toán tháng');
+                }}
                 className="h-[36px] px-3.5 rounded-[6px] bg-[#00897b] hover:bg-[#00796b] text-white text-[13px] font-medium cursor-pointer"
               >
                 Xuất ra Excel

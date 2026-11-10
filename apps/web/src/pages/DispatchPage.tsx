@@ -531,12 +531,6 @@ export const DispatchPage: React.FC = () => {
                 { value: 'GOODS', label: 'Hàng hóa' },
               ]}
             />
-            <FloatingSelect
-              label="Bộ phận"
-              value={reqDeptFilter}
-              onChange={setReqDeptFilter}
-              options={distinctReqDepts.map((d) => ({ value: d, label: d }))}
-            />
           </div>
 
           {/* Section Toolbar */}
@@ -582,10 +576,10 @@ export const DispatchPage: React.FC = () => {
 
           {/* Table (Exact columns & widths from 015-dispatch.png) */}
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed text-left border-collapse">
+            <table className="w-full min-w-[1100px] table-fixed text-left border-collapse">
               <thead>
                 <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] text-[13px] font-semibold text-[#1f2937]">
-                  <th className="px-2.5 w-[3.5%]">
+                  <th className="px-2.5 w-[3%]">
                     <input
                       type="checkbox"
                       checked={
@@ -599,14 +593,14 @@ export const DispatchPage: React.FC = () => {
                       }
                     />
                   </th>
-                  <th className="px-2.5 w-[4%]">#</th>
-                  <th className="px-2.5 w-[10%]">Loại yêu cầu</th>
-                  <th className="px-2.5 w-[11.5%]">Người yêu cầu</th>
-                  <th className="px-2.5 w-[14%]">Bộ phận người yêu cầu</th>
-                  <th className="px-2.5 w-[9.5%]">Số lượng đăng ký</th>
+                  <th className="px-2.5 w-[3.5%]">#</th>
+                  <th className="px-2.5 w-[9%]">Loại yêu cầu</th>
+                  <th className="px-2.5 w-[11%]">Người yêu cầu</th>
+                  <th className="px-2.5 w-[14.5%]">Bộ phận người yêu cầu</th>
+                  <th className="px-2.5 w-[10.5%]">Số lượng đăng ký</th>
                   <th className="px-2.5 w-[12.5%]">Giờ khởi hành / Đón</th>
-                  <th className="px-2.5 w-[17.5%]">Điểm đón / Lấy hàng</th>
-                  <th className="px-2.5 w-[17.5%]">Điểm trả / Nhận hàng</th>
+                  <th className="px-2.5 w-[18%]">Điểm đón / Lấy hàng</th>
+                  <th className="px-2.5 w-[18%]">Điểm trả / Nhận hàng</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">

@@ -16,7 +16,7 @@ th {
   padding-bottom: 0 !important;
   white-space: nowrap !important;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   vertical-align: middle;
   font-size: 13px;
   font-weight: 600;
@@ -33,7 +33,7 @@ td {
   padding-bottom: 0 !important;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   vertical-align: middle;
   font-size: 13px;
 }

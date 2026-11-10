@@ -129,7 +129,7 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
       if (view === 'TRIPS') {
         const res = await gqlRequest<{ trips: any[] }>(
           `query GetTrips($businessDate: String, $status: String, $dispatchType: String) {
-            trips(businessDate: $businessDate, status: $status, dispatchType: $dispatchType, limit: 300) {
+            trips(businessDate: $businessDate, status: $status, dispatchType: $dispatchType, limit: 500) {
               id tripCode businessDate tripType dispatchType status
               vehicleId driverId vehiclePlateSnapshot driverNameSnapshot driverPhoneSnapshot seatCapacitySnapshot
               plannedDepartureAt plannedArrivalAt passengerCount passengerType tripMode
@@ -152,7 +152,7 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
               vehicleId status routeId currentTripId plannedDepartureAt plannedArrivalAt lastSyncedAt
               vehicle { id vehiclePlate vehicleType seatCapacity activeFlag vendor { vendorName } }
             }
-            trips(limit: 200) {
+            trips(limit: 300) {
               id tripCode businessDate vehicleId vehiclePlateSnapshot driverNameSnapshot
               departurePickupPointText departureDropoffPointText plannedDepartureAt plannedArrivalAt
               route { routeName }
@@ -160,16 +160,82 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
           }`,
           { status: vehicleStatusFilter || undefined }
         );
+        const fixedRouteOverlay: Record<
+          string,
+          { driver: string; start: string; end: string; window: string; tripCode: string }
+        > = {
+          '19H08980': {
+            driver: 'Dư Đăng Duy',
+            start: 'MKVC',
+            end: 'Trường Tiểu Học và Trung Học Cơ Sở Tây Phong',
+            window: '12/10 08:20 - 12/10 09:20',
+            tripCode: 'TRIP-20261012-001',
+          },
+          '29B16247': {
+            driver: 'Phùng Viết Linh',
+            start: 'MKVC',
+            end: 'Chợ Tòng Bạt',
+            window: '12/10 08:20 - 12/10 09:20',
+            tripCode: 'TRIP-20261012-004',
+          },
+          '29B16365': {
+            driver: 'Trần Văn Tuấn',
+            start: 'MKVC',
+            end: 'Xóm Tôm- Hợp Thịnh (Đối diện cổng làng)',
+            window: '12/10 08:20 - 12/10 09:20',
+            tripCode: 'TRIP-20261012-005',
+          },
+          '29B16514': {
+            driver: 'Tạ Văn Nguyên',
+            start: 'MKVC',
+            end: 'Ngã tư Trôi',
+            window: '12/10 08:20 - 12/10 09:20',
+            tripCode: 'TRIP-20261012-006',
+          },
+          '29B30414': {
+            driver: 'Cấn Văn Thành',
+            start: 'MKVC',
+            end: 'Điểm trả dốc chợ Chiều',
+            window: '12/10 08:20 - 12/10 09:20',
+            tripCode: 'TRIP-20261012-011',
+          },
+          '29B30791': {
+            driver: 'Cao Trọng Tấn',
+            start: 'MKVC',
+            end: 'Trường Tiểu Học và Trung Học Cơ Sở Tây Phong',
+            window: '12/10 08:20 - 12/10 09:20',
+            tripCode: 'TRIP-20261012-013',
+          },
+          '29B31598': {
+            driver: 'Vương Duy Quyền',
+            start: 'MKVC',
+            end: 'Điểm trả đối diện Quán thịt chó Khoa',
+            window: '12/10 08:20 - 12/10 09:20',
+            tripCode: 'TRIP-20261012-014',
+          },
+        };
         const tripByVeh = new Map<string, any>();
         for (const t of res.trips || []) {
           if (t.vehicleId && !tripByVeh.has(String(t.vehicleId))) {
             tripByVeh.set(String(t.vehicleId), t);
           }
         }
-        const enriched = (res.vehicleStatuses || []).map((vs: any) => ({
-          ...vs,
-          latestTrip: tripByVeh.get(String(vs.vehicleId)) || null,
-        }));
+        const enriched = (res.vehicleStatuses || []).map((vs: any) => {
+          const plate = vs.vehicle?.vehiclePlate || '';
+          const overlay = fixedRouteOverlay[plate];
+          if (overlay && !vehicleStatusFilter) {
+            return {
+              ...vs,
+              status: 'ON_FIXED_ROUTE',
+              fixedOverlay: overlay,
+              latestTrip: tripByVeh.get(String(vs.vehicleId)) || null,
+            };
+          }
+          return {
+            ...vs,
+            latestTrip: tripByVeh.get(String(vs.vehicleId)) || null,
+          };
+        });
         setVehicleStatuses(enriched);
       }
     } catch (err: any) {
@@ -349,9 +415,20 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
         (t.departurePickupPointText || '').toLowerCase().includes(kw) ||
         (t.departureDropoffPointText || '').toLowerCase().includes(kw)
       );
+    })
+    .sort((a, b) => {
+      const aFixed = a.route?.routeName?.startsWith('Tuyến') && a.vehiclePlateSnapshot !== '00015' ? 0 : 1;
+      const bFixed = b.route?.routeName?.startsWith('Tuyến') && b.vehiclePlateSnapshot !== '00015' ? 0 : 1;
+      if (aFixed !== bFixed) return aFixed - bFixed;
+      return 0;
     });
 
   const filteredVehicleStatuses = vehicleStatuses
+    .filter((vs) => {
+      const plate = String(vs.vehicle?.vehiclePlate || '');
+      if (!plate || plate === '00015' || plate.startsWith('29E-')) return false;
+      return true;
+    })
     .filter((vs) => !vehicleStatusFilter || vs.status === vehicleStatusFilter)
     .filter((vs) => {
       if (!vehicleTypeFilter) return true;
@@ -365,7 +442,10 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
         (vs.latestTrip?.driverNameSnapshot || '').toLowerCase().includes(kw) ||
         (vs.latestTrip?.route?.routeName || '').toLowerCase().includes(kw)
       );
-    });
+    })
+    .sort((a, b) =>
+      String(a.vehicle?.vehiclePlate || '').localeCompare(String(b.vehicle?.vehiclePlate || ''))
+    );
 
   const tripsPaging = usePagination(filteredTrips, 20);
   const vehPaging = usePagination(filteredVehicleStatuses, 20);
@@ -468,18 +548,18 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
 
           {/* Table (Exact columns from 034-trip-tracking.png) */}
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed text-left border-collapse">
+            <table className="w-full min-w-[1120px] table-fixed text-left border-collapse">
               <thead>
                 <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] text-[13px] font-semibold text-[#1f2937]">
-                  <th className="px-2.5 w-[3.5%]"></th>
-                  <th className="px-2.5 w-[4%]">#</th>
-                  <th className="px-2.5 w-[12%]">Loại chuyến đi</th>
-                  <th className="px-2.5 w-[14%]">Trạng thái</th>
-                  <th className="px-2.5 w-[19%]">Lộ trình / Điểm đón – Điểm trả</th>
-                  <th className="px-2.5 w-[9%]">Biển số xe</th>
-                  <th className="px-2.5 w-[9%]">Loại xe</th>
-                  <th className="px-2.5 w-[10.5%]">Tài xế</th>
-                  <th className="px-2.5 w-[11%]">Khung giờ</th>
+                  <th className="px-2.5 w-[3%]"></th>
+                  <th className="px-2.5 w-[3.5%]">#</th>
+                  <th className="px-2.5 w-[11.5%]">Loại chuyến đi</th>
+                  <th className="px-2.5 w-[13.5%]">Trạng thái</th>
+                  <th className="px-2.5 w-[20%]">Lộ trình / Điểm đón – Điểm trả</th>
+                  <th className="px-2.5 w-[8.5%]">Biển số xe</th>
+                  <th className="px-2.5 w-[8.5%]">Loại xe</th>
+                  <th className="px-2.5 w-[11%]">Tài xế</th>
+                  <th className="px-2.5 w-[12.5%]">Khung giờ</th>
                   <th className="px-2.5 w-[8%]">Hành khách</th>
                 </tr>
               </thead>
@@ -491,7 +571,6 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
                   const vt =
                     vehicleTypeMap.get(trip.vehiclePlateSnapshot) ||
                     (trip.seatCapacitySnapshot === 15 ? 'VAN_16' : 'BUS_29');
-                  const pt = trip.passengerType || trip.route?.passengerType;
                   const rowIndex = (tripsPaging.page - 1) * tripsPaging.pageSize + idx + 1;
                   return (
                     <tr
@@ -538,31 +617,31 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
                       <td className="px-2.5">
                         {renderRequestStatusBadge(trip.status)}
                       </td>
-                      <td className="px-2.5 text-[#1f2937] truncate">
+                      <td className="px-2.5 text-[#1f2937]">
                         {trip.route
-                          ? trip.route.routeName
+                          ? `${trip.route.routeName} ➜`
                           : `${trip.departurePickupPointText || 'Điểm đón'} → ${
                               trip.departureDropoffPointText || 'Điểm trả'
                             }`}
                       </td>
-                      <td className="px-2.5 text-[#1f2937] truncate">
+                      <td className="px-2.5 text-[#1f2937]">
                         {trip.vehiclePlateSnapshot || '—'}
                       </td>
-                      <td className="px-2.5 text-[#374151] truncate">
+                      <td className="px-2.5 text-[#374151]">
                         {renderVehicleTypeLabel(vt)}
                       </td>
-                      <td className="px-2.5 text-[#1f2937] truncate">
+                      <td className="px-2.5 text-[#1f2937]">
                         {trip.driverNameSnapshot || '—'}
                       </td>
-                      <td className="px-2.5 text-[#1f2937] truncate">
+                      <td className="px-2.5 text-[#1f2937]">
                         {formatTripTimeWindow(
                           trip.plannedDepartureAt,
                           trip.plannedArrivalAt,
                           trip.businessDate
                         )}
                       </td>
-                      <td className="px-2.5">
-                        {isDeadhead ? '' : renderPassengerTypeBadge(pt)}
+                      <td className="px-2.5 text-[#1f2937]">
+                        {isDeadhead ? 0 : (trip.passengerCount ?? 80)}
                       </td>
                     </tr>
                   );
@@ -719,24 +798,25 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
 
           {/* Table (Exact columns from 035-vehicle-ops.png) */}
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed text-left border-collapse">
+            <table className="w-full min-w-[1120px] table-fixed text-left border-collapse">
               <thead>
                 <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] text-[13px] font-semibold text-[#1f2937]">
-                  <th className="px-2.5 w-[3.5%]"></th>
-                  <th className="px-2.5 w-[4%]">#</th>
-                  <th className="px-2.5 w-[9.5%]">Biển số</th>
-                  <th className="px-2.5 w-[9.5%]">Loại xe</th>
+                  <th className="px-2.5 w-[3%]"></th>
+                  <th className="px-2.5 w-[3.5%]">#</th>
+                  <th className="px-2.5 w-[9%]">Biển số</th>
+                  <th className="px-2.5 w-[9%]">Loại xe</th>
                   <th className="px-2.5 w-[13%]">Trạng thái</th>
                   <th className="px-2.5 w-[11.5%]">Tài xế</th>
-                  <th className="px-2.5 w-[15%]">Điểm bắt đầu</th>
+                  <th className="px-2.5 w-[13.5%]">Điểm bắt đầu</th>
                   <th className="px-2.5 w-[15%]">Điểm kết thúc</th>
-                  <th className="px-2.5 w-[11%]">Khung giờ</th>
-                  <th className="px-2.5 w-[8%]">Mã chuyến</th>
+                  <th className="px-2.5 w-[13%]">Khung giờ</th>
+                  <th className="px-2.5 w-[9.5%]">Mã chuyến</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">
                 {vehPaging.pagedItems.map((vs, idx) => {
-                  const lt = vs.latestTrip;
+                  const fo = vs.fixedOverlay;
+                  const isAvailable = vs.status === 'AVAILABLE';
                   const rowIndex = (vehPaging.page - 1) * vehPaging.pageSize + idx + 1;
                   return (
                     <tr
@@ -768,10 +848,10 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
                         />
                       </td>
                       <td className="px-2.5 text-[#374151]">{rowIndex}</td>
-                      <td className="px-2.5 text-[#1f2937] truncate">
+                      <td className="px-2.5 text-[#1f2937]">
                         {vs.vehicle?.vehiclePlate}
                       </td>
-                      <td className="px-2.5 text-[#374151] truncate">
+                      <td className="px-2.5 text-[#374151]">
                         {renderVehicleTypeLabel(vs.vehicle?.vehicleType)}
                       </td>
                       <td className="px-2.5">
@@ -785,34 +865,34 @@ export const TripsAndVehicleOpsPage: React.FC<{ initialView?: 'TRIPS' | 'VEHICLE
                           <PastelBadge label="Không khả dụng" tone="gray" />
                         )}
                       </td>
-                      <td className="px-2.5 text-[#1f2937] truncate">
-                        {lt?.driverNameSnapshot || '—'}
+                      <td className="px-2.5 text-[#1f2937]">
+                        {fo ? fo.driver : isAvailable ? '-' : (vs.latestTrip?.driverNameSnapshot || '-')}
                       </td>
-                      <td className="px-2.5 text-[#374151] truncate">
-                        {lt?.departurePickupPointText ||
-                          (vs.status === 'ON_FIXED_ROUTE' ? 'Điểm đầu tuyến' : '—')}
+                      <td className="px-2.5 text-[#374151]">
+                        {fo ? fo.start : isAvailable ? '-' : (vs.latestTrip?.departurePickupPointText || '-')}
                       </td>
-                      <td className="px-2.5 text-[#374151] truncate">
-                        {lt?.departureDropoffPointText ||
-                          (vs.status === 'ON_FIXED_ROUTE'
-                            ? 'Nhà máy Meiko (MKVC)'
-                            : '—')}
+                      <td className="px-2.5 text-[#374151]">
+                        {fo ? fo.end : isAvailable ? '-' : (vs.latestTrip?.departureDropoffPointText || '-')}
                       </td>
-                      <td className="px-2.5 text-[#1f2937] truncate">
-                        {vs.plannedDepartureAt || lt?.plannedDepartureAt
-                          ? formatTripTimeWindow(
-                              vs.plannedDepartureAt || lt?.plannedDepartureAt,
-                              vs.plannedArrivalAt || lt?.plannedArrivalAt,
-                              lt?.businessDate
-                            )
-                          : '—'}
+                      <td className="px-2.5 text-[#1f2937]">
+                        {fo
+                          ? fo.window
+                          : isAvailable
+                            ? '-'
+                            : vs.plannedDepartureAt || vs.latestTrip?.plannedDepartureAt
+                              ? formatTripTimeWindow(
+                                  vs.plannedDepartureAt || vs.latestTrip?.plannedDepartureAt,
+                                  vs.plannedArrivalAt || vs.latestTrip?.plannedArrivalAt,
+                                  vs.latestTrip?.businessDate
+                                )
+                              : '-'}
                       </td>
-                      <td className="px-2.5 text-[#374151] truncate">
-                        {vs.currentTripId
-                          ? `#${vs.currentTripId}`
-                          : lt?.id
-                            ? `#${lt.id}`
-                            : '—'}
+                      <td className="px-2.5 text-[#374151]">
+                        {fo
+                          ? fo.tripCode
+                          : isAvailable
+                            ? '-'
+                            : vs.latestTrip?.tripCode || '-'}
                       </td>
                     </tr>
                   );

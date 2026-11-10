@@ -164,7 +164,14 @@ export const DriverPage: React.FC = () => {
         String(t.route?.routeName || '').toLowerCase().includes(kw) ||
         String(t.departurePickupPointText || '').toLowerCase().includes(kw) ||
         String(t.departureDropoffPointText || '').toLowerCase().includes(kw)
-    );
+    )
+    .sort((a, b) => {
+      const aFixed =
+        a.route?.routeName?.startsWith('Tuyến') && a.vehiclePlateSnapshot !== '00015' ? 0 : 1;
+      const bFixed =
+        b.route?.routeName?.startsWith('Tuyến') && b.vehiclePlateSnapshot !== '00015' ? 0 : 1;
+      return aFixed - bFixed;
+    });
 
   const driverPaging = usePagination(filteredTrips, 20);
 
@@ -214,8 +221,7 @@ export const DriverPage: React.FC = () => {
         title="Xác nhận chuyến tài xế"
         loading={loading}
         onRefresh={loadDriverTrips}
-        search={search}
-        onSearchChange={setSearch}
+        showSearch={false}
         showCustomize
         primaryButton={{
           label: 'Xuất excel trang hiện tại',
@@ -229,18 +235,18 @@ export const DriverPage: React.FC = () => {
 
       {/* 4. Table (Exact match to 038-driver-confirmation.png) */}
       <div className="overflow-x-auto">
-        <table className="w-full table-fixed text-left border-collapse">
+        <table className="w-full min-w-[1100px] table-fixed text-left border-collapse">
           <thead>
             <tr className="bg-[#f3f4f6] border-b border-[#e5e7eb] text-[13px] font-semibold text-[#1f2937]">
-              <th className="px-2.5 w-[4%]">#</th>
-              <th className="px-2.5 w-[13%]">Loại chuyến đi</th>
+              <th className="px-2.5 w-[3.5%]">#</th>
+              <th className="px-2.5 w-[12%]">Loại chuyến đi</th>
               <th className="px-2.5 w-[13%]">Trạng thái</th>
-              <th className="px-2.5 w-[12%]">Tài xế</th>
-              <th className="px-2.5 w-[10%]">Xe</th>
+              <th className="px-2.5 w-[11.5%]">Tài xế</th>
+              <th className="px-2.5 w-[9%]">Xe</th>
               <th className="px-2.5 w-[18%]">Tuyến</th>
-              <th className="px-2.5 w-[11%]">Khung giờ</th>
-              <th className="px-2.5 w-[9%]">Quãng đường</th>
-              <th className="px-2.5 w-[10%]">Chế độ xác nhận</th>
+              <th className="px-2.5 w-[13%]">Khung giờ</th>
+              <th className="px-2.5 w-[8.5%]">Quãng đường</th>
+              <th className="px-2.5 w-[11.5%]">Chế độ xác nhận</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#e5e7eb] text-[13px] text-[#1f2937]">
