@@ -442,8 +442,10 @@ export function PastelBadge({
 
 // Helpers to map backend enum codes to exact Legacy Vietnamese labels & tones
 export function renderRequestTypeBadge(requestType: string) {
-  if (requestType === 'BUSINESS') return <PastelBadge label="Công tác" tone="sky" />;
-  if (requestType === 'GOODS') return <PastelBadge label="Hàng hóa" tone="purple" />;
+  if (requestType === 'BUSINESS' || requestType === 'BUSINESS_TRIP')
+    return <PastelBadge label="Công tác" tone="sky" />;
+  if (requestType === 'GOODS' || requestType === 'CARGO')
+    return <PastelBadge label="Hàng hóa" tone="purple" />;
   if (requestType === 'OVERTIME' || requestType === 'OT')
     return <PastelBadge label="Làm thêm giờ OT" tone="amber" />;
   return <PastelBadge label={requestType} tone="gray" />;

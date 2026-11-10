@@ -283,12 +283,12 @@ export function Layout({ currentPath, onNavigate, children }: LayoutProps) {
   };
 
   return (
-    <div className="min-h-screen flex bg-white text-[#1f2937] font-sans">
+    <div className="h-screen overflow-hidden flex bg-white text-[#1f2937] font-sans">
       {/* Sidebar */}
       <aside
         className={`${
           collapsed ? 'w-[60px]' : 'w-[235px]'
-        } h-screen sticky top-0 shrink-0 bg-white border-r border-[#e5e7eb] flex flex-col justify-between transition-all duration-200 select-none`}
+        } h-screen shrink-0 bg-white border-r border-[#e5e7eb] flex flex-col justify-between transition-all duration-200 select-none`}
       >
         <div>
           {/* App Brand / Module Switcher (Exact match to Legacy m-menu-bar header) */}
@@ -470,7 +470,7 @@ export function Layout({ currentPath, onNavigate, children }: LayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 px-6 py-5 overflow-x-hidden bg-white">{children}</main>
+        <main className="flex-1 px-6 pt-4 pb-0 overflow-y-auto overflow-x-hidden bg-white">{children}</main>
       </div>
     </div>
   );
