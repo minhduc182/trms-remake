@@ -313,7 +313,7 @@ export const DriverPage: React.FC = () => {
                           trip.departureDropoffPointText || 'Điểm trả'
                         }`}
                   </td>
-                  <td className="px-2.5 text-[#1f2937] truncate">
+                  <td className="px-1.5 text-[#1f2937] truncate">
                     {formatDriverTimeWindow(
                       trip.plannedDepartureAt,
                       trip.plannedArrivalAt,
